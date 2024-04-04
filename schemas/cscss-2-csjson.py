@@ -23,13 +23,12 @@ class JsonListener(CartoSymCSSGrammarListener):
         identifier = ctx.IDENTIFIER().getText()
         value = ctx.CHARACTER_LITERAL().getText().strip("'")
 
+        # Initialize the dictionary
         if "metadata" not in self.json:
-            self.json["metadata"] = {"title": "", "abstract": ""}
+            self.json["metadata"] = {}
 
-        if identifier == "title":
-            self.json["metadata"]["title"] = value
-        elif identifier == "abstract":
-            self.json["metadata"]["abstract"] = value
+        # Assign the value to the corresponding identifier in the dictionary
+        self.json["metadata"][identifier] = value
 
     def enterStylingRule(self, ctx):
         self.currentRule = {"selector": [], "symbolizer": {}}
@@ -117,7 +116,7 @@ class JsonListener(CartoSymCSSGrammarListener):
             self.stack[-1]["symbolizer"][property_name] = property_value
 
 # Parse the input
-input_filepath = "../examples/0-basic.cscss"
+input_filepath = "../examples/1-core.cscss"
 input_stream = FileStream(input_filepath)
 lexer = CartoSymCSSLexer(input_stream)
 token_stream = CommonTokenStream(lexer)
@@ -139,7 +138,7 @@ output_filename = filename_without_extension + ".cs.json"
 # Prepend the directory path to the output filename
 output_filepath = os.path.join("../examples/", output_filename)
 
-# Write the output to the output file
+# Write the output to the file
 
 with open(output_filepath, 'w') as f:
     json.dump(json_listener.json, f, indent=4)
