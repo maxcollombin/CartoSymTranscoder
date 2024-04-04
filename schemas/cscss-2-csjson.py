@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from antlr4 import *
 # from antlr4.tree.Trees import Trees
@@ -55,7 +56,49 @@ class JsonListener(CartoSymCSSGrammarListener):
             stop = ctx.stop.stop
             selector_text = ctx.start.getInputStream().getText(start, stop)
 
-            self.stack[-1]["selector"].append(selector_text)
+            # Parse the selector into an operation and its arguments
+            operation, args = self.parse_selector(selector_text)
+
+        self.stack[-1]["selector"] = {"op": operation, "args": args}
+        # self.stack[-1]["selector"].append(selector_text)
+        # self.stack[-1]["selector"].append({"op": "=", "args": [ { "sysId": "dataLayer.id" }, selector_text ]})
+
+    def parse_selector(self, selector_text):
+        # Split the selector_text on 'and' to get the individual conditions
+        conditions = re.split(r'\s+and\s+', selector_text)
+    
+        # Initialize the args list
+        args = []
+    
+        # Process each condition
+        for condition in conditions:
+            # Split the condition with the operators '<', '>', and '='
+            parts = re.split(r'(<|>|=)', condition)
+    
+            # Check if the parts list has the expected number of elements
+            if len(parts) >= 3:
+                # The operation is the comparison operator
+                operation = parts[1]
+    
+                # The arguments are the values on either side of the comparison operator
+                left_arg = parts[0].strip()
+                right_arg = parts[2].strip()
+    
+                # Remove unwanted characters from the arguments
+                left_arg = left_arg.replace("[", "").replace("]", "")
+                right_arg = right_arg.replace("[", "").replace("]", "")
+
+                if "dataLayer" in left_arg or "viz" in left_arg or "feature" in left_arg:
+                    args.append({"op": operation, "args": [{"sysId": left_arg.strip()}, right_arg]})
+                else:
+                    args.append({"op": operation, "args": [{"property": left_arg.strip()}, right_arg]})
+        
+        # The operation for the entire selector is 'and'
+        # operation = "and"
+        operation = "and" if len(args) > 1 else args[0]["op"] if args else ""
+        # operation = "and" if len(args) > 1 else "=" if len(args) == 1 else ""
+
+        return operation, args
 
     def enterPropertyAssignment(self, ctx):
         if self.stack:
@@ -74,7 +117,7 @@ class JsonListener(CartoSymCSSGrammarListener):
             self.stack[-1]["symbolizer"][property_name] = property_value
 
 # Parse the input
-input_filepath = "../examples/8-coverage-hillshading.cscss"
+input_filepath = "../examples/0-basic.cscss"
 input_stream = FileStream(input_filepath)
 lexer = CartoSymCSSLexer(input_stream)
 token_stream = CommonTokenStream(lexer)
