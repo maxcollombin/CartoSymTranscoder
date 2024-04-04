@@ -1,0 +1,50 @@
+{
+    "metadata": {
+        "title": "sentinel-2 NDVI",
+        "abstract": "Styling a Sentinel-2A coverage for NDVI with Style & Symbology Basic Coverage Styling"
+    },
+    "stylingRules": [
+        {
+            "selector": [
+                "\"sentinel2-l2a\"",
+                "[dataLayer.type = coverage]"
+            ],
+            "symbolizer": {
+                "visibility": "false"
+            },
+            "nestedRules": [
+                {
+                    "selector": [
+                        "[viz.sd < 200000]"
+                    ],
+                    "symbolizer": {
+                        "visibility": "true",
+                        "opacity": "0.8",
+                        "zOrder": "1",
+                        "singleChannel": "(B08 - B04)/(B08 + B04)",
+                        "alphaChannel": "1.0",
+                        "colorMap": "[-1.0 saddleBrown,0.0 peru,0.2 goldenrod,0.5 olive,0.6 yellowGreen,0.8 greenYellow,1.0 lime]"
+                    },
+                    "nestedRules": [
+                        {
+                            "selector": [
+                                "[SCL=8]"
+                            ],
+                            "symbolizer": {
+                                "alphaChannel": "0.5"
+                            }
+                        },
+                        {
+                            "selector": [
+                                "[SCL=9]"
+                            ],
+                            "symbolizer": {
+                                "alphaChannel": "0.0"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
