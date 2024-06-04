@@ -8,7 +8,18 @@
         {
             "selector": {
                 "op": "and",
-                "args": []
+                "args": [
+                    {"op": "=","args": [{"sysId": "dataLayer.id"},"Landuse"]},
+                    {"op": "expression","args": ["dataLayer.type=vector"]}
+                ]
+            }
+        },
+        {
+            "selector": {
+                "op": "and",
+                "args": [
+                    {"op": "expression", "args": ["viz.sd<200000andviz.date>DATE('2020-01-01')"]}
+                ]
             }
         }
     ]

@@ -1,62 +1,72 @@
-import os
-import re
-import json
-import selectors
-from antlr4 import *
-# from antlr4.tree.Trees import Trees
-from CartoSymCSSLexer import CartoSymCSSLexer
-from CartoSymCSSGrammar import CartoSymCSSGrammar
-from CartoSymCSSGrammarListener import CartoSymCSSGrammarListener
-
 # Note: Before running the script, make sure to generate the lexer and parser files using the following command:
 # antlr4 -Dlanguage=Python3 CartoSymCSSLexer.g4
 # antlr4 -Dlanguage=Python3 CartoSymCSSGrammar.g4
+
+import os
+import json
+from antlr4 import *
+from CartoSymCSSLexer import CartoSymCSSLexer
+from CartoSymCSSGrammar import CartoSymCSSGrammar
+from CartoSymCSSGrammarListener import CartoSymCSSGrammarListener
+from pathlib import Path
+
+class Metadata:
+    def __init__(self):
+        self.data = {}
+
+    def add(self, identifier, value):
+        self.data[identifier] = value
+
+    def to_json(self):
+        return self.data
+    
+class Selector:
+    def __init__(self):
+        self.data = {"op": "and", "args": []}
+
+    def add_identifier(self, identifier):
+        identifier_dict = {"op": "=", "args": [{"sysId": "dataLayer.id"}, identifier]}
+        self.data["args"].append(identifier_dict)
+
+    def add_expression(self, expression):
+        expression_dict = {"op": "expression", "args": [expression]}
+        self.data["args"].append(expression_dict)
+
+    def to_json(self):
+        return self.data
+class StylingRule:
+    def __init__(self):
+        self.data = {"selector": Selector()}
+
+    def to_json(self):
+        return {"selector": self.data["selector"].to_json()}
 class JsonListener(CartoSymCSSGrammarListener):
     def __init__(self):
-        self.stack = []
-        self.json = {}  
+        self.json = {"metadata": Metadata(), "stylingRules": []}
         self.currentRule = None
 
     def enterMetadata(self, ctx):
         identifier = ctx.IDENTIFIER().getText()
         value = ctx.CHARACTER_LITERAL().getText().strip("'")
-
-        # Initialize the metadata dictionary in the json dictionary
-        if "metadata" not in self.json:
-            self.json["metadata"] = {}
-
-        # Assign the value to the corresponding identifier in the dictionary
-        self.json["metadata"][identifier] = value
-
-    def enterStylingRuleList(self, ctx):
-        # Initialize the styling rule list in the dictionary
-        self.json["stylingRules"] = []
+        self.json["metadata"].add(identifier, value)
 
     def enterStylingRule(self, ctx):
-        # Create a new styling rule dictionary
-        stylingRule = {"selector": []}
-        # stylingRule = {"selectors": [], "properties": {}, "nestedRules": []}
-        # Add the styling rule dictionary to the stylingRules list
-        self.json["stylingRules"].append(stylingRule)
-    
+        self.json["stylingRules"].append(StylingRule())
+
     def enterSelector(self, ctx):
-    # Initialize the 'selector' dictionary
-        self.json["stylingRules"][-1]["selector"] = {"op": "and", "args": []}
         if ctx.IDENTIFIER():
             identifier = ctx.IDENTIFIER().getText()
-            identifier_dict = {"op": "=", "args": [{"sysId": "dataLayer.id"}, identifier]}
-            self.json["stylingRules"][-1]["selector"]["args"].append(identifier_dict)
-            print(self.json)
+            self.json["stylingRules"][-1].data["selector"].add_identifier(identifier)
         elif ctx.expression():
             expression = ctx.expression().getText()
-            # print(expression)
-        #     expression_dict = {"op": "expression", "args": [expression]}
-        #     self.json["stylingRules"][-1]["selector"]["args"].append(expression_dict)
-        #     print(self.json)
+            self.json["stylingRules"][-1].data["selector"].add_expression(expression)
 
 # Parse the input
-input_filepath = "../examples/1-core.cscss"
-input_stream = FileStream(input_filepath)
+input_filename = "../examples/1-core.cscss"
+input_filename = os.path.basename(input_filename)  # Get the base name to avoid path traversal
+input_filepath = Path("../examples") / input_filename  # Use pathlib to safely join paths
+input_stream = FileStream(str(input_filepath))  # Convert Path object to string
+
 lexer = CartoSymCSSLexer(input_stream)
 token_stream = CommonTokenStream(lexer)
 parser = CartoSymCSSGrammar(token_stream)
@@ -68,17 +78,22 @@ walker = ParseTreeWalker()
 walker.walk(json_listener, tree)
 
 # Get the filename without extension
-base_filename = os.path.basename(input_filepath)
+base_filename = os.path.basename(str(input_filepath))
 filename_without_extension = os.path.splitext(base_filename)[0]
 
 # Create the output filename
 output_filename = filename_without_extension + ".cs.json"
 
 # Prepend the directory path to the output filename
-output_filepath = os.path.join("../examples/", output_filename)
+output_filepath = Path("../examples") / output_filename  # Use pathlib to safely join paths
 
 # Write the output to the file
-
 with open(output_filepath, 'w') as f:
-    print(json_listener.json)
-    json.dump(json_listener.json, f, indent=4)
+    json.dump(
+        {
+            "metadata": json_listener.json["metadata"].to_json(),
+            "stylingRules": [rule.to_json() for rule in json_listener.json["stylingRules"]],
+        },
+        f,
+        indent=4,
+    )
