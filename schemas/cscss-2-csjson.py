@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import selectors
 from antlr4 import *
 # from antlr4.tree.Trees import Trees
 from CartoSymCSSLexer import CartoSymCSSLexer
@@ -10,110 +11,48 @@ from CartoSymCSSGrammarListener import CartoSymCSSGrammarListener
 # Note: Before running the script, make sure to generate the lexer and parser files using the following command:
 # antlr4 -Dlanguage=Python3 CartoSymCSSLexer.g4
 # antlr4 -Dlanguage=Python3 CartoSymCSSGrammar.g4
-
-from CartoSymCSSGrammarListener import CartoSymCSSGrammarListener
-
 class JsonListener(CartoSymCSSGrammarListener):
     def __init__(self):
         self.stack = []
-        self.json = {}
+        self.json = {}  
         self.currentRule = None
-    
+
     def enterMetadata(self, ctx):
         identifier = ctx.IDENTIFIER().getText()
         value = ctx.CHARACTER_LITERAL().getText().strip("'")
 
-        # Initialize the dictionary
+        # Initialize the metadata dictionary in the json dictionary
         if "metadata" not in self.json:
             self.json["metadata"] = {}
 
         # Assign the value to the corresponding identifier in the dictionary
         self.json["metadata"][identifier] = value
 
+    def enterStylingRuleList(self, ctx):
+        # Initialize the styling rule list in the dictionary
+        self.json["stylingRules"] = []
+
     def enterStylingRule(self, ctx):
-        self.currentRule = {"selector": [], "symbolizer": {}}
-        if self.stack:
-            self.stack[-1].setdefault("nestedRules", []).append(self.currentRule)
-        self.stack.append(self.currentRule)
-
-        if not self.stack or len(self.stack) == 1:
-            if "stylingRules" not in self.json:
-                self.json["stylingRules"] = []
-            self.json["stylingRules"].append(self.currentRule)
-
-    def exitStylingRule(self, ctx):
-        self.stack.pop()
-        if self.stack:
-            self.currentRule = self.stack[-1]
-        else:
-            self.currentRule = None
-        
+        # Create a new styling rule dictionary
+        stylingRule = {"selector": []}
+        # stylingRule = {"selectors": [], "properties": {}, "nestedRules": []}
+        # Add the styling rule dictionary to the stylingRules list
+        self.json["stylingRules"].append(stylingRule)
+    
     def enterSelector(self, ctx):
-        if self.stack:
-            # Handle spaces in the selector
-            start = ctx.start.start
-            stop = ctx.stop.stop
-            selector_text = ctx.start.getInputStream().getText(start, stop)
-
-            # Parse the selector into an operation and its arguments
-            operation, args = self.parse_selector(selector_text)
-
-        self.stack[-1]["selector"] = {"op": operation, "args": args}
-        # self.stack[-1]["selector"].append(selector_text)
-        # self.stack[-1]["selector"].append({"op": "=", "args": [ { "sysId": "dataLayer.id" }, selector_text ]})
-
-    def parse_selector(self, selector_text):
-        # Split the selector_text on 'and' to get the individual conditions
-        conditions = re.split(r'\s+and\s+', selector_text)
-    
-        # Initialize the args list
-        args = []
-    
-        # Process each condition
-        for condition in conditions:
-            # Split the condition with the operators '<', '>', and '='
-            parts = re.split(r'(<|>|=)', condition)
-    
-            # Check if the parts list has the expected number of elements
-            if len(parts) >= 3:
-                # The operation is the comparison operator
-                operation = parts[1]
-    
-                # The arguments are the values on either side of the comparison operator
-                left_arg = parts[0].strip()
-                right_arg = parts[2].strip()
-    
-                # Remove unwanted characters from the arguments
-                left_arg = left_arg.replace("[", "").replace("]", "")
-                right_arg = right_arg.replace("[", "").replace("]", "")
-
-                if "dataLayer" in left_arg or "viz" in left_arg or "feature" in left_arg:
-                    args.append({"op": operation, "args": [{"sysId": left_arg.strip()}, right_arg]})
-                else:
-                    args.append({"op": operation, "args": [{"property": left_arg.strip()}, right_arg]})
-        
-        # The operation for the entire selector is 'and'
-        # operation = "and"
-        operation = "and" if len(args) > 1 else args[0]["op"] if args else ""
-        # operation = "and" if len(args) > 1 else "=" if len(args) == 1 else ""
-
-        return operation, args
-
-    def enterPropertyAssignment(self, ctx):
-        if self.stack:
-            # Get the entire text of the property assignment
-            start = ctx.start.start
-            stop = ctx.stop.stop
-            property_assignment_text = ctx.start.getInputStream().getText(start, stop)
-
-            # Split the text into the property name and value
-            property_name, property_value = property_assignment_text.split(':', 1)
-
-            # Strip leading and trailing spaces from the property name and value
-            property_name = property_name.strip()
-            property_value = property_value.strip()
-
-            self.stack[-1]["symbolizer"][property_name] = property_value
+    # Initialize the 'selector' dictionary
+        self.json["stylingRules"][-1]["selector"] = {"op": "and", "args": []}
+        if ctx.IDENTIFIER():
+            identifier = ctx.IDENTIFIER().getText()
+            identifier_dict = {"op": "=", "args": [{"sysId": "dataLayer.id"}, identifier]}
+            self.json["stylingRules"][-1]["selector"]["args"].append(identifier_dict)
+            print(self.json)
+        elif ctx.expression():
+            expression = ctx.expression().getText()
+            # print(expression)
+        #     expression_dict = {"op": "expression", "args": [expression]}
+        #     self.json["stylingRules"][-1]["selector"]["args"].append(expression_dict)
+        #     print(self.json)
 
 # Parse the input
 input_filepath = "../examples/1-core.cscss"
@@ -141,4 +80,5 @@ output_filepath = os.path.join("../examples/", output_filename)
 # Write the output to the file
 
 with open(output_filepath, 'w') as f:
+    print(json_listener.json)
     json.dump(json_listener.json, f, indent=4)
