@@ -5,7 +5,7 @@
 Landuse[dataLayer.type = vector]
 {
    visibility: false;
-
+   
    [viz.sd < 200000 and viz.date > DATE('2020-01-01')]
    {
       visibility: true;
