@@ -1,0 +1,12 @@
+{
+    "stylingRules": [
+        {
+            "selector": [
+                "Landuse"
+            ],
+            "symbolizer": {
+                "visibility": "false"
+            }
+        }
+    ]
+}
