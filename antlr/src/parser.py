@@ -66,14 +66,6 @@ class CartoSymParser(CartoSymCSSGrammarListener):
             # Visualization System Identifiers
             if system_identifier == 'viz' or system_identifier == 'visualization':
 
-                # # scaleDenominator
-                # if ctx.IDENTIFIER().getText() == 'sd':
-                #         if ctx.parentCtx.expression(1).binaryLogicalOperator():
-                #             value = ctx.parentCtx.expression(1).expression(0).getText()
-                #             print(value)
-                #         self.result['scale_denominator'] = value
-
-                # scaleDenominator
                 # scaleDenominator
                 if ctx.IDENTIFIER().getText() == 'sd':
                     if ctx.parentCtx.expression(1).binaryLogicalOperator():
@@ -120,6 +112,7 @@ class CartoSymParser(CartoSymCSSGrammarListener):
 
     def exitStylingRule(self, ctx):
         self.rule_stack.pop()
+        print(self.result)
 
     def getResult(self):
         return self.result
@@ -140,4 +133,3 @@ def parse_input(input_file):
 if __name__ == "__main__":
     input_file = sys.argv[1]
     result = parse_input(input_file)
-    print(result)
