@@ -1,0 +1,112 @@
+{
+    "FeatureTypeStyle": {
+        "type": "se:FeatureTypeStyleType",
+        "children": {}
+    },
+    "FeatureTypeStyleType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Name": {
+                    "type": null
+                },
+                "se:Description": {
+                    "type": null
+                },
+                "se:FeatureTypeName": {
+                    "type": null
+                },
+                "se:SemanticTypeIdentifier": {
+                    "type": null
+                }
+            },
+            "attributes": {
+                "version": "se:VersionType"
+            }
+        }
+    },
+    "CoverageStyle": {
+        "type": "se:CoverageStyleType",
+        "children": {}
+    },
+    "CoverageStyleType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Name": {
+                    "type": null
+                },
+                "se:Description": {
+                    "type": null
+                },
+                "se:CoverageName": {
+                    "type": null
+                },
+                "se:SemanticTypeIdentifier": {
+                    "type": null
+                }
+            },
+            "attributes": {
+                "version": "se:VersionType"
+            }
+        }
+    },
+    "SemanticTypeIdentifier": {
+        "type": "xsd:string"
+    },
+    "Rule": {
+        "type": "se:RuleType",
+        "children": {}
+    },
+    "RuleType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Name": {
+                    "type": null
+                },
+                "se:Description": {
+                    "type": null
+                },
+                "se:LegendGraphic": {
+                    "type": null
+                },
+                "se:MinScaleDenominator": {
+                    "type": null
+                },
+                "se:MaxScaleDenominator": {
+                    "type": null
+                },
+                "se:Symbolizer": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "LegendGraphic": {
+        "type": "se:LegendGraphicType"
+    },
+    "LegendGraphicType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Graphic": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "ElseFilter": {
+        "type": "se:ElseFilterType"
+    },
+    "ElseFilterType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "MinScaleDenominator": {
+        "type": "xsd:double"
+    },
+    "MaxScaleDenominator": {
+        "type": "xsd:double"
+    }
+}

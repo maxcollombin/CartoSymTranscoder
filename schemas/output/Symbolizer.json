@@ -1,0 +1,684 @@
+{
+    "Symbolizer": {
+        "type": "se:SymbolizerType"
+    },
+    "SymbolizerType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Name": {
+                    "type": null
+                },
+                "se:Description": {
+                    "type": null
+                },
+                "se:BaseSymbolizer": {
+                    "type": null
+                }
+            },
+            "attributes": {
+                "version": "se:VersionType",
+                "uom": "xsd:anyURI"
+            }
+        }
+    },
+    "BaseSymbolizer": {
+        "type": "se:BaseSymbolizerType",
+        "children": {}
+    },
+    "BaseSymbolizerType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:OnlineResource": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "LineSymbolizer": {
+        "type": "se:LineSymbolizerType",
+        "children": {}
+    },
+    "LineSymbolizerType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Geometry": {
+        "type": "se:GeometryType",
+        "children": {}
+    },
+    "GeometryType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "ogc:PropertyName": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "Stroke": {
+        "type": "se:StrokeType",
+        "children": {}
+    },
+    "StrokeType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:SvgParameter": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "SvgParameter": {
+        "type": "se:SvgParameterType",
+        "children": {}
+    },
+    "SvgParameterType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "ParameterValueType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "ogc:expression": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "GraphicFill": {
+        "type": "se:GraphicFillType",
+        "children": {}
+    },
+    "GraphicFillType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Graphic": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "GraphicStroke": {
+        "type": "se:GraphicStrokeType",
+        "children": {}
+    },
+    "GraphicStrokeType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Graphic": {
+                    "type": null
+                },
+                "se:InitialGap": {
+                    "type": null
+                },
+                "se:Gap": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "InitialGap": {
+        "type": "se:ParameterValueType",
+        "children": {}
+    },
+    "Gap": {
+        "type": "se:ParameterValueType",
+        "children": {}
+    },
+    "PolygonSymbolizer": {
+        "type": "se:PolygonSymbolizerType",
+        "children": {}
+    },
+    "PolygonSymbolizerType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Fill": {
+        "type": "se:FillType",
+        "children": {}
+    },
+    "FillType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:GraphicFill": {
+                    "type": null
+                },
+                "se:SvgParameter": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "PointSymbolizer": {
+        "type": "se:PointSymbolizerType",
+        "children": {}
+    },
+    "PointSymbolizerType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Graphic": {
+        "type": "se:GraphicType",
+        "children": {}
+    },
+    "GraphicType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Opacity": {
+                    "type": null
+                },
+                "se:Size": {
+                    "type": null
+                },
+                "se:Rotation": {
+                    "type": null
+                },
+                "se:AnchorPoint": {
+                    "type": null
+                },
+                "se:Displacement": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "Opacity": {
+        "type": "se:ParameterValueType"
+    },
+    "Size": {
+        "type": "se:ParameterValueType"
+    },
+    "Rotation": {
+        "type": "se:ParameterValueType"
+    },
+    "ExternalGraphic": {
+        "type": "se:ExternalGraphicType",
+        "children": {}
+    },
+    "ExternalGraphicType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Format": {
+                    "type": null
+                },
+                "se:ColorReplacement": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "Format": {
+        "type": "xsd:string"
+    },
+    "ColorReplacement": {
+        "type": "se:ColorReplacementType"
+    },
+    "ColorReplacementType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Recode": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "Mark": {
+        "type": "se:MarkType",
+        "children": {}
+    },
+    "MarkType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Fill": {
+                    "type": null
+                },
+                "se:Stroke": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "WellKnownName": {
+        "type": "xsd:string"
+    },
+    "MarkIndex": {
+        "type": "xsd:integer"
+    },
+    "TextSymbolizer": {
+        "type": "se:TextSymbolizerType",
+        "children": {}
+    },
+    "TextSymbolizerType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Label": {
+        "type": "se:ParameterValueType",
+        "children": {}
+    },
+    "Font": {
+        "type": "se:FontType",
+        "children": {}
+    },
+    "FontType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:SvgParameter": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "LabelPlacement": {
+        "type": "se:LabelPlacementType",
+        "children": {}
+    },
+    "LabelPlacementType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "PointPlacement": {
+        "type": "se:PointPlacementType",
+        "children": {}
+    },
+    "PointPlacementType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:AnchorPoint": {
+                    "type": null
+                },
+                "se:Displacement": {
+                    "type": null
+                },
+                "se:Rotation": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "AnchorPoint": {
+        "type": "se:AnchorPointType",
+        "children": {}
+    },
+    "AnchorPointType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:AnchorPointX": {
+                    "type": null
+                },
+                "se:AnchorPointY": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "AnchorPointX": {
+        "type": "se:ParameterValueType"
+    },
+    "AnchorPointY": {
+        "type": "se:ParameterValueType"
+    },
+    "Displacement": {
+        "type": "se:DisplacementType",
+        "children": {}
+    },
+    "DisplacementType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:DisplacementX": {
+                    "type": null
+                },
+                "se:DisplacementY": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "DisplacementX": {
+        "type": "se:ParameterValueType"
+    },
+    "DisplacementY": {
+        "type": "se:ParameterValueType"
+    },
+    "LinePlacement": {
+        "type": "se:LinePlacementType",
+        "children": {}
+    },
+    "LinePlacementType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:PerpendicularOffset": {
+                    "type": null
+                },
+                "se:IsRepeated": {
+                    "type": null
+                },
+                "se:InitialGap": {
+                    "type": null
+                },
+                "se:Gap": {
+                    "type": null
+                },
+                "se:IsAligned": {
+                    "type": null
+                },
+                "se:GeneralizeLine": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "GeneralizeLine": {
+        "type": "xsd:boolean"
+    },
+    "IsRepeated": {
+        "type": "xsd:boolean"
+    },
+    "IsAligned": {
+        "type": "xsd:boolean"
+    },
+    "PerpendicularOffset": {
+        "type": "se:ParameterValueType",
+        "children": {}
+    },
+    "Halo": {
+        "type": "se:HaloType",
+        "children": {}
+    },
+    "HaloType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:Radius": {
+                    "type": null
+                },
+                "se:Fill": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "Radius": {
+        "type": "se:ParameterValueType"
+    },
+    "RasterSymbolizer": {
+        "type": "se:RasterSymbolizerType",
+        "children": {}
+    },
+    "RasterSymbolizerType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "ChannelSelection": {
+        "type": "se:ChannelSelectionType",
+        "children": {}
+    },
+    "ChannelSelectionType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "RedChannel": {
+        "type": "se:SelectedChannelType"
+    },
+    "GreenChannel": {
+        "type": "se:SelectedChannelType"
+    },
+    "BlueChannel": {
+        "type": "se:SelectedChannelType"
+    },
+    "GrayChannel": {
+        "type": "se:SelectedChannelType"
+    },
+    "SelectedChannelType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:SourceChannelName": {
+                    "type": null
+                },
+                "se:ContrastEnhancement": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "SourceChannelName": {
+        "type": "xsd:string"
+    },
+    "OverlapBehavior": {
+        "type": null,
+        "children": {}
+    },
+    "ColorMap": {
+        "type": "se:ColorMapType",
+        "children": {}
+    },
+    "ColorMapType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "ContrastEnhancement": {
+        "type": "se:ContrastEnhancementType",
+        "children": {}
+    },
+    "ContrastEnhancementType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:GammaValue": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "Normalize": {
+        "type": "se:NormalizeType"
+    },
+    "NormalizeType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Histogram": {
+        "type": "se:HistogramType"
+    },
+    "HistogramType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "GammaValue": {
+        "type": "xsd:double"
+    },
+    "ShadedRelief": {
+        "type": "se:ShadedReliefType",
+        "children": {}
+    },
+    "ShadedReliefType": {
+        "type": "complexType",
+        "children": {
+            "sequence": {
+                "se:BrightnessOnly": {
+                    "type": null
+                },
+                "se:ReliefFactor": {
+                    "type": null
+                }
+            }
+        }
+    },
+    "BrightnessOnly": {
+        "type": "xsd:boolean"
+    },
+    "ReliefFactor": {
+        "type": "xsd:double"
+    },
+    "ImageOutline": {
+        "type": "se:ImageOutlineType",
+        "children": {}
+    },
+    "ImageOutlineType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Function": {
+        "type": "se:FunctionType"
+    },
+    "FunctionType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "FormatNumber": {
+        "type": "se:FormatNumberType",
+        "children": {}
+    },
+    "FormatNumberType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "NumericValue": {
+        "type": "se:ParameterValueType"
+    },
+    "Pattern": {
+        "type": "xsd:string"
+    },
+    "NegativePattern": {
+        "type": "xsd:string"
+    },
+    "FormatDate": {
+        "type": "se:FormatDateType",
+        "children": {}
+    },
+    "FormatDateType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "DateValue": {
+        "type": "se:ParameterValueType"
+    },
+    "Substring": {
+        "type": "se:SubstringType",
+        "children": {}
+    },
+    "SubstringType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Position": {
+        "type": "se:ParameterValueType"
+    },
+    "Length": {
+        "type": "se:ParameterValueType"
+    },
+    "StringValue": {
+        "type": "se:ParameterValueType"
+    },
+    "Concatenate": {
+        "type": "se:ConcatenateType",
+        "children": {}
+    },
+    "ConcatenateType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "ChangeCase": {
+        "type": "se:ChangeCaseType",
+        "children": {}
+    },
+    "ChangeCaseType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Trim": {
+        "type": "se:TrimType",
+        "children": {}
+    },
+    "TrimType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "StringPosition": {
+        "type": "se:StringPositionType",
+        "children": {}
+    },
+    "StringPositionType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "LookupString": {
+        "type": "se:ParameterValueType"
+    },
+    "StringLength": {
+        "type": "se:StringLengthType",
+        "children": {}
+    },
+    "StringLengthType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Categorize": {
+        "type": "se:CategorizeType",
+        "children": {}
+    },
+    "CategorizeType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "LookupValue": {
+        "type": "se:ParameterValueType"
+    },
+    "Value": {
+        "type": "se:ParameterValueType"
+    },
+    "Threshold": {
+        "type": "se:ParameterValueType"
+    },
+    "Interpolate": {
+        "type": "se:InterpolateType",
+        "children": {}
+    },
+    "InterpolateType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "InterpolationPoint": {
+        "type": "se:InterpolationPointType"
+    },
+    "InterpolationPointType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "Data": {
+        "type": "xsd:double"
+    },
+    "Recode": {
+        "type": "se:RecodeType",
+        "children": {}
+    },
+    "RecodeType": {
+        "type": "complexType",
+        "children": {}
+    },
+    "MapItem": {
+        "type": "se:MapItemType"
+    },
+    "MapItemType": {
+        "type": "complexType",
+        "children": {}
+    }
+}
