@@ -26,40 +26,11 @@ class Metadata:
     keywords: List[str] = field(default_factory=list)
     geoDataClasses: List[str] = field(default_factory=list)
 
-# Expression class
-@dataclass
-class Expression(ABC):
-    identifier: str = None
+# Expression
+from parser_classes.expressions.Expression import Expression
 
 # Selector class
-@dataclass
-class Selector:
-    _identifier: Optional[str] = None
-    _expression: Optional[Expression] = None
-    _selectors: List['Selector'] = field(default_factory=list, init=False)
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @identifier.setter
-    def identifier(self, value):
-        self._identifier = value
-
-    @property
-    def expression(self):
-        return self._expression
-
-    @expression.setter
-    def expression(self, value):
-        self._expression = value
-
-    @property
-    def selectors(self):
-        return self._selectors
-    
-
-
+from parser_classes.Selector import Selector    
 # Symbolizer class
 @dataclass
 class Symbolizer:
@@ -85,62 +56,42 @@ class StylingRuleList:
 class StyleSheet:
     metadata = Metadata()
     stylingRuleList = StylingRuleList()
-
-# IdentifierExpressionExpression
+# IdentifierExpression
 @dataclass
 class IdentifierExpression(Expression):
     name = str()
-
 # IdOrConstant
-@dataclass
-class IdOrConstant:
-    identifier : str = None
+from parser_classes.expressions.IdOrConstant import IdOrConstant
+# ExpConstant
+from parser_classes.expressions.ExpConstant import ExpConstant
 
+# ExpString
+from parser_classes.expressions.ExpString import ExpString
 
-# ExpConstant class (not in the conceptual model)
-@dataclass
-class ExpConstant:
-    numeric_literal = str = None
-    hex_literal = str = None
-    unit = Optional[str]
+# ExpCall
+from parser_classes.expressions.ExpCall import ExpCall
 
-# ExpString class (not in the conceptual model)
-@dataclass
-class ExpString:
-    character_literal = str = None
+# ExpArray
+from parser_classes.expressions.ExpArray import ExpArray
 
-# ExpCall class (not in the conceptual model)
-@dataclass
-class ExpCall:
-    identifier = str
-    arguments = List[Expression]
-
-# ExpArray class (not in the conceptual model)
-@dataclass
-class ExpArray:
-    arrayElements = Optional[List[Expression]]
-
-# PropertyAssignmentInferred class (not in the conceptual model)
+# PropertyAssignmentInferred
 @dataclass
 class PropertyAssignmentInferred:
     propertyAssignment = str
     expression = Expression
 
-# PropertyAssignment class (not in the conceptual model)
+# PropertyAssignment
 @dataclass
 class PropertyAssignment:
     expression = Expression
 
-# PropertyAssignmentList class (not in the conceptual model)
+# PropertyAssignmentList)
 @dataclass
 class PropertyAssignmentList:
     propertyAssignment = List[PropertyAssignment]
 
-# ExpInstance class (not in the conceptual model)
-@dataclass
-class ExpInstance:
-    identifier = str
-    propertyAssignmentInferredList = List[PropertyAssignmentInferred]
+# ExpInstance
+from parser_classes.expressions.ExpInstance import ExpInstance
 
 # TimeOfDay class
 @dataclass
@@ -214,65 +165,20 @@ class SystemIdentifierExpression(IdentifierExpression, Visualization, DataLayer)
 #---------------------------------------------
 # Expressions
 #---------------------------------------------
-# IdOrConstant
-# ExpConstant
-# ExpString
 # ExpCall
 # Arguments
-# ExpArray
+from parser_classes.expressions.Arguments import Arguments
 # ArrayElements
-# ExpInstance
+from parser_classes.expressions.ArrayElements import ArrayElements
 #---------------------------------------------
 # Operators
 #---------------------------------------------
-# ArithmeticOperatorExp
-# ArithmeticOperatorMul
-# ArithmeticOperatorAdd
-# ArithmeticOperatorExp class
-# BinaryLogicalOperator
-class BinaryLogicalOperator:
-    pass
-# RelationalOperator
-@dataclass
-class RelationalOperator:
-    ctx: object
-    @property
-    def operator(self):
-        if self.ctx.EQ() is not None:
-            return self.ctx.EQ().getText()
-        if self.ctx.LT() is not None:
-            return self.ctx.LT().getText()
-        if self.ctx.LTEQ() is not None:
-            return self.ctx.LTEQ().getText()
-        if self.ctx.GT() is not None:
-            return self.ctx.GT().getText()
-        if self.ctx.GTEQ() is not None:
-            return self.ctx.GTEQ().getText()
-        if self.ctx.IN() is not None:
-            return self.ctx.IN().getText()
-        if self.ctx.NOT() is not None and self.ctx.IN() is not None:
-            return self.ctx.NOT().getText(), self.ctx.IN().getText()
-        if self.ctx.IS() is not None:
-            return self.ctx.IS().getText()
-        if self.ctx.IS() is not None and self.ctx.NOT() is not None:
-            return self.ctx.IS().getText(), self.ctx.NOT().getText()
-        if self.ctx.LIKE() is not None:
-            return self.ctx.LIKE().getText()
-        if self.ctx.NOT() is not None and self.ctx.LIKE() is not None:
-            return self.ctx.NOT().getText(), self.ctx.LIKE().getText()
-        return None
-    
-# BetweenOperator
-@dataclass
-class BetweenOperator:
-    ctx: object
-    @property
-    def operator(self):
-        if self.ctx.BETWEEN() is not None:
-            return self.ctx.BETWEEN().getText()
-        if self.ctx.NOT() is not None and self.ctx.BETWEEN() is not None:
-            return self.ctx.NOT().getText(), self.ctx.BETWEEN().getText()
-        return None
+from parser_classes.operators.ArithmeticOperatorExp import ArithmeticOperatorExp
+from parser_classes.operators.ArithmeticOperatorMul import ArithmeticOperatorMul
+from parser_classes.operators.ArithmeticOperatorAdd import ArithmeticOperatorAdd
+from parser_classes.operators.BinaryLogicalOperator import BinaryLogicalOperator
+from parser_classes.operators.RelationalOperator import RelationalOperator
+from parser_classes.operators.BetweenOperator import BetweenOperator
 #---------------------------------------------
 # PropertyAssignment
 #---------------------------------------------
@@ -333,179 +239,93 @@ class CartoSymParser(CartoSymCSSGrammarListener):
 
     # Selector
     def enterSelector(self, ctx):
-        identifier = ctx.IDENTIFIER().getText() if ctx.IDENTIFIER() else None
-        expression = self.enterExpression(ctx.expression()) if ctx.expression() else None
-        selector = Selector(identifier, expression)
-        self.selectors.append(selector)
+        selector = Selector(ctx)
+        self.result = selector.identifier or selector.expression
         self.exitSelector(ctx)
-        print(self.selectors)
-
+    #---------------------------------------------
+    # Expressions
+    #---------------------------------------------
     # Expression
     def enterExpression(self, ctx):
-        identifier = None
-        for expression in ctx.expression():
-            self.enterExpression(expression)
-        if ctx.idOrConstant() is not None:
-            self.enterIdOrConstant(ctx.idOrConstant())
-        if ctx.IDENTIFIER() is not None:
-            identifier = ctx.IDENTIFIER().getText()
-        if ctx.expString() is not None:
-            self.enterExpString(ctx.expString())
-        if ctx.expCall() is not None:
-            self.enterExpCall(ctx.expCall())
-        if ctx.expArray() is not None:
-            self.enterExpArray(ctx.expArray())
-        if ctx.expInstance() is not None:
-            self.enterExpInstance(ctx.expInstance())
-        if ctx.expConstant() is not None:
-            self.enterExpConstant(ctx.expConstant())
-        if ctx.arithmeticOperatorExp() is not None:
-            self.enterArithmeticOperatorExp(ctx.arithmeticOperatorExp())
-        if ctx.arithmeticOperatorMul() is not None:
-            self.enterArithmeticOperatorMul(ctx.arithmeticOperatorMul())
-        if ctx.arithmeticOperatorAdd() is not None:
-            self.enterArithmeticOperatorAdd(ctx.arithmeticOperatorAdd())
-        if ctx.binaryLogicalOperator() is not None:
-            self.enterBinaryLogicalOperator(ctx.binaryLogicalOperator())
-        if ctx.relationalOperator() is not None:
-            self.enterRelationalOperator(ctx.relationalOperator())
-        if ctx.betweenOperator() is not None:
-            self.enterBetweenOperator(ctx.betweenOperator())
-        if ctx.unaryLogicalOperator() is not None:
-            self.enterUnaryLogicalOperator(ctx.unaryLogicalOperator())
-        if ctx.unaryArithmeticOperator() is not None:
-            self.enterUnaryArithmeticOperator(ctx.unaryArithmeticOperator())
-        if ctx.tuple_() is not None:
-            self.enterTuple(ctx.tuple_())
-        if identifier and hasattr(self.expression, identifier):
-            setattr(self.expression, identifier, None)
-        self.result = self.exitExpression(ctx)
-        
-    # Specific Expression methods
-    
+        expression = Expression(ctx)
+        self.result = expression.expression or expression.identifier or expression.idOrConstant or expression.expString or expression.expCall or expression.expArray or expression.expInstance or expression.expConstant or expression.arithmeticOperatorExp or expression.arithmeticOperatorMul or expression.arithmeticOperatorAdd or expression.binaryLogicalOperator or expression.relationalOperator or expression.betweenOperator or expression.unaryLogicalOperator or expression.unaryArithmeticOperator or expression.tuple_
+        self.result = self.exitExpression(ctx)            
     # IdOrConstant
     def enterIdOrConstant(self, ctx):
-        identifier = None
-        if ctx.IDENTIFIER() is not None:
-            identifier = ctx.IDENTIFIER().getText()
-        if ctx.expConstant() is not None:
-            self.enterExpConstant(ctx.expConstant())
-        if identifier and hasattr(self.expression, identifier):
-            setattr(self.expression, identifier, None)
+        idOrConstant = IdOrConstant(ctx)
+        self.result = idOrConstant.identifier or idOrConstant.expConstant
         self.result = self.exitIdOrConstant(ctx)
-    
     # ExpConstant
     def enterExpConstant(self, ctx):
-        hex_literal = None
-        unit = None
-        numeric_literal = None
-        if ctx.NUMERIC_LITERAL() is not None:
-            numeric_literal = ctx.NUMERIC_LITERAL().getText()
-        if ctx.HEX_LITERAL() is not None:
-            hex_literal = ctx.HEX_LITERAL().getText()
-        if ctx.UNIT() is not None:
-            unit = ctx.UNIT().getText()
-        if numeric_literal and hasattr(self.expression, numeric_literal):
-            setattr(self.expression, numeric_literal, None)
-        if hex_literal and hasattr(self.expression, hex_literal):
-            setattr(self.expression, hex_literal, None)
-        if unit and hasattr(self.expression, unit):
-            setattr(self.expression, unit, None)
-        self.result = self.exitExpConstant(ctx)
- 
+        expConstant = ExpConstant(ctx)
+        self.result = expConstant.numericLiteral or expConstant.hexLiteral or expConstant.unit
+        self.result = self.exitExpConstant(ctx) 
     # ExpString
     def enterExpString(self, ctx):
-        if ctx.CHARACTER_LITERAL() is not None:
-            character_literal = ctx.CHARACTER_LITERAL().getText()
-        if character_literal and hasattr(self.expression, character_literal):
-            setattr(self.expression, character_literal, None)
-        self.result = self.exitExpString(ctx)
- 
+        expString = ExpString(ctx)
+        self.result = expString.characterLiteral
+        self.result = self.exitExpString(ctx) 
     # ExpCall
     def enterExpCall(self, ctx):
-        if ctx.IDENTIFIER() is not None:
-            identifier = ctx.IDENTIFIER().getText()
-        if ctx.arguments() is not None:
-            self.enterArguments(ctx.arguments())
-        if identifier and hasattr(self.expression, identifier):
-            setattr(self.expression, identifier, None)
+        expCall = ExpCall(ctx)
+        self.result = expCall.identifier or expCall.arguments
         self.result = self.exitExpCall(ctx)
-
     # Arguments
     def enterArguments(self, ctx):
-        for expression in ctx.expression():
-            self.enterExpression(expression)
+        arguments = Arguments(ctx)
+        self.result = arguments.arguments or arguments.expression
         self.result = self.exitArguments(ctx)
-
     # ExpArray
     def enterExpArray(self, ctx):
-        if ctx.arrayElements() is not None:
-            self.enterArrayElements(ctx.arrayElements())
+        expArray = ExpArray()
+        self.result = expArray.arrayElements
         self.result = self.exitExpArray(ctx)
-
     # ArrayElements
     def enterArrayElements(self, ctx):
-        expression = ctx.expression()
-        if isinstance(expression, list):
-            for expression in ctx.expression():
-                self.enterExpression(expression)
-        else:
-            self.enterExpression(expression)
+        arrayElements = ArrayElements(ctx)
+        self.result = arrayElements.arrayElements or arrayElements.expression
         self.result = self.exitArrayElements(ctx)
-
     # ExpInstance
     def enterExpInstance(self, ctx):
-        identifier = None
-        if ctx.IDENTIFIER() is not None:
-            identifier = ctx.IDENTIFIER().getText()
-        if ctx.propertyAssignmentInferredList() is not None:
-            self.enterPropertyAssignmentInferredList(ctx.propertyAssignmentInferredList())
-        if identifier and hasattr(self.expression, identifier):
-            setattr(self.expression, identifier, None)
+        expInstance = ExpInstance(ctx)
+        self.result = expInstance.identifier or expInstance.propertyAssignmentInferredList
         self.result = self.exitExpInstance(ctx)
-        
+    #---------------------------------------------
     # Operators
+    #---------------------------------------------
     # ArithmeticOperatorExp
     def enterArithmeticOperatorExp(self, ctx):
-        if ctx.POW() is not None:
-            self.result = ctx.POW().getText()
+        arithmeticOperatorExp = ArithmeticOperatorExp(ctx)
+        self.result = arithmeticOperatorExp.pow
         self.result = self.exitArithmeticOperatorExp(ctx)
+    # ArithmeticOperatorMul
     def enterArithmeticOperatorMul(self, ctx):
-        if ctx.MUL is not None:
-            self.result = ctx.MUL().getText()
-        if ctx.DIV is not None:
-            self.result = ctx.DIV().getText()
-        if ctx.IDIV is not None:
-            self.result = ctx.IDIV().getText()
-        if ctx.MOD is not None:
-            self.result = ctx.MOD().getText()
+        arithmeticOperatorMul = ArithmeticOperatorMul(ctx)
+        self.result = arithmeticOperatorMul.mul or arithmeticOperatorMul.div or arithmeticOperatorMul.mod
         self.result = self.exitArithmeticOperatorMul(ctx)
+    # ArithmeticOperatorAdd
     def enterArithmeticOperatorAdd(self, ctx):
-        if ctx.MINUS() is not None:
-            self.result = ctx.MINUS().getText()
-        if ctx.PLUS() is not None:
-            self.result = ctx.PLUS().getText()
+        arithmeticOperatorAdd = ArithmeticOperatorAdd(ctx)
+        self.result = arithmeticOperatorAdd.minus or arithmeticOperatorAdd.plus
         self.result = self.exitArithmeticOperatorAdd(ctx)
+    # BinaryLogicalOperator
     def enterBinaryLogicalOperator(self, ctx):
-        if ctx.AND() is not None:
-            self.result = ctx.AND().getText()
-        if ctx.OR() is not None:
-            self.result = ctx.OR().getText()
+        binaryLogicalOperator = BinaryLogicalOperator(ctx)
+        self.result = binaryLogicalOperator.and_ or binaryLogicalOperator.or_
         self.result = self.exitBinaryLogicalOperator(ctx)
-    
     # RelationalOperator
     def enterRelationalOperator(self, ctx):
         relationalOperator = RelationalOperator(ctx)
-        self.result = relationalOperator.operator
-        self.result = self.exitRelationalOperator(ctx)
-    
+        self.result = relationalOperator.eq or relationalOperator.lt or relationalOperator.lteq or relationalOperator.gt or relationalOperator.gteq or relationalOperator.in_ or relationalOperator.not_ or relationalOperator.is_ or relationalOperator.like or relationalOperator.not_like
+        self.result = self.exitRelationalOperator(ctx) 
     # BetweenOperator
     def enterBetweenOperator(self, ctx):
-        self.betweenOperator.enterBetweenOperator(ctx)
-        self.result = self.betweenOperator.result
-        self.betweenOperator.exitBetweenOperator(ctx)
-        
-    # PropertyAssignment methods
+        betweenOperator = BetweenOperator(ctx)
+        self.result = betweenOperator.operator or betweenOperator.not_
+        self.result = self.exitBetweenOperator(ctx)
+    #---------------------------------------------
+    # PropertyAssignments
+    #---------------------------------------------
     def enterPropertyAssignmentInferredList(self, ctx):
         if ctx.propertyAssignmentInferred() is not None:
             self.enterPropertyAssignmentInferred(ctx.propertyAssignmentInferred())
@@ -527,10 +347,12 @@ class CartoSymParser(CartoSymCSSGrammarListener):
 
     def enterPropertyAssignmentList(self, ctx):
         if ctx.propertyAssignment() is not None:
+            # print(ctx.propertyAssignment().getText())
             self.enterPropertyAssignment(ctx.propertyAssignment())
         self.result = self.exitPropertyAssignmentList(ctx)
-
+#---------------------------------------------
 # Parse the input file
+#---------------------------------------------
 def parse_input(input_file):
     input_stream = FileStream(input_file, encoding='utf-8')
     lexer = CartoSymCSSLexer(input_stream)
@@ -544,7 +366,9 @@ def parse_input(input_file):
 
     result = cartoSymParser.result
     return result
-
+#---------------------------------------------
+# Argument parsing
+#---------------------------------------------
 if __name__ == "__main__":
     input_file = sys.argv[1]
     result = parse_input(input_file)
