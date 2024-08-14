@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from typing import List, Optional
+from ..expressions.Expression import Expression
 
 @dataclass
-class Selector:
+class Selector(Expression):
     ctx: object
     _identifier: Optional[str] = None
     _expression: Optional[str] = None

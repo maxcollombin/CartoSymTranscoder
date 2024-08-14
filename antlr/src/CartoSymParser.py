@@ -50,7 +50,6 @@ from CartoSym.propertyAssignments.PropertyAssignmentInferredList import Property
 # High level classes
 #---------------------------------------------  
 # Expression
-
 # Symbolizer class
 @dataclass
 class Symbolizer:
@@ -151,7 +150,12 @@ class CartoSymParser(CartoSymCSSGrammarListener):
     def enterExpression(self, ctx):
         expression = Expression(ctx)
         self.result = expression.expression or expression.identifier or expression.idOrConstant or expression.expString or expression.expCall or expression.expArray or expression.expInstance or expression.expConstant or expression.arithmeticOperatorExp or expression.arithmeticOperatorMul or expression.arithmeticOperatorAdd or expression.binaryLogicalOperator or expression.relationalOperator or expression.betweenOperator or expression.unaryLogicalOperator or expression.unaryArithmeticOperator or expression.tuple_
+        # SystemIdentifierExpression
+        systemIdentifierExpression = SystemIdentifierExpression(expression)
+        if systemIdentifierExpression.idOrConstant:
+            self.result = systemIdentifierExpression.idOrConstant
         self.result = self.exitExpression(ctx)
+     
     # IdOrConstant
     def enterIdOrConstant(self, ctx):
         idOrConstant = IdOrConstant(ctx)
@@ -231,7 +235,6 @@ class CartoSymParser(CartoSymCSSGrammarListener):
     def enterPropertyAssignmentInferredList(self, ctx):
         propertyAssignmentInferredList = PropertyAssignmentInferredList(ctx)
         self.result = propertyAssignmentInferredList.propertyAssignmentInferred or propertyAssignmentInferredList.propertyAssignmentInferredList
-        print(propertyAssignmentInferredList.propertyAssignmentInferred)
         self.result = self.exitPropertyAssignmentInferredList(ctx)
     # PropertyAssignmentInferred
     def enterPropertyAssignmentInferred(self, ctx):
