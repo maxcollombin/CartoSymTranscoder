@@ -1,6 +1,6 @@
 import os
 import sys
-from parser import parse_input
+from antlr.src.CartoSymParser import parse_input
 from converter import convert_to_sld, convert_to_qml
 
 def main():

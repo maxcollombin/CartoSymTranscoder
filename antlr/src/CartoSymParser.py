@@ -17,10 +17,15 @@ from enum import Enum
 # Import modules
 #---------------------------------------------  
 # HighLevel
+from CartoSym.highLevel.StyleSheet import StyleSheet
+from CartoSym.highLevel.Metadata import Metadata
+from CartoSym.highLevel.StylingRuleList import StylingRuleList
 from CartoSym.highLevel.StylingRule import StylingRule
-from CartoSym.highLevel.Selector import Selector   
+from CartoSym.highLevel.Selector import Selector
 # Expressions
 from CartoSym.expressions.Expression import Expression
+from CartoSym.expressions.IdentifierExpression import IdentifierExpression
+from CartoSym.expressions.SystemIdentifierExpression import SystemIdentifierExpression
 from CartoSym.expressions.IdOrConstant import IdOrConstant
 from CartoSym.expressions.ExpConstant import ExpConstant
 from CartoSym.expressions.ExpString import ExpString
@@ -36,20 +41,14 @@ from CartoSym.operators.ArithmeticOperatorAdd import ArithmeticOperatorAdd
 from CartoSym.operators.BinaryLogicalOperator import BinaryLogicalOperator
 from CartoSym.operators.RelationalOperator import RelationalOperator
 from CartoSym.operators.BetweenOperator import BetweenOperator
-
+# PropertyAssignments
+from CartoSym.propertyAssignments.PropertyAssignment import PropertyAssignment
+from CartoSym.propertyAssignments.PropertyAssignmentList import PropertyAssignmentList
+from CartoSym.propertyAssignments.PropertyAssignmentInferred import PropertyAssignmentInferred
+from CartoSym.propertyAssignments.PropertyAssignmentInferredList import PropertyAssignmentInferredList
 #---------------------------------------------
 # High level classes
 #---------------------------------------------  
-# Metadata
-@dataclass
-class Metadata:
-    name: Optional[str] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
-    authors: List[str] = field(default_factory=list)
-    keywords: List[str] = field(default_factory=list)
-    geoDataClasses: List[str] = field(default_factory=list)
-
 # Expression
 
 # Symbolizer class
@@ -58,47 +57,12 @@ class Symbolizer:
     visibility = Optional[bool]
     opacity = Optional[float]
     zOrder = Optional[int]
-
-# StylingRuleList
-@dataclass
-class StylingRuleList:
-    stylingRules: Optional[List[StylingRule]] = None
-
-# StyleSheet
-@dataclass
-class StyleSheet:
-    metadata = Metadata()
-    stylingRuleList = StylingRuleList()
-# IdentifierExpression
-@dataclass
-class IdentifierExpression(Expression):
-    name = str()
-
-# PropertyAssignmentInferred
-@dataclass
-class PropertyAssignmentInferred:
-    propertyAssignment = str
-    expression = Expression
-
-# PropertyAssignment
-@dataclass
-class PropertyAssignment:
-    expression = Expression
-
-# PropertyAssignmentList)
-@dataclass
-class PropertyAssignmentList:
-    propertyAssignment = List[PropertyAssignment]
-
-# ExpInstance
-
 # TimeOfDay class
 @dataclass
 class TimeOfDay:
     hour = int
     minutes = int
     seconds = int
-
 # Month class
 class Month(Enum):
     january = 1
@@ -113,38 +77,32 @@ class Month(Enum):
     october = 10
     november = 11
     december = 12
-
 # Date class
 @dataclass
 class Date:
     year = int
     month = Month
     day = int
-
 # TimeInstant class
 @dataclass
 class TimeInstant:
     date = Date()
     timeOfDay = TimeOfDay()
-
 # TimeInterval class
 @dataclass
 class TimeInterval:
     start = TimeInstant()
     end = TimeInstant()
-
 # DataLayerType class
 class DataLayerType(Enum):
     map = 1
     vector = 2
     coverage = 3
-
 # DataLayer class
 @dataclass
 class DataLayer:
     identifier = str
     type = DataLayerType
-
 # Visualization class
 @dataclass
 class Visualization:
@@ -154,61 +112,28 @@ class Visualization:
     time_of_day = TimeOfDay()
     time_interval = TimeInterval()
     pass_ = int
-
-# SystemIdentifierExpression class
-@dataclass
-class SystemIdentifierExpression(IdentifierExpression, Visualization, DataLayer):
-    visualization = Visualization()
-    data_layer = DataLayer()
-
-#---------------------------------------------
-# PropertyAssignment
-#---------------------------------------------
-# PropertyAssignmentInferredList
-@dataclass
-class PropertyAssignmentInferredList:
-    pass
-
-# PropertyAssignmentInferred
-# PropertyAssignment
-# PropertyAssignmentList
-
 #---------------------------------------------
 # CartoSymParser
 #---------------------------------------------
 class CartoSymParser(CartoSymCSSGrammarListener):
-    def __init__(self):
-        self.styleSheet = StyleSheet()
-        self.metadata = Metadata()
-        self.stylingRuleList = StylingRuleList()
-        self.stylingRule = StylingRule([], None, None)
-        self.selectors = []
-        self.result = None
-        self.expression = {}
-
+    #---------------------------------------------
+    # High level
+    #---------------------------------------------
     # StyleSheet
     def enterStyleSheet(self, ctx):
-        for metadata in ctx.metadata():
-            self.enterMetadata(metadata)
-        self.enterStylingRuleList(ctx.stylingRuleList())
-        self.result = self.styleSheet
-
+        styleSheet = StyleSheet(ctx)
+        self.result = styleSheet.metadata or styleSheet.stylingRuleList
+        self.result = self.exitStyleSheet(ctx)
     # Metadata
     def enterMetadata(self, ctx):
-        identifier = ctx.IDENTIFIER().getText()
-        character_literal = ctx.CHARACTER_LITERAL().getText()
-        if hasattr(self.metadata, identifier):
-            setattr(self.metadata, identifier, character_literal)
-        self.result = self.metadata
+        metadata = Metadata(ctx)
+        self.result = metadata.name or metadata.title or metadata.description or metadata.authors or metadata.keywords or metadata.geoDataClasses
         self.result = self.exitMetadata(ctx)
-
     # StylingRuleList
     def enterStylingRuleList(self, ctx):
-        if ctx.stylingRuleList() is not None:
-            self.enterStylingRuleList(ctx.stylingRuleList())
-        self.enterStylingRule(ctx.stylingRule())
-        self.result = self.exitStylingRuleList(ctx)
-    
+        stylingRuleList = StylingRuleList(ctx)
+        self.result = stylingRuleList.stylingRule or stylingRuleList.stylingRuleList
+        self.result = self.exitStylingRuleList(ctx)    
     # StylingRule
     def enterStylingRule(self, ctx):
         stylingRule = StylingRule(ctx)
@@ -226,7 +151,7 @@ class CartoSymParser(CartoSymCSSGrammarListener):
     def enterExpression(self, ctx):
         expression = Expression(ctx)
         self.result = expression.expression or expression.identifier or expression.idOrConstant or expression.expString or expression.expCall or expression.expArray or expression.expInstance or expression.expConstant or expression.arithmeticOperatorExp or expression.arithmeticOperatorMul or expression.arithmeticOperatorAdd or expression.binaryLogicalOperator or expression.relationalOperator or expression.betweenOperator or expression.unaryLogicalOperator or expression.unaryArithmeticOperator or expression.tuple_
-        self.result = self.exitExpression(ctx)            
+        self.result = self.exitExpression(ctx)
     # IdOrConstant
     def enterIdOrConstant(self, ctx):
         idOrConstant = IdOrConstant(ctx)
@@ -268,7 +193,7 @@ class CartoSymParser(CartoSymCSSGrammarListener):
         self.result = expInstance.identifier or expInstance.propertyAssignmentInferredList
         self.result = self.exitExpInstance(ctx)
     #---------------------------------------------
-    # Operators
+    # Operators clas methods
     #---------------------------------------------
     # ArithmeticOperatorExp
     def enterArithmeticOperatorExp(self, ctx):
@@ -304,28 +229,24 @@ class CartoSymParser(CartoSymCSSGrammarListener):
     # PropertyAssignments
     #---------------------------------------------
     def enterPropertyAssignmentInferredList(self, ctx):
-        if ctx.propertyAssignmentInferred() is not None:
-            self.enterPropertyAssignmentInferred(ctx.propertyAssignmentInferred())
-        if ctx.propertyAssignmentInferredList() is not None:
-            self.enterPropertyAssignmentInferredList(ctx.propertyAssignmentInferredList())
+        propertyAssignmentInferredList = PropertyAssignmentInferredList(ctx)
+        self.result = propertyAssignmentInferredList.propertyAssignmentInferred or propertyAssignmentInferredList.propertyAssignmentInferredList
+        print(propertyAssignmentInferredList.propertyAssignmentInferred)
         self.result = self.exitPropertyAssignmentInferredList(ctx)
-
+    # PropertyAssignmentInferred
     def enterPropertyAssignmentInferred(self, ctx):
-        if ctx.propertyAssignment() is not None:
-            self.enterPropertyAssignment(ctx.propertyAssignment())
-        if ctx.expression() is not None:
-            self.enterExpression(ctx.expression())
+        propertyAssignmentInferred = PropertyAssignmentInferred(ctx)
+        self.result = propertyAssignmentInferred.propertyAssignment or propertyAssignmentInferred.expression
         self.result = self.exitPropertyAssignmentInferred(ctx)
-
+    # PropertyAssignment
     def enterPropertyAssignment(self, ctx):
-        if ctx.expression() is not None:
-            self.enterExpression(ctx.expression())
-        self.result = self.exitPropertyAssignment(ctx)    
-
+        propertyAssignment = PropertyAssignment(ctx)
+        self.result = propertyAssignment.lhValue or propertyAssignment.expression
+        self.exitPropertyAssignment(ctx)
+    # PropertyAssignmentList
     def enterPropertyAssignmentList(self, ctx):
-        if ctx.propertyAssignment() is not None:
-            # print(ctx.propertyAssignment().getText())
-            self.enterPropertyAssignment(ctx.propertyAssignment())
+        propertyAssignmentList = PropertyAssignmentList(ctx)
+        self.result = propertyAssignmentList.propertyAssignment or propertyAssignmentList.propertyAssignmentList
         self.result = self.exitPropertyAssignmentList(ctx)
 #---------------------------------------------
 # Parse the input file

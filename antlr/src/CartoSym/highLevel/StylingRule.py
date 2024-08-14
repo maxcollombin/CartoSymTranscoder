@@ -7,39 +7,31 @@ from .StylingRuleList import StylingRuleList
 @dataclass
 class StylingRule:
     ctx: object
-    # _name: Optional[str] = None
-    _selector: Optional[Selector] = None
-    _symbolizer: Optional[PropertyAssignmentList] = None
-    _nestedRules: Optional[StylingRuleList] = None
-    # @property
-    # def name(self) -> str:
-    #     if self.ctx.CHARACTER_LITERAL() is not None:
-    #         return self.ctx.CHARACTER_LITERAL().getText()
-    #     return self._name
-    # @name.setter
-    # def name(self, value: Optional[str]) -> None:
-    #     self._name = value
+    _selector: Optional[str] = None
+    _symbolizer: Optional[str] = None
+    _nestedRules: Optional[str] = None
     @property
-    def selector(self) -> Selector:
+    def selector(self) -> str:
         if self.ctx.selector() is not None:
-            return Selector(self.ctx.selector())
+            return self.ctx.selector()
         return self._selector
     @selector.setter
-    def selector(self, value: Optional[Selector]) -> None:
+    def selector(self, value: Optional[str]) -> None:
         self._selector = value
     @property
-    def symbolizer(self) -> PropertyAssignmentList:
-        if self.ctx.propertyAssignmentList() is not None:
-            return PropertyAssignmentList(self.ctx.propertyAssignmentList().getText())
+    def symbolizer(self) -> str:
+        if self.ctx.symbolizer() is not None:
+            return self.ctx.symbolizer().getText()
         return self._symbolizer
     @symbolizer.setter
-    def symbolizer(self, value: Optional[PropertyAssignmentList]) -> None:
+    def symbolizer(self, value: Optional[str]) -> None:
         self._symbolizer = value
     @property
-    def nestedRules(self) -> StylingRuleList:
-        if self.ctx.stylingRuleList() is not None:
-            return StylingRuleList(self.ctx.stylingRuleList().getText())
+    def nestedRules(self) -> str:
+        if self.ctx.nestedRules() is not None:
+            return self.ctx.nestedRules().getText()
         return self._nestedRules
     @nestedRules.setter
-    def nestedRules(self, value: Optional[StylingRuleList]) -> None:
+    def nestedRules(self, value: Optional[str]) -> None:
         self._nestedRules = value
+    
