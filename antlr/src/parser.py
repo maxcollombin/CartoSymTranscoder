@@ -14,6 +14,30 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 #---------------------------------------------
+# Import modules
+#---------------------------------------------  
+# HighLevel
+from CartoSym.highLevel.StylingRule import StylingRule
+from CartoSym.highLevel.Selector import Selector   
+# Expressions
+from CartoSym.expressions.Expression import Expression
+from CartoSym.expressions.IdOrConstant import IdOrConstant
+from CartoSym.expressions.ExpConstant import ExpConstant
+from CartoSym.expressions.ExpString import ExpString
+from CartoSym.expressions.ExpCall import ExpCall
+from CartoSym.expressions.ExpArray import ExpArray
+from CartoSym.expressions.ExpInstance import ExpInstance
+from CartoSym.expressions.Arguments import Arguments
+from CartoSym.expressions.ArrayElements import ArrayElements
+# Operators
+from CartoSym.operators.ArithmeticOperatorExp import ArithmeticOperatorExp
+from CartoSym.operators.ArithmeticOperatorMul import ArithmeticOperatorMul
+from CartoSym.operators.ArithmeticOperatorAdd import ArithmeticOperatorAdd
+from CartoSym.operators.BinaryLogicalOperator import BinaryLogicalOperator
+from CartoSym.operators.RelationalOperator import RelationalOperator
+from CartoSym.operators.BetweenOperator import BetweenOperator
+
+#---------------------------------------------
 # High level classes
 #---------------------------------------------  
 # Metadata
@@ -27,24 +51,13 @@ class Metadata:
     geoDataClasses: List[str] = field(default_factory=list)
 
 # Expression
-from parser_classes.expressions.Expression import Expression
 
-# Selector class
-from parser_classes.Selector import Selector    
 # Symbolizer class
 @dataclass
 class Symbolizer:
     visibility = Optional[bool]
     opacity = Optional[float]
     zOrder = Optional[int]
-
-# StylingRule class
-@dataclass
-class StylingRule:
-    name: Optional[str] = None
-    selector: Optional[Expression] = None
-    symbolizer: Optional[Symbolizer] = None
-    nestedRules: StylingRuleList = None
 
 # StylingRuleList
 @dataclass
@@ -60,19 +73,6 @@ class StyleSheet:
 @dataclass
 class IdentifierExpression(Expression):
     name = str()
-# IdOrConstant
-from parser_classes.expressions.IdOrConstant import IdOrConstant
-# ExpConstant
-from parser_classes.expressions.ExpConstant import ExpConstant
-
-# ExpString
-from parser_classes.expressions.ExpString import ExpString
-
-# ExpCall
-from parser_classes.expressions.ExpCall import ExpCall
-
-# ExpArray
-from parser_classes.expressions.ExpArray import ExpArray
 
 # PropertyAssignmentInferred
 @dataclass
@@ -91,7 +91,6 @@ class PropertyAssignmentList:
     propertyAssignment = List[PropertyAssignment]
 
 # ExpInstance
-from parser_classes.expressions.ExpInstance import ExpInstance
 
 # TimeOfDay class
 @dataclass
@@ -163,23 +162,6 @@ class SystemIdentifierExpression(IdentifierExpression, Visualization, DataLayer)
     data_layer = DataLayer()
 
 #---------------------------------------------
-# Expressions
-#---------------------------------------------
-# ExpCall
-# Arguments
-from parser_classes.expressions.Arguments import Arguments
-# ArrayElements
-from parser_classes.expressions.ArrayElements import ArrayElements
-#---------------------------------------------
-# Operators
-#---------------------------------------------
-from parser_classes.operators.ArithmeticOperatorExp import ArithmeticOperatorExp
-from parser_classes.operators.ArithmeticOperatorMul import ArithmeticOperatorMul
-from parser_classes.operators.ArithmeticOperatorAdd import ArithmeticOperatorAdd
-from parser_classes.operators.BinaryLogicalOperator import BinaryLogicalOperator
-from parser_classes.operators.RelationalOperator import RelationalOperator
-from parser_classes.operators.BetweenOperator import BetweenOperator
-#---------------------------------------------
 # PropertyAssignment
 #---------------------------------------------
 # PropertyAssignmentInferredList
@@ -226,17 +208,12 @@ class CartoSymParser(CartoSymCSSGrammarListener):
             self.enterStylingRuleList(ctx.stylingRuleList())
         self.enterStylingRule(ctx.stylingRule())
         self.result = self.exitStylingRuleList(ctx)
-
+    
     # StylingRule
     def enterStylingRule(self, ctx):
-        for selector in ctx.selector():
-            self.enterSelector(selector)
-        if ctx.propertyAssignmentList() is not None:
-            self.enterPropertyAssignmentList(ctx.propertyAssignmentList())
-        if ctx.stylingRuleList() is not None:
-            self.enterStylingRuleList(ctx.stylingRuleList())
+        stylingRule = StylingRule(ctx)
+        self.result = stylingRule.selector or stylingRule.symbolizer or stylingRule.nestedRules
         self.result = self.exitStylingRule(ctx)
-
     # Selector
     def enterSelector(self, ctx):
         selector = Selector(ctx)
@@ -277,7 +254,7 @@ class CartoSymParser(CartoSymCSSGrammarListener):
         self.result = self.exitArguments(ctx)
     # ExpArray
     def enterExpArray(self, ctx):
-        expArray = ExpArray()
+        expArray = ExpArray(ctx)
         self.result = expArray.arrayElements
         self.result = self.exitExpArray(ctx)
     # ArrayElements
