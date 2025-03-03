@@ -9,9 +9,9 @@ def sanitize_text(text):
     return text
 
 def convert_to_sld(data, output_file):
-    title = sanitize_text(data['title'])
-    abstract = sanitize_text(data['abstract'])
-    date = sanitize_text(data['date'])
+    title = sanitize_text(data.get('title', ''))
+    abstract = sanitize_text(data.get('abstract', ''))
+    date = sanitize_text(data.get('date', ''))
 
     sld = ET.Element('StyledLayerDescriptor', {
         'version': '1.0.0',
