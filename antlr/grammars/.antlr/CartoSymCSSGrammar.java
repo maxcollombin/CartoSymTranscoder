@@ -1,4 +1,4 @@
-// Generated from c:/Users/maxime.collombi/OneDrive - HESSO/Bureau/CartoSymTranscoder/antlr/grammars/CartoSymCSSGrammar.g4 by ANTLR 4.13.1
+// Generated from /home/maxime/Desktop/CartoSymTranscoder/antlr/grammars/CartoSymCSSGrammar.g4 by ANTLR 4.13.1
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;

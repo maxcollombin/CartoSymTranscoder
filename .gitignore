@@ -3,3 +3,8 @@ examples/output
 __pycache__/
 *.py[cod]
 *$py.class
+#venv
+clean.sh
+init.sh
+CartoSym
+input/

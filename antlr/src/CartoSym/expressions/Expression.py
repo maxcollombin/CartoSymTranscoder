@@ -187,8 +187,8 @@ class Expression:
     #tuple
     @property
     def tuple(self) -> object:
-        if self.ctx.tuple() is not None:
-            return self.ctx.tuple().getText()
+        if self.ctx.tuple_() is not None:
+            return self.ctx.tuple_().getText()
         return self._tuple
     @tuple.setter
     def tuple(self, value: object) -> None:

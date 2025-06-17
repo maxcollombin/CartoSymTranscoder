@@ -1,4 +1,4 @@
-// Generated from c:/Users/maxime.collombi/OneDrive - HESSO/Bureau/CartoSymTranscoder/antlr/grammars/CartoSymCSSLexer.g4 by ANTLR 4.13.1
+// Generated from /home/maxime/Desktop/CartoSymTranscoder/antlr/grammars/CartoSymCSSLexer.g4 by ANTLR 4.13.1
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Token;

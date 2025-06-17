@@ -1,68 +1,61 @@
 from __future__ import annotations
 
-import inspect
-
+import logging
+import argparse
+import functools
 from antlr4 import *
 from CartoSymCSSLexer import CartoSymCSSLexer
 from CartoSymCSSGrammar import CartoSymCSSGrammar
 from CartoSymCSSGrammarListener import CartoSymCSSGrammarListener
-import sys
 
-from dataclasses import dataclass, field
-from typing import List, Optional
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Optional
 from enum import Enum
 
 #---------------------------------------------
 # Import modules
 #---------------------------------------------  
-# HighLevel
 from CartoSym.highLevel.StyleSheet import StyleSheet
 from CartoSym.highLevel.Metadata import Metadata
 from CartoSym.highLevel.StylingRuleList import StylingRuleList
 from CartoSym.highLevel.StylingRule import StylingRule
 from CartoSym.highLevel.Selector import Selector
-# Expressions
 from CartoSym.expressions.Expression import Expression
-from CartoSym.expressions.IdentifierExpression import IdentifierExpression
-from CartoSym.expressions.SystemIdentifierExpression import SystemIdentifierExpression
-from CartoSym.expressions.IdOrConstant import IdOrConstant
-from CartoSym.expressions.ExpConstant import ExpConstant
-from CartoSym.expressions.ExpString import ExpString
-from CartoSym.expressions.ExpCall import ExpCall
-from CartoSym.expressions.ExpArray import ExpArray
-from CartoSym.expressions.ExpInstance import ExpInstance
-from CartoSym.expressions.Arguments import Arguments
-from CartoSym.expressions.ArrayElements import ArrayElements
-# Operators
-from CartoSym.operators.ArithmeticOperatorExp import ArithmeticOperatorExp
-from CartoSym.operators.ArithmeticOperatorMul import ArithmeticOperatorMul
-from CartoSym.operators.ArithmeticOperatorAdd import ArithmeticOperatorAdd
-from CartoSym.operators.BinaryLogicalOperator import BinaryLogicalOperator
-from CartoSym.operators.RelationalOperator import RelationalOperator
-from CartoSym.operators.BetweenOperator import BetweenOperator
-# PropertyAssignments
 from CartoSym.propertyAssignments.PropertyAssignment import PropertyAssignment
 from CartoSym.propertyAssignments.PropertyAssignmentList import PropertyAssignmentList
-from CartoSym.propertyAssignments.PropertyAssignmentInferred import PropertyAssignmentInferred
-from CartoSym.propertyAssignments.PropertyAssignmentInferredList import PropertyAssignmentInferredList
+
+#---------------------------------------------
+# Logging configuration
+#---------------------------------------------
+
+def configure_logging(log_level: str) -> logging.Logger:
+    """Configure logging based on the provided log level."""
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper(), "INFO"),
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    return logging.getLogger(__name__)
+
+def log_step(logger, step_name: str):
+    """Helper function to log initialization steps."""
+    logger.debug(f"{step_name} initialized successfully")
+
 #---------------------------------------------
 # High level classes
 #---------------------------------------------  
-# Expression
-# Symbolizer class
 @dataclass
 class Symbolizer:
-    visibility = Optional[bool]
-    opacity = Optional[float]
-    zOrder = Optional[int]
-# TimeOfDay class
+    visibility: Optional[bool] = None
+    opacity: Optional[float] = None
+    zOrder: Optional[int] = None
+
 @dataclass
 class TimeOfDay:
-    hour = int
-    minutes = int
-    seconds = int
-# Month class
+    hour: int
+    minutes: int
+    seconds: int
+
 class Month(Enum):
     january = 1
     february = 2
@@ -76,201 +69,120 @@ class Month(Enum):
     october = 10
     november = 11
     december = 12
-# Date class
+
 @dataclass
 class Date:
-    year = int
-    month = Month
-    day = int
-# TimeInstant class
+    year: int
+    month: Month
+    day: int
+
 @dataclass
 class TimeInstant:
-    date = Date()
-    timeOfDay = TimeOfDay()
-# TimeInterval class
+    date: Date
+    timeOfDay: TimeOfDay
+
 @dataclass
 class TimeInterval:
-    start = TimeInstant()
-    end = TimeInstant()
-# DataLayerType class
+    start: TimeInstant
+    end: TimeInstant
+
 class DataLayerType(Enum):
     map = 1
     vector = 2
     coverage = 3
-# DataLayer class
+
 @dataclass
 class DataLayer:
-    identifier = str
-    type = DataLayerType
-# Visualization class
+    identifier: str
+    type: DataLayerType
+
 @dataclass
 class Visualization:
-    scale_denominator = float
-    date_time = TimeInstant()
-    date = Date()
-    time_of_day = TimeOfDay()
-    time_interval = TimeInterval()
-    pass_ = int
+    scale_denominator: float
+    date_time: TimeInstant
+    date: Date
+    time_of_day: TimeOfDay
+    time_interval: TimeInterval
+    pass_: int
+
 #---------------------------------------------
 # CartoSymParser
 #---------------------------------------------
 class CartoSymParser(CartoSymCSSGrammarListener):
-    #---------------------------------------------
-    # High level
-    #---------------------------------------------
-    # StyleSheet
+    def __init__(self):
+        self.result = None
+
+    def set_result(self, ctx, cls):
+        self.result = cls(ctx)
+
     def enterStyleSheet(self, ctx):
-        styleSheet = StyleSheet(ctx)
-        self.result = styleSheet.metadata or styleSheet.stylingRuleList
-        self.result = self.exitStyleSheet(ctx)
-    # Metadata
+        self.set_result(ctx, StyleSheet)
+
     def enterMetadata(self, ctx):
-        metadata = Metadata(ctx)
-        self.result = metadata.name or metadata.title or metadata.description or metadata.authors or metadata.keywords or metadata.geoDataClasses
-        self.result = self.exitMetadata(ctx)
-    # StylingRuleList
+        self.set_result(ctx, Metadata)
+
     def enterStylingRuleList(self, ctx):
-        stylingRuleList = StylingRuleList(ctx)
-        self.result = stylingRuleList.stylingRule or stylingRuleList.stylingRuleList
-        self.result = self.exitStylingRuleList(ctx)    
-    # StylingRule
+        self.set_result(ctx, StylingRuleList)
+
     def enterStylingRule(self, ctx):
-        stylingRule = StylingRule(ctx)
-        self.result = stylingRule.selector or stylingRule.symbolizer or stylingRule.nestedRules
-        self.result = self.exitStylingRule(ctx)
-    # Selector
+        self.set_result(ctx, StylingRule)
+
     def enterSelector(self, ctx):
-        selector = Selector(ctx)
-        self.result = selector.identifier or selector.expression
-        self.exitSelector(ctx)
-    #---------------------------------------------
-    # Expressions
-    #---------------------------------------------
-    # Expression
+        self.set_result(ctx, Selector)
+
     def enterExpression(self, ctx):
-        expression = Expression(ctx)
-        self.result = expression.expression or expression.identifier or expression.idOrConstant or expression.expString or expression.expCall or expression.expArray or expression.expInstance or expression.expConstant or expression.arithmeticOperatorExp or expression.arithmeticOperatorMul or expression.arithmeticOperatorAdd or expression.binaryLogicalOperator or expression.relationalOperator or expression.betweenOperator or expression.unaryLogicalOperator or expression.unaryArithmeticOperator or expression.tuple_
-        # SystemIdentifierExpression
-        systemIdentifierExpression = SystemIdentifierExpression(expression)
-        if systemIdentifierExpression.idOrConstant:
-            self.result = systemIdentifierExpression.idOrConstant
-        self.result = self.exitExpression(ctx)
-     
-    # IdOrConstant
-    def enterIdOrConstant(self, ctx):
-        idOrConstant = IdOrConstant(ctx)
-        self.result = idOrConstant.identifier or idOrConstant.expConstant
-        self.result = self.exitIdOrConstant(ctx)
-    # ExpConstant
-    def enterExpConstant(self, ctx):
-        expConstant = ExpConstant(ctx)
-        self.result = expConstant.numericLiteral or expConstant.hexLiteral or expConstant.unit
-        self.result = self.exitExpConstant(ctx) 
-    # ExpString
-    def enterExpString(self, ctx):
-        expString = ExpString(ctx)
-        self.result = expString.characterLiteral
-        self.result = self.exitExpString(ctx) 
-    # ExpCall
-    def enterExpCall(self, ctx):
-        expCall = ExpCall(ctx)
-        self.result = expCall.identifier or expCall.arguments
-        self.result = self.exitExpCall(ctx)
-    # Arguments
-    def enterArguments(self, ctx):
-        arguments = Arguments(ctx)
-        self.result = arguments.arguments or arguments.expression
-        self.result = self.exitArguments(ctx)
-    # ExpArray
-    def enterExpArray(self, ctx):
-        expArray = ExpArray(ctx)
-        self.result = expArray.arrayElements
-        self.result = self.exitExpArray(ctx)
-    # ArrayElements
-    def enterArrayElements(self, ctx):
-        arrayElements = ArrayElements(ctx)
-        self.result = arrayElements.arrayElements or arrayElements.expression
-        self.result = self.exitArrayElements(ctx)
-    # ExpInstance
-    def enterExpInstance(self, ctx):
-        expInstance = ExpInstance(ctx)
-        self.result = expInstance.identifier or expInstance.propertyAssignmentInferredList
-        self.result = self.exitExpInstance(ctx)
-    #---------------------------------------------
-    # Operators clas methods
-    #---------------------------------------------
-    # ArithmeticOperatorExp
-    def enterArithmeticOperatorExp(self, ctx):
-        arithmeticOperatorExp = ArithmeticOperatorExp(ctx)
-        self.result = arithmeticOperatorExp.pow
-        self.result = self.exitArithmeticOperatorExp(ctx)
-    # ArithmeticOperatorMul
-    def enterArithmeticOperatorMul(self, ctx):
-        arithmeticOperatorMul = ArithmeticOperatorMul(ctx)
-        self.result = arithmeticOperatorMul.mul or arithmeticOperatorMul.div or arithmeticOperatorMul.mod
-        self.result = self.exitArithmeticOperatorMul(ctx)
-    # ArithmeticOperatorAdd
-    def enterArithmeticOperatorAdd(self, ctx):
-        arithmeticOperatorAdd = ArithmeticOperatorAdd(ctx)
-        self.result = arithmeticOperatorAdd.minus or arithmeticOperatorAdd.plus
-        self.result = self.exitArithmeticOperatorAdd(ctx)
-    # BinaryLogicalOperator
-    def enterBinaryLogicalOperator(self, ctx):
-        binaryLogicalOperator = BinaryLogicalOperator(ctx)
-        self.result = binaryLogicalOperator.and_ or binaryLogicalOperator.or_
-        self.result = self.exitBinaryLogicalOperator(ctx)
-    # RelationalOperator
-    def enterRelationalOperator(self, ctx):
-        relationalOperator = RelationalOperator(ctx)
-        self.result = relationalOperator.eq or relationalOperator.lt or relationalOperator.lteq or relationalOperator.gt or relationalOperator.gteq or relationalOperator.in_ or relationalOperator.not_ or relationalOperator.is_ or relationalOperator.like or relationalOperator.not_like
-        self.result = self.exitRelationalOperator(ctx) 
-    # BetweenOperator
-    def enterBetweenOperator(self, ctx):
-        betweenOperator = BetweenOperator(ctx)
-        self.result = betweenOperator.operator or betweenOperator.not_
-        self.result = self.exitBetweenOperator(ctx)
-    #---------------------------------------------
-    # PropertyAssignments
-    #---------------------------------------------
-    def enterPropertyAssignmentInferredList(self, ctx):
-        propertyAssignmentInferredList = PropertyAssignmentInferredList(ctx)
-        self.result = propertyAssignmentInferredList.propertyAssignmentInferred or propertyAssignmentInferredList.propertyAssignmentInferredList
-        self.result = self.exitPropertyAssignmentInferredList(ctx)
-    # PropertyAssignmentInferred
-    def enterPropertyAssignmentInferred(self, ctx):
-        propertyAssignmentInferred = PropertyAssignmentInferred(ctx)
-        self.result = propertyAssignmentInferred.propertyAssignment or propertyAssignmentInferred.expression
-        self.result = self.exitPropertyAssignmentInferred(ctx)
-    # PropertyAssignment
+        self.set_result(ctx, Expression)
+
     def enterPropertyAssignment(self, ctx):
-        propertyAssignment = PropertyAssignment(ctx)
-        self.result = propertyAssignment.lhValue or propertyAssignment.expression
-        self.exitPropertyAssignment(ctx)
-    # PropertyAssignmentList
+        property_assignment = PropertyAssignment(ctx)
+        self.result = property_assignment.lhValue or property_assignment.expression
+
     def enterPropertyAssignmentList(self, ctx):
-        propertyAssignmentList = PropertyAssignmentList(ctx)
-        self.result = propertyAssignmentList.propertyAssignment or propertyAssignmentList.propertyAssignmentList
-        self.result = self.exitPropertyAssignmentList(ctx)
+        self.set_result(ctx, PropertyAssignmentList)
+
 #---------------------------------------------
 # Parse the input file
 #---------------------------------------------
-def parse_input(input_file):
-    input_stream = FileStream(input_file, encoding='utf-8')
-    lexer = CartoSymCSSLexer(input_stream)
-    stream = CommonTokenStream(lexer)
-    parser = CartoSymCSSGrammar(stream)
-    tree = parser.styleSheet()
+def parse_input(input_file: str, logger: logging.Logger):
+    logger.info(f"Parsing file: {input_file}")
+    
+    try:
+        input_stream = FileStream(input_file, encoding='utf-8')
+        lexer = CartoSymCSSLexer(input_stream)
+        stream = CommonTokenStream(lexer)
+        parser = CartoSymCSSGrammar(stream)
+        
+        tree = parser.styleSheet()
+        
+        if logger.isEnabledFor(logging.DEBUG):
+            pass
+            # logger.debug(f"Parse tree: {tree.toStringTree(recog=parser)}")
+            # logger.debug(f"Root rule: {type(tree).__name__}")
+            # logger.debug(f"Top-level rules: {[child.__class__.__name__ for child in tree.children]}")
 
-    walker = ParseTreeWalker()
-    cartoSymParser = CartoSymParser()
-    walker.walk(cartoSymParser, tree)
+        walker = ParseTreeWalker()
+        cartoSymParser = CartoSymParser()
+        walker.walk(cartoSymParser, tree)
 
-    result = cartoSymParser.result
-    return result
+        return cartoSymParser.result
+
+    except Exception as e:
+        logger.error(f"Error during parsing: {e}")
+        raise
+
+
 #---------------------------------------------
-# Argument parsing
+# Argument parsing and dynamic decorator application
 #---------------------------------------------
 if __name__ == "__main__":
-    input_file = sys.argv[1]
-    result = parse_input(input_file)
+    parser = argparse.ArgumentParser(description="Parse a CartoSym CSS file.")
+    parser.add_argument("input_file", help="Path to the input file.")
+    parser.add_argument("--log-level", default="INFO", help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).")
+    args = parser.parse_args()
+
+    # Configure logging based on the provided log level
+    logger = configure_logging(args.log_level)
+
+    # Parse the input file
+    result = parse_input(args.input_file, logger)
     # print(result)
