@@ -1,15 +1,14 @@
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Union
 from .IdOrConstant import IdOrConstant
 from .ExpString import ExpString
 from .ExpCall import ExpCall
-from .ExpArray import ExpArray
 from .ExpInstance import ExpInstance
 from .ExpConstant import ExpConstant
 from .Tuple import Tuple
 from ..operators.ArithmeticOperatorExp import ArithmeticOperatorExp
-from ..operators.ArithmeticOperatorMul import ArithmeticOperatorMul
 from ..operators.ArithmeticOperatorAdd import ArithmeticOperatorAdd
+from ..operators.ArithmeticOperatorMul import ArithmeticOperatorMul
 from ..operators.BinaryLogicalOperator import BinaryLogicalOperator
 from ..operators.RelationalOperator import RelationalOperator
 from ..operators.BetweenOperator import BetweenOperator
@@ -193,3 +192,92 @@ class Expression:
     @tuple.setter
     def tuple(self, value: object) -> None:
         self._tuple = value
+
+@dataclass
+class InstanceExpression(Expression):
+    class_name: Optional[str] = None  # Name of the class being instantiated
+    members: Dict[str, Union[Expression, str, int, float]] = field(default_factory=dict)  # Member assignments
+
+    @property
+    def className(self) -> Optional[str]:
+        if self.ctx.IDENTIFIER() is not None:
+            return self.ctx.IDENTIFIER().getText()
+        return self.class_name
+
+    @className.setter
+    def className(self, value: str) -> None:
+        self.class_name = value
+
+    @property
+    def memberAssignments(self) -> Dict[str, Union[Expression, str, int, float]]:
+        if self.ctx.propertyAssignmentInferredList() is not None:
+            assignments = {}
+            for assignment in self.ctx.propertyAssignmentInferredList().propertyAssignmentInferred():
+                key = assignment.lhValue().getText()
+                value = Expression(assignment.expression().getText())
+                assignments[key] = value
+            return assignments
+        return self.members
+
+    @memberAssignments.setter
+    def memberAssignments(self, value: Dict[str, Union[Expression, str, int, float]]) -> None:
+        self.members = value
+
+@dataclass
+class ArrayExpression(Expression):
+    elements: list[Union[Expression, str, int, float]] = field(default_factory=list)  # List of element expressions
+    brackets: Optional[str] = None  # Type of brackets used: '[]' or '()'
+
+    @property
+    def arrayElements(self) -> list[Union[Expression, str, int, float]]:
+        if self.ctx.expArray() is not None:
+            elements = []
+            if self.ctx.expArray().arrayElements() is not None:
+                for element in self.ctx.expArray().arrayElements().expression():
+                    elements.append(Expression(element.getText()))
+            self.brackets = '[]' if self.ctx.expArray().LSBR() else '()'
+            return elements
+        return self.elements
+
+    @arrayElements.setter
+    def arrayElements(self, value: list[Union[Expression, str, int, float]]) -> None:
+        self.elements = value
+
+@dataclass
+class OperationExpression(Expression):
+    operand1: Optional[Expression] = None  # First operand
+    operator: Union[
+        BinaryLogicalOperator, RelationalOperator, BetweenOperator, UnaryLogicalOperator
+    ] = None  # Operator
+    operand2: Optional[Expression] = None  # Second operand
+    operand3: Optional[Expression] = None  # Third operand (for ternary operators)
+
+    @property
+    def operation(self) -> str:
+        if self.ctx is not None:
+            # Parse the operator
+            if self.ctx.binaryLogicalOperator() is not None:
+                self.operator = BinaryLogicalOperator(ctx=self.ctx.binaryLogicalOperator())
+            elif self.ctx.relationalOperator() is not None:
+                self.operator = RelationalOperator(ctx=self.ctx.relationalOperator())
+            elif self.ctx.betweenOperator() is not None:
+                self.operator = BetweenOperator(ctx=self.ctx.betweenOperator())
+            elif self.ctx.unaryLogicalOperator() is not None:
+                self.operator = UnaryLogicalOperator(ctx=self.ctx.unaryLogicalOperator())
+
+            # Parse the operands
+            self.operand1 = Expression(self.ctx.expression(0).getText())
+            self.operand2 = Expression(self.ctx.expression(1).getText()) if self.ctx.expression(1) else None
+            self.operand3 = Expression(self.ctx.expression(2).getText()) if self.ctx.expression(2) else None
+
+            # Build the operation string
+            operation_str = f"{self.operand1} {self.operator} {self.operand2}"
+            if self.operand3:
+                operation_str += f" and {self.operand3}"
+            return operation_str
+        return ""
+
+    @operation.setter
+    def operation(self, value: str) -> None:
+        # This setter can be used to manually set the operation if needed
+        pass

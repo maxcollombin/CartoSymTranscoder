@@ -23,6 +23,7 @@ from CartoSym.highLevel.Selector import Selector
 from CartoSym.expressions.Expression import Expression
 from CartoSym.propertyAssignments.PropertyAssignment import PropertyAssignment
 from CartoSym.propertyAssignments.PropertyAssignmentList import PropertyAssignmentList
+from CartoSym.expressions.Visualization import Visualization
 
 #---------------------------------------------
 # Logging configuration
@@ -50,42 +51,6 @@ class Symbolizer:
     opacity: Optional[float] = None
     zOrder: Optional[int] = None
 
-@dataclass
-class TimeOfDay:
-    hour: int
-    minutes: int
-    seconds: int
-
-class Month(Enum):
-    january = 1
-    february = 2
-    march = 3
-    april = 4
-    may = 5
-    june = 6
-    july = 7
-    august = 8
-    september = 9
-    october = 10
-    november = 11
-    december = 12
-
-@dataclass
-class Date:
-    year: int
-    month: Month
-    day: int
-
-@dataclass
-class TimeInstant:
-    date: Date
-    timeOfDay: TimeOfDay
-
-@dataclass
-class TimeInterval:
-    start: TimeInstant
-    end: TimeInstant
-
 class DataLayerType(Enum):
     map = 1
     vector = 2
@@ -95,15 +60,6 @@ class DataLayerType(Enum):
 class DataLayer:
     identifier: str
     type: DataLayerType
-
-@dataclass
-class Visualization:
-    scale_denominator: float
-    date_time: TimeInstant
-    date: Date
-    time_of_day: TimeOfDay
-    time_interval: TimeInterval
-    pass_: int
 
 #---------------------------------------------
 # CartoSymParser
@@ -132,6 +88,9 @@ class CartoSymParser(CartoSymCSSGrammarListener):
 
     def enterExpression(self, ctx):
         self.set_result(ctx, Expression)
+
+    def enterVisualization(self, ctx):
+        self.set_result(ctx, Visualization)
 
     def enterPropertyAssignment(self, ctx):
         property_assignment = PropertyAssignment(ctx)
@@ -169,7 +128,6 @@ def parse_input(input_file: str, logger: logging.Logger):
     except Exception as e:
         logger.error(f"Error during parsing: {e}")
         raise
-
 
 #---------------------------------------------
 # Argument parsing and dynamic decorator application

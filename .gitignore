@@ -1,10 +1,5 @@
-examples/output
-# remove _pycache_
-__pycache__/
-*.py[cod]
-*$py.class
-#venv
-clean.sh
+**/__pycache__/
+# venv
 init.sh
 CartoSym
-input/
+clean.sh
