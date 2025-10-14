@@ -1,5 +1,46 @@
+# Python virtual environment
+CartoSym/
+venv/
+.venv/
+
+# Python cache files
 **/__pycache__/
-# venv
-init.sh
-CartoSym
-clean.sh
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ANTLR generated files
+cartosym_transcoder/grammar/
+
+# Build and distribution
+build/
+dist/
+*.egg-info/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# MyPy
+.mypy_cache/

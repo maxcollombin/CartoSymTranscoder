@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cartosym-transcoder"
+version = "0.1.0"
+authors = [
+    {name = "Maxime Collombin", email = "maxime.collombin@example.com"},
+]
+description = "Lossless transcoding between CartoSym CSS and other encodings for OGC Style & Symbology"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+keywords = ["gis", "cartography", "symbology", "ogc", "sld", "cartosym"]
+dependencies = [
+    "antlr4-python3-runtime>=4.13.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "antlr4-tools>=0.2.0",
+    "pytest>=7.0.0",
+    "black",
+    "flake8",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/maxcollombin/CartoSymTranscoder"
+Documentation = "https://github.com/maxcollombin/CartoSymTranscoder/blob/main/README.md"
+Repository = "https://github.com/maxcollombin/CartoSymTranscoder.git"
+Issues = "https://github.com/maxcollombin/CartoSymTranscoder/issues"
+
+[project.scripts]
+cartosym-parse = "cartosym_transcoder.cli:main"
+
+[tool.setuptools]
+packages = ["cartosym_transcoder"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+cartosym_transcoder = ["*.md", "schemas/*.json"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true

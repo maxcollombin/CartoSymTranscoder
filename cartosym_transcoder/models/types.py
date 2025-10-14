@@ -1,0 +1,342 @@
+"""
+Precise type definitions for CartoSym Phase B.
+
+This module contains precise types based on the JSON Schema analysis,
+including colors, units, ranges, and custom validators.
+"""
+
+from enum import Enum
+from typing import Union, List, Literal, Annotated
+from pydantic import BaseModel, Field, validator, root_validator
+import re
+
+
+# =============================================================================
+# Color Types
+# =============================================================================
+
+class WebColorName(str, Enum):
+    """Web color names as defined in the CartoSym JSON Schema."""
+    
+    # Grays and whites
+    BLACK = "black"
+    DIM_GRAY = "dimGray"
+    DIM_GREY = "dimGrey"
+    GRAY = "gray"
+    GREY = "grey"
+    DARK_GRAY = "darkGray"
+    DARK_GREY = "darkGrey"
+    SILVER = "silver"
+    LIGHT_GRAY = "lightGray"
+    LIGHT_GREY = "lightGrey"
+    GAINSBORO = "gainsboro"
+    WHITE_SMOKE = "whiteSmoke"
+    WHITE = "white"
+    
+    # Reds and pinks
+    ROSY_BROWN = "rosyBrown"
+    INDIAN_RED = "indianRed"
+    BROWN = "brown"
+    FIRE_BRICK = "fireBrick"
+    LIGHT_CORAL = "lightCoral"
+    MAROON = "maroon"
+    DARK_RED = "darkRed"
+    RED = "red"
+    SNOW = "snow"
+    MISTY_ROSE = "mistyRose"
+    SALMON = "salmon"
+    TOMATO = "tomato"
+    DARK_SALMON = "darkSalmon"
+    CORAL = "coral"
+    ORANGE_RED = "orangeRed"
+    LIGHT_SALMON = "lightSalmon"
+    
+    # Oranges and browns
+    SIENNA = "sienna"
+    SEA_SHELL = "seaShell"
+    CHOCOLATE = "chocolate"
+    SADDLE_BROWN = "saddleBrown"
+    SANDY_BROWN = "sandyBrown"
+    PEACH_PUFF = "peachPuff"
+    PERU = "peru"
+    LINEN = "linen"
+    BISQUE = "bisque"
+    DARK_ORANGE = "darkOrange"
+    BURLY_WOOD = "burlyWood"
+    TAN = "tan"
+    ANTIQUE_WHITE = "antiqueWhite"
+    NAVAJO_WHITE = "navajoWhite"
+    BLANCHED_ALMOND = "blanchedAlmond"
+    PAPAYA_WHIP = "papayaWhip"
+    MOCCASIN = "moccasin"
+    ORANGE = "orange"
+    WHEAT = "wheat"
+    OLD_LACE = "oldLace"
+    FLORAL_WHITE = "floralWhite"
+    
+    # Yellows and golds
+    DARK_GOLDENROD = "darkGoldenrod"
+    GOLDENROD = "goldenrod"
+    CORNSILK = "cornsilk"
+    GOLD = "gold"
+    KHAKI = "khaki"
+    LEMON_CHIFFON = "lemonChiffon"
+    PALE_GOLDENROD = "paleGoldenrod"
+    DARK_KHAKI = "darkKhaki"
+    BEIGE = "beige"
+    LIGHT_GOLDENROD_YELLOW = "lightGoldenRodYellow"
+    OLIVE = "olive"
+    YELLOW = "yellow"
+    LIGHT_YELLOW = "lightYellow"
+    IVORY = "ivory"
+    
+    # Greens
+    OLIVE_DRAB = "oliveDrab"
+    YELLOW_GREEN = "yellowGreen"
+    DARK_OLIVE_GREEN = "darkOliveGreen"
+    GREEN_YELLOW = "greenYellow"
+    CHARTREUSE = "chartreuse"
+    LAWN_GREEN = "lawnGreen"
+    DARK_SEA_GREEN = "darkSeaGreen"
+    FOREST_GREEN = "forestGreen"
+    LIME_GREEN = "limeGreen"
+    LIGHT_GREEN = "lightGreen"
+    PALE_GREEN = "paleGreen"
+    DARK_GREEN = "darkGreen"
+    GREEN = "green"
+    LIME = "lime"
+    HONEY_DEW = "honeyDew"
+    SEA_GREEN = "seaGreen"
+    MEDIUM_SEA_GREEN = "mediumSeaGreen"
+    SPRING_GREEN = "springGreen"
+    MINT_CREAM = "mintCream"
+    MEDIUM_SPRING_GREEN = "mediumSpringGreen"
+    MEDIUM_AQUA_MARINE = "mediumAquaMarine"
+    AQUAMARINE = "aquamarine"
+    TURQUOISE = "turquoise"
+    LIGHT_SEA_GREEN = "lightSeaGreen"
+    MEDIUM_TURQUOISE = "mediumTurquoise"
+    
+    # Cyans and teals
+    DARK_SLATE_GRAY = "darkSlateGray"
+    DARK_SLATE_GREY = "darkSlateGrey"
+    PALE_TURQUOISE = "paleTurquoise"
+    TEAL = "teal"
+    DARK_CYAN = "darkCyan"
+    AQUA = "aqua"
+    CYAN = "cyan"
+    LIGHT_CYAN = "lightCyan"
+    AZURE = "azure"
+    DARK_TURQUOISE = "darkTurquoise"
+    CADET_BLUE = "cadetBlue"
+    POWDER_BLUE = "powderBlue"
+    LIGHT_BLUE = "lightBlue"
+    DEEP_SKY_BLUE = "deepSkyBlue"
+    SKY_BLUE = "skyBlue"
+    LIGHT_SKY_BLUE = "lightSkyBlue"
+    STEEL_BLUE = "steelBlue"
+    ALICE_BLUE = "aliceBlue"
+    
+    # Blues
+    DODGER_BLUE = "dodgerBlue"
+    SLATE_GRAY = "slateGray"
+    SLATE_GREY = "slateGrey"
+    LIGHT_SLATE_GRAY = "lightSlateGray"
+    LIGHT_SLATE_GREY = "lightSlateGrey"
+    LIGHT_STEEL_BLUE = "lightSteelBlue"
+    CORNFLOWER_BLUE = "cornflowerBlue"
+    ROYAL_BLUE = "royalBlue"
+    MIDNIGHT_BLUE = "midnightBlue"
+    LAVENDER = "lavender"
+    NAVY = "navy"
+    DARK_BLUE = "darkBlue"
+    MEDIUM_BLUE = "mediumBlue"
+    BLUE = "blue"
+    GHOST_WHITE = "ghostWhite"
+    
+    # Purples and violets
+    SLATE_BLUE = "slateBlue"
+    DARK_SLATE_BLUE = "darkSlateBlue"
+    MEDIUM_SLATE_BLUE = "mediumSlateBlue"
+    MEDIUM_PURPLE = "mediumPurple"
+    BLUE_VIOLET = "blueViolet"
+    INDIGO = "indigo"
+    DARK_ORCHID = "darkOrchid"
+    DARK_VIOLET = "darkViolet"
+    MEDIUM_ORCHID = "mediumOrchid"
+    THISTLE = "thistle"
+    PLUM = "plum"
+    VIOLET = "violet"
+    PURPLE = "purple"
+    DARK_MAGENTA = "darkMagenta"
+    MAGENTA = "magenta"
+    FUSCHIA = "fuschia"
+    ORCHID = "orchid"
+    MEDIUM_VIOLET_RED = "mediumVioletRed"
+    DEEP_PINK = "deepPink"
+    HOT_PINK = "hotPink"
+    LAVENDER_BLUSH = "lavenderBlush"
+    PALE_VIOLET_RED = "paleVioletRed"
+    CRIMSON = "crimson"
+    PINK = "pink"
+    LIGHT_PINK = "lightPink"
+
+
+class RGBColor(BaseModel):
+    """RGB color with 0-255 components."""
+    r: Annotated[int, Field(ge=0, le=255, description="Red component (0-255)")]
+    g: Annotated[int, Field(ge=0, le=255, description="Green component (0-255)")]
+    b: Annotated[int, Field(ge=0, le=255, description="Blue component (0-255)")]
+    alter: bool = Field(False, description="Alter flag")
+
+
+class RGBColorNormalized(BaseModel):
+    """RGB color with 0-1 normalized components."""
+    r: Annotated[float, Field(ge=0.0, le=1.0, description="Red component (0.0-1.0)")]
+    g: Annotated[float, Field(ge=0.0, le=1.0, description="Green component (0.0-1.0)")]
+    b: Annotated[float, Field(ge=0.0, le=1.0, description="Blue component (0.0-1.0)")]
+    alter: bool = Field(False, description="Alter flag")
+
+
+# Color type that accepts all forms
+Color = Union[
+    WebColorName,           # Named colors
+    RGBColor,              # RGB object with 0-255 values
+    RGBColorNormalized,    # RGB object with 0-1 values
+    List[Annotated[int, Field(ge=0, le=255)]],  # RGB array [r, g, b]
+    str                    # Hex colors like "#ff0000" or expressions
+]
+
+# Normalized color for coverage operations
+ColorNormalized = Union[
+    WebColorName,
+    RGBColorNormalized,
+    List[Annotated[float, Field(ge=0.0, le=1.0)]],
+    str
+]
+
+
+# =============================================================================
+# Unit Types
+# =============================================================================
+
+class UnitType(str, Enum):
+    """Supported unit types."""
+    PIXELS = "px"
+    MILLIMETERS = "mm" 
+    CENTIMETERS = "cm"
+    INCHES = "in"
+    POINTS = "pt"
+    EM = "em"
+    PICAS = "pc"
+    METERS = "m"
+    FEET = "ft"
+
+
+class UnitValue(BaseModel):
+    """Value with a specific unit."""
+    value: float = Field(..., description="Numeric value")
+    unit: UnitType = Field(..., description="Unit type")
+    
+    @validator('unit', pre=True)
+    def validate_unit(cls, v):
+        if isinstance(v, str) and v in UnitType.__members__.values():
+            return v
+        return UnitType(v)
+    
+    def __str__(self) -> str:
+        """String representation like '10px' or '2.5mm'."""
+        return f"{self.value}{self.unit.value}"
+
+
+# Flexible unit value that accepts expressions or objects
+UnitValueFlexible = Union[
+    UnitValue,              # Explicit unit object
+    float,                  # Plain number (assumes default unit)
+    str                     # Expression or string like "10px"
+]
+
+
+# =============================================================================
+# Angle Types
+# =============================================================================
+
+class AngleUnit(str, Enum):
+    """Supported angle units."""
+    DEGREES = "deg"
+    RADIANS = "rad"
+
+
+class Angle(BaseModel):
+    """Angle value with unit."""
+    value: float = Field(..., description="Angle value")
+    unit: AngleUnit = Field(AngleUnit.DEGREES, description="Angle unit")
+    
+    def __str__(self) -> str:
+        """String representation like '45deg' or '1.57rad'."""
+        return f"{self.value}{self.unit.value}"
+
+
+# =============================================================================
+# Range Types
+# =============================================================================
+
+ZeroToOne = Annotated[float, Field(ge=0.0, le=1.0)]
+"""Float value between 0 and 1 (inclusive)."""
+
+Percent = Annotated[float, Field(ge=0.0, le=100.0)]
+"""Percentage value between 0 and 100."""
+
+ColorComponent255 = Annotated[int, Field(ge=0, le=255)]
+"""Color component value between 0 and 255."""
+
+
+# =============================================================================
+# Validators
+# =============================================================================
+
+def validate_hex_color(v: str) -> str:
+    """Validate hex color format."""
+    if not isinstance(v, str):
+        return v
+        
+    # Allow hex colors like #ff0000, #fff, etc.
+    hex_pattern = re.compile(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
+    if hex_pattern.match(v):
+        return v
+        
+    # Allow other string expressions (like CSS variables, functions, etc.)
+    return v
+
+
+def validate_unit_string(v: str) -> str:
+    """Validate unit string format like '10px', '2.5mm'."""
+    if not isinstance(v, str):
+        return v
+        
+    # Pattern for number + unit
+    unit_pattern = re.compile(r'^-?\d+(\.\d+)?(px|mm|cm|in|pt|em|pc|m|ft)$')
+    if unit_pattern.match(v):
+        return v
+        
+    # Allow expressions
+    return v
+
+
+# =============================================================================
+# Flexible Types for Real-world Usage
+# =============================================================================
+
+# These are the types actually used in models - they accept both precise types and strings
+
+FlexibleColor = Union[Color, str]
+"""Color that accepts precise Color types or string expressions."""
+
+FlexibleUnitValue = Union[UnitValue, str, float]
+"""Unit value that accepts UnitValue objects, strings like '10px', or plain numbers."""
+
+FlexibleAngle = Union[Angle, str, float]
+"""Angle that accepts Angle objects, strings, or plain numbers (assumed degrees)."""
+
+FlexibleOpacity = Union[ZeroToOne, str]
+"""Opacity that accepts 0-1 float or string expressions."""
