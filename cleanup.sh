@@ -13,7 +13,7 @@ safe_remove() {
         echo "    Suppression: $1"
         rm -rf "$1"
     else
-        echo "  ✅  Déjà supprimé: $1"
+        echo "   Déjà supprimé: $1"
     fi
 }
 

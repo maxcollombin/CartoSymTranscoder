@@ -1,0 +1,169 @@
+{
+  "metadata": {
+    "title": "Styling polygon vector features",
+    "abstract": "Basic vector features styling (polygons)"
+  },
+  "stylingRules": [
+    {
+      "name": "Landuse",
+      "nestedRules": [
+        {
+          "nestedRules": [
+            {
+              "selector": {
+                "op": "=",
+                "args": [
+                  {
+                    "property": "FunctionCode"
+                  },
+                  "parking"
+                ]
+              },
+              "symbolizer": {
+                "fill": {
+                  "color": "darkGray"
+                },
+                "stroke": {
+                  "color": [
+                    32,
+                    32,
+                    32
+                  ]
+                }
+              }
+            },
+            {
+              "selector": {
+                "op": "=",
+                "args": [
+                  {
+                    "property": "FunctionCode"
+                  },
+                  "park"
+                ]
+              },
+              "symbolizer": {
+                "fill": {
+                  "color": "darkGreen"
+                },
+                "stroke": {
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "selector": {
+                "op": "=",
+                "args": [
+                  {
+                    "property": "FunctionCode"
+                  },
+                  "commercial"
+                ]
+              },
+              "symbolizer": {
+                "fill": {
+                  "color": "lightGray"
+                },
+                "stroke": {
+                  "color": "lightGray"
+                }
+              }
+            },
+            {
+              "nestedRules": [
+                {
+                  "selector": {
+                    "op": "=",
+                    "args": [
+                      {
+                        "property": "FunctionCode"
+                      },
+                      "parking"
+                    ]
+                  }
+                },
+                {
+                  "selector": {
+                    "op": "=",
+                    "args": [
+                      {
+                        "property": "FunctionCode"
+                      },
+                      "park"
+                    ]
+                  }
+                },
+                {
+                  "selector": {
+                    "op": "=",
+                    "args": [
+                      {
+                        "property": "FunctionCode"
+                      },
+                      "commercial"
+                    ]
+                  }
+                }
+              ],
+              "selector": {
+                "sysId": "viz.sd<10000"
+              },
+              "symbolizer": {
+                "opacity": 1.0,
+                "stroke": {
+                  "width": {
+                    "value": 4.0,
+                    "unit": "px"
+                  }
+                }
+              }
+            }
+          ],
+          "selector": {
+            "property": "date"
+          },
+          "symbolizer": {
+            "visibility": true,
+            "opacity": 1.0,
+            "zOrder": 1,
+            "fill": {
+              "color": "gray",
+              "opacity": 0.5
+            },
+            "stroke": {
+              "color": "gray",
+              "opacity": 1.0,
+              "width": {
+                "value": 2.0,
+                "unit": "px"
+              }
+            }
+          }
+        }
+      ],
+      "selector": {
+        "op": "and",
+        "args": [
+          {
+            "op": "=",
+            "args": [
+              {
+                "sysId": "dataLayer.id"
+              },
+              {
+                "property": "Landuse"
+              }
+            ]
+          },
+          {
+            "property": "featuresGeometryDimensions=2"
+          }
+        ]
+      },
+      "symbolizer": {
+        "visibility": false
+      }
+    }
+  ]
+}

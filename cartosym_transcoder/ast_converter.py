@@ -181,8 +181,8 @@ class AstToPydanticConverter:
                     right_part = parts[1].strip().strip('\'"')
                     
                     # Determine if left part is system property or regular property
-                    if '.' in left_part and any(left_part.startswith(prefix) for prefix in ['viz', 'vis', 'dataLayer']):
-                        left_arg = {"sysId": left_part.replace('viz.', 'vis.')}
+                    if '.' in left_part and any(left_part.startswith(prefix) for prefix in ['viz', 'dataLayer']):
+                        left_arg = {"sysId": left_part}
                     elif left_part in ['validDate', 'FunctionCode', 'FunctionTitle']:
                         left_arg = {"property": left_part}
                     else:
@@ -212,89 +212,75 @@ class AstToPydanticConverter:
         if not expression:
             return {}
         
-        try:
-            # Handle ANTLR context objects (from grammar)
-            if hasattr(expression, 'getRuleIndex'):
-                from .grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
-                rule_name = CartoSymCSSGrammar.ruleNames[expression.getRuleIndex()]
-                return self._convert_antlr_expression(expression, rule_name)
+        # Handle ANTLR context objects (from grammar)
+        if hasattr(expression, 'getRuleIndex'):
+            from .grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+            rule_name = CartoSymCSSGrammar.ruleNames[expression.getRuleIndex()]
+            return self._convert_antlr_expression(expression, rule_name)
+        
+        # Handle BinaryOperationExpression (AST objects)
+        if hasattr(expression, 'left') and hasattr(expression, 'right') and hasattr(expression, 'operator'):
+            left_arg = self._convert_expression_to_json_selector(expression.left)
+            right_arg = self._convert_expression_to_json_selector(expression.right)
             
-            # Handle BinaryOperationExpression (AST objects)
-            if hasattr(expression, 'left') and hasattr(expression, 'right') and hasattr(expression, 'operator'):
-                left_arg = self._convert_expression_to_json_selector(expression.left)
-                right_arg = self._convert_expression_to_json_selector(expression.right)
-                
-                # Map operator enum to string
-                op_str = str(expression.operator)
-                if 'AND' in op_str:
-                    op = 'and'
-                elif 'OR' in op_str:
-                    op = 'or'
-                elif 'EQ' in op_str or 'EQUAL' in op_str:
-                    op = '='
-                elif 'LT' in op_str and 'LESS_THAN' in op_str:
-                    op = '<'
-                elif 'GT' in op_str and 'GREATER_THAN' in op_str:
-                    op = '>'
-                elif 'LTE' in op_str or 'LESS_EQUAL' in op_str:
-                    op = '<='
-                elif 'GTE' in op_str or 'GREATER_EQUAL' in op_str:
-                    op = '>='
-                elif 'NEQ' in op_str or 'NOT_EQUAL' in op_str:
-                    op = '!='
+            # Map operator enum to string
+            op_str = str(expression.operator)
+            if 'AND' in op_str:
+                op = 'and'
+            elif 'OR' in op_str:
+                op = 'or'
+            elif 'EQ' in op_str or 'EQUAL' in op_str:
+                op = '='
+            elif 'LT' in op_str and 'LESS_THAN' in op_str:
+                op = '<'
+            elif 'GT' in op_str and 'GREATER_THAN' in op_str:
+                op = '>'
+            elif 'LTE' in op_str or 'LESS_EQUAL' in op_str:
+                op = '<='
+            elif 'GTE' in op_str or 'GREATER_EQUAL' in op_str:
+                op = '>='
+            elif 'NEQ' in op_str or 'NOT_EQUAL' in op_str:
+                op = '!='
+            else:
+                # Extract operator from string representation
+                if '.' in op_str:
+                    op_name = op_str.split('.')[-1].lower()
+                    op = op_name
                 else:
-                    # Extract operator from string representation
-                    if '.' in op_str:
-                        op_name = op_str.split('.')[-1].lower()
-                        op = op_name
-                    else:
-                        op = str(expression.operator)
-                
-                return {
-                    "op": op,
-                    "args": [left_arg, right_arg]
-                }
+                    op = str(expression.operator)
             
-            # Handle MemberAccessExpression (system properties)
-            if hasattr(expression, 'object') and hasattr(expression, 'member'):
-                obj_name = expression.object.name if hasattr(expression.object, 'name') else str(expression.object)
-                member_name = expression.member
-                
-                # Map system properties
-                property_mapping = {
-                    'viz.sd': 'vis.id',
-                    'viz.timeInterval': 'vis.timeInterval',
-                    'dataLayer.type': 'dataLayer.type',
-                    'dataLayer.id': 'dataLayer.id',
-                    'dataLayer.featuresGeometryDimensions': 'dataLayer.featuresGeometryDimensions'
-                }
-                
-                full_property = f"{obj_name}.{member_name}"
-                mapped_property = property_mapping.get(full_property, full_property)
-                
-                if obj_name in ['viz', 'vis', 'dataLayer']:
-                    return {"sysId": mapped_property}
-                else:
-                    return {"property": member_name}
+            return {
+                "op": op,
+                "args": [left_arg, right_arg]
+            }
+        
+        # Handle MemberAccessExpression (system properties)
+        if hasattr(expression, 'object') and hasattr(expression, 'member'):
+            obj_name = expression.object.name if hasattr(expression.object, 'name') else str(expression.object)
+            member_name = expression.member
             
-            # Handle IdentifierExpression (simple properties)
-            if hasattr(expression, 'name'):
-                return self._convert_identifier(expression.name)
+            # Map system properties (mapping identique, donc inutile)
+            full_property = f"{obj_name}.{member_name}"
             
-            # Handle LiteralExpression/ConstantExpression
-            if hasattr(expression, 'value'):
-                return self._convert_literal_value(expression.value)
-            
-            # Handle string representation (fallback)
-            if isinstance(expression, str):
-                return self._convert_identifier(expression)
-            
-            # Final fallback - convert to string
-            return str(expression)
-            
-        except Exception as e:
-            # Return as string if conversion fails
-            return str(expression)
+            if obj_name in ['viz', 'vis', 'dataLayer']:
+                return {"sysId": full_property}
+            else:
+                return {"property": member_name}
+        
+        # Handle IdentifierExpression (simple properties)
+        if hasattr(expression, 'name'):
+            return self._convert_identifier(expression.name)
+        
+        # Handle LiteralExpression/ConstantExpression
+        if hasattr(expression, 'value'):
+            return self._convert_literal_value(expression.value)
+        
+        # Handle string representation (fallback)
+        if isinstance(expression, str):
+            return self._convert_identifier(expression)
+        
+        # Final fallback - convert to string
+        return str(expression)
     
     def _convert_antlr_expression(self, expr_ctx, rule_name: str) -> Dict[str, Any]:
         """
@@ -434,21 +420,8 @@ class AstToPydanticConverter:
                 return self._convert_literal_value(name)
     
     def _map_system_property(self, prop: str) -> str:
-        """Map CSCSS system properties to CS.JSON format."""
-        # Normalize viz to vis first
-        prop = prop.replace('viz.', 'vis.')
-        
-        # System property mappings based on CS.JSON reference
-        system_mappings = {
-            'vis.sd': 'vis.id',  # Scale denominator -> vis id
-            'vis.timeInterval.start.date': 'vis.timeInterval.start.date',
-            'vis.timeInterval.end.date': 'vis.timeInterval.end.date',
-            'dataLayer.type': 'dataLayer.type',
-            'dataLayer.id': 'dataLayer.id', 
-            'dataLayer.featuresGeometryDimensions': 'dataLayer.featuresGeometryDimensions'
-        }
-        
-        return system_mappings.get(prop, prop)
+        """Retourne la propriété système telle quelle (mapping identique)."""
+        return prop
     
     def _convert_literal_value(self, value: Union[str, int, float]) -> Union[str, int, float, list]:
         """Convert literal value to appropriate JSON type with proper CS.JSON formatting."""

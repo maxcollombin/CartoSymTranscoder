@@ -27,7 +27,15 @@ pip install cartosym-transcoder
 cartosym-parse parse input/0-basic.cscss
 
 # Convert between formats
-cartosym-parse convert input/example.cscss output/example.json --from-format css --to-format json
+cartosym-parse convert input/example.cscss -o output/example.json
+# Convert and display the result in the console
+cartosym-parse convert input/example.cscss --print
+# Convert and validate the result
+cartosym-parse convert input/example.cscss -o output/example.json --validate
+# Display help
+cartosym-parse --help
+# Display version
+cartosym-parse --version
 ```
 
 ### Python API

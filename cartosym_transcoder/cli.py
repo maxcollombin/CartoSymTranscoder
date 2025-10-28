@@ -67,21 +67,35 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help='Input file to convert'
     )
     convert_parser.add_argument(
-        'output_file',
+        '-o', '--output',
         type=Path,
-        help='Output file'
+        help='Output file (if omitted, prints to console)'
     )
+    convert_parser.add_argument(
+        '--validate',
+        action='store_true',
+        help='Validate the output after conversion'
+    )
+    convert_parser.add_argument(
+        '--print',
+        action='store_true',
+        help='Print the result to stdout instead of writing to a file'
+    )
+    convert_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Overwrite output file if it exists'
+    )
+    # Optional: allow explicit format override
     convert_parser.add_argument(
         '--from-format',
         choices=['cscss', 'csjson'],
-        required=True,
-        help='Source format'
+        help='Source format (auto-detected if omitted)'
     )
     convert_parser.add_argument(
         '--to-format',
         choices=['cscss', 'csjson'],
-        required=True,
-        help='Target format'
+        help='Target format (auto-detected if omitted)'
     )
     
     return parser
@@ -103,40 +117,53 @@ def parse_command(args) -> int:
         return 1
 
 
+def detect_format(path: Path) -> Optional[str]:
+    ext = path.suffix.lower()
+    if ext == '.cscss':
+        return 'cscss'
+    if ext == '.json' and path.name.endswith('.cs.json'):
+        return 'csjson'
+    return None
+
+
 def convert_command(args) -> int:
-    """Handle the convert command.""" 
+    """Handle the convert command with auto format detection."""
     converter = Converter()
-    
+    from_format = args.from_format or detect_format(args.input_file)
+    to_format = args.to_format or (detect_format(args.output) if args.output else None)
+    if not from_format or not to_format:
+        print(f"Conversion from {from_format} to {to_format} not supported yet", file=sys.stderr)
+        return 1
     try:
-        if args.from_format == 'cscss' and args.to_format == 'csjson':
-            # CSCSS to CSJSON conversion - now working!
+        if from_format == 'cscss' and to_format == 'csjson':
             result = converter.cscss_to_csjson(args.input_file)
             import json
-            with open(args.output_file, 'w', encoding='utf-8') as f:
-                json.dump(result, f, indent=2, ensure_ascii=False)
-                
-        elif args.from_format == 'csjson' and args.to_format == 'cscss':
-            # CSJSON to CSCSS conversion using new method
+            if args.print:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            if args.output:
+                with open(args.output, 'w', encoding='utf-8') as f:
+                    json.dump(result, f, indent=2, ensure_ascii=False)
+        elif from_format == 'csjson' and to_format == 'cscss':
             result = converter.csjson_to_cscss(args.input_file)
-            with open(args.output_file, 'w', encoding='utf-8') as f:
-                f.write(result)
-                
-        elif args.from_format == 'csjson' and args.to_format == 'csjson':
-            # CSJSON to CSJSON (validation and reformatting)
+            if args.print:
+                print(result)
+            if args.output:
+                with open(args.output, 'w', encoding='utf-8') as f:
+                    f.write(result)
+        elif from_format == 'csjson' and to_format == 'csjson':
             style = converter.csjson_to_style(args.input_file)
             result = style.to_dict()
             import json
-            with open(args.output_file, 'w', encoding='utf-8') as f:
-                json.dump(result, f, indent=2, ensure_ascii=False)
-                
+            if args.print:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            if args.output:
+                with open(args.output, 'w', encoding='utf-8') as f:
+                    json.dump(result, f, indent=2, ensure_ascii=False)
         else:
-            print(f"Conversion from {args.from_format} to {args.to_format} not supported yet", 
-                  file=sys.stderr)
+            print(f"Conversion from {from_format} to {to_format} not supported yet", file=sys.stderr)
             return 1
-        
-        print(f"Successfully converted {args.input_file} to {args.output_file}")
+        print(f"Successfully converted {args.input_file} to {args.output}")
         return 0
-        
     except FileNotFoundError:
         print(f"Error: File not found: {args.input_file}", file=sys.stderr)
         return 1

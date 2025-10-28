@@ -27,9 +27,9 @@
                {
                   "op": "and",
                   "args": [
-                     { "op": "<", "args": [ { "sysId": "vis.id" }, 200000 ] },
-                     { "op": ">=", "args": [ { "property": "validDate" }, { "sysId": "vis.timeInterval.start.date" } ] },
-                     { "op": "<=", "args": [ { "property": "validDate" }, { "sysId": "vis.timeInterval.end.date" } ] }
+                     { "op": "<", "args": [ { "sysId": "viz.id" }, 200000 ] },
+                     { "op": ">=", "args": [ { "property": "validDate" }, { "sysId": "viz.timeInterval.start.date" } ] },
+                     { "op": "<=", "args": [ { "property": "validDate" }, { "sysId": "viz.timeInterval.end.date" } ] }
                   ]
                },
                "symbolizer":
@@ -68,7 +68,7 @@
                   },
                   {
                      "$comment": "If zoomed in more than 1:10,000",
-                     "selector": { "op": "<", "args": [ { "sysId": "vis.sd" }, 10000 ] },
+                     "selector": { "op": "<", "args": [ { "sysId": "viz.sd" }, 10000 ] },
                      "symbolizer":
                      {
                         "$comment": "Change stroke width to 4 pixels and add a text marker (positioned at centroid + horizontal offset) showing FunctionTitle property",
