@@ -1,4 +1,4 @@
-[{'op': '=', 'args': [{'sysId': 'dataLayer.id'}, 'Landuse']}]
+[Landuse]
 {
   visibility: false;
 }

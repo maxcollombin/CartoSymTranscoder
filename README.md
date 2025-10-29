@@ -30,24 +30,14 @@ cartosym-parse parse input/0-basic.cscss
 cartosym-parse convert input/example.cscss -o output/example.json
 # Convert and display the result in the console
 cartosym-parse convert input/example.cscss --print
+# Validate the styles
+cartosym-parse convert input/example.cscss or cartosym-parse convert input/example.cs.json 
 # Convert and validate the result
-cartosym-parse convert input/example.cscss -o output/example.json --validate
+cartosym-parse convert input/example.cscss -o output/example.cs.json --validate
 # Display help
 cartosym-parse --help
 # Display version
 cartosym-parse --version
-```
-
-### Python API
-
-```python
-from cartosym_transcoder import CartoSymParser, Converter
-
-parser = CartoSymParser()
-stylesheet = parser.parse_file("input/example.cscss")
-
-converter = Converter()
-json_data = converter.css_to_json(stylesheet)
 ```
 
 ## Development

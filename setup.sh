@@ -37,6 +37,8 @@ echo "   Environnement virtuel actif: $VIRTUAL_ENV"
 echo "Installation des dépendances Python..."
 # Installation des dépendances ANTLR (runtime + tools pour génération)
 pip install -q antlr4-python3-runtime antlr4-tools
+# Installation du validateur JSON
+pip install -q jsonschema
 
 # Génération du code à partir des grammaires du submodule
 echo " Génération des fichiers ANTLR..."

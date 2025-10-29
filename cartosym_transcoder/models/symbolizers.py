@@ -5,11 +5,17 @@ Based on the JSON Schema definitions for symbolizer, fill, stroke, marker, label
 """
 
 from typing import Optional, Union, List, Any, Dict
-from pydantic import Field
+from pydantic import Field, field_validator, ConfigDict
 from .base import BaseCartoSymModel, CommentMixin, AlterMixin
-from .types import FlexibleColor, FlexibleUnitValue, FlexibleOpacity, FlexibleAngle
+from .types import FlexibleColor, FlexibleOpacity, FlexibleAngle, UnitValue
 from .expressions import BoolExpression, NumericExpression
 
+def parse_flexible_unit_value(v):
+    # Accept dicts like {"px": 2.0}
+    if isinstance(v, dict) and len(v) == 1:
+        unit, value = next(iter(v.items()))
+        return UnitValue(value=value, unit=unit)
+    return v
 
 class Fill(BaseCartoSymModel, AlterMixin):
     """
@@ -33,16 +39,24 @@ class Hatch(BaseCartoSymModel, AlterMixin):
     """
     Hatch pattern for fills.
     """
-    width: Optional[FlexibleUnitValue] = Field(None, description="Hatch line width")
+    width: Optional[Union[UnitValue, str, float]] = Field(None, description="Hatch line width")
     angle: Optional[FlexibleAngle] = Field(None, description="Hatch angle")
-    distance: Optional[FlexibleUnitValue] = Field(None, description="Distance between hatch lines")
+    distance: Optional[Union[UnitValue, str, float]] = Field(None, description="Distance between hatch lines")
+
+    @field_validator('width', 'distance', mode='before')
+    def validate_unit_fields(cls, v):
+        return parse_flexible_unit_value(v)
 
 
 class DotPattern(BaseCartoSymModel, AlterMixin):
     """
     Dot pattern for fills.
     """
-    distance: Optional[FlexibleUnitValue] = Field(None, description="Distance between dots")
+    distance: Optional[Union[UnitValue, str, float]] = Field(None, description="Distance between dots")
+
+    @field_validator('distance', mode='before')
+    def validate_distance(cls, v):
+        return parse_flexible_unit_value(v)
 
 
 class Stipple(BaseCartoSymModel, AlterMixin):
@@ -58,7 +72,11 @@ class StrokeStyling(BaseCartoSymModel, AlterMixin):
     """
     color: Optional[FlexibleColor] = Field(None, description="Stroke color")
     opacity: Optional[FlexibleOpacity] = Field(None, description="Stroke opacity (0.0-1.0)")
-    width: Optional[FlexibleUnitValue] = Field(None, description="Stroke width")
+    width: Optional[Union[UnitValue, str, float]] = Field(None, description="Stroke width")
+
+    @field_validator('width', mode='before')
+    def validate_width(cls, v):
+        return parse_flexible_unit_value(v)
 
 
 class DashPattern(BaseCartoSymModel):
@@ -82,7 +100,7 @@ class Stroke(BaseCartoSymModel, AlterMixin):
     # Basic stroke properties with precise types from Phase B
     color: Optional[FlexibleColor] = Field(None, description="Stroke color")
     opacity: Optional[FlexibleOpacity] = Field(None, description="Stroke opacity (0.0-1.0)")
-    width: Optional[FlexibleUnitValue] = Field(None, description="Stroke width")
+    width: Optional[Union[UnitValue, str, float]] = Field(None, description="Stroke width")
     
     # Extended stroke properties
     casing: Optional['StrokeStyling'] = Field(None, description="Stroke casing")
@@ -98,6 +116,10 @@ class Stroke(BaseCartoSymModel, AlterMixin):
     )
     pattern: Optional[Dict[str, Any]] = Field(None, description="Stroke pattern graphic (temporary)")
 
+    @field_validator('width', mode='before')
+    def validate_width(cls, v):
+        return parse_flexible_unit_value(v)
+
 
 class Marker(BaseCartoSymModel):
     """
@@ -110,6 +132,18 @@ class Marker(BaseCartoSymModel):
     position: Optional['UnitPoint'] = Field(None, description="Marker position")
     opacity: Optional[FlexibleOpacity] = Field(None, description="Marker opacity")
     elements: Optional[List['Graphic']] = Field(None, description="Graphic elements in marker")
+
+    @field_validator('elements', mode='before')
+    def ensure_elements_list(cls, v):
+        # Accept dicts like {"index": ..., "value": ...} and convert to list
+        if isinstance(v, dict) and 'value' in v:
+            return [v['value']]
+        if isinstance(v, dict):
+            # If dict is a single graphic, wrap in list
+            return [v]
+        if not isinstance(v, list) and v is not None:
+            return [v]
+        return v
 
 
 class Label(BaseCartoSymModel):
@@ -126,12 +160,35 @@ class Label(BaseCartoSymModel):
     elements: Optional[List['Graphic']] = Field(None, description="Graphic elements in label")
     placement: Optional['LabelPlacement'] = Field(None, description="Label placement configuration")
 
+    @field_validator('elements', mode='before')
+    def ensure_elements_list(cls, v):
+        if isinstance(v, dict) and 'value' in v:
+            return [v['value']]
+        if isinstance(v, dict):
+            return [v]
+        if not isinstance(v, list) and v is not None:
+            return [v]
+        return v
+
 
 # Graphic system classes
 class UnitPoint(BaseCartoSymModel):
     """Point with unit values: [x, y] or {x: value, y: value}"""
-    x: FlexibleUnitValue
-    y: FlexibleUnitValue
+    x: Union[UnitValue, str, float]
+    y: Union[UnitValue, str, float]
+
+    @field_validator('x', 'y', mode='before')
+    def parse_unit_point(cls, v, info):
+        # Accept list like [x, y]
+        if isinstance(v, list) and len(v) == 2:
+            return v[info.field_index]
+        return v
+
+    @classmethod
+    def from_list(cls, v):
+        if isinstance(v, list) and len(v) == 2:
+            return cls(x=v[0], y=v[1])
+        return v
 
 
 class Resource(BaseCartoSymModel):
@@ -146,7 +203,7 @@ class Resource(BaseCartoSymModel):
 class Font(BaseCartoSymModel):
     """Font specification."""
     face: Optional[str] = Field(None, description="Font family name")
-    size: Optional[FlexibleUnitValue] = Field(None, description="Font size")
+    size: Optional[Union[UnitValue, str, float]] = Field(None, description="Font size")
     bold: Optional[bool] = Field(None, description="Bold weight")
     italic: Optional[bool] = Field(None, description="Italic style")
     underline: Optional[bool] = Field(None, description="Underline decoration")
@@ -155,7 +212,7 @@ class Font(BaseCartoSymModel):
 class FontOutline(BaseCartoSymModel):
     """Font outline styling."""
     color: Optional[FlexibleColor] = Field(None, description="Outline color")
-    width: Optional[FlexibleUnitValue] = Field(None, description="Outline width")
+    width: Optional[Union[UnitValue, str, float]] = Field(None, description="Outline width")
 
 
 class TextAlignment(BaseCartoSymModel):
@@ -170,8 +227,8 @@ class LabelPlacement(BaseCartoSymModel):
     placement_type: Optional[str] = Field(None, alias="type", description="Placement algorithm type")
     # Additional placement properties would go here
     priority: Optional[NumericExpression] = Field(None, description="Label priority")
-    min_spacing: Optional[FlexibleUnitValue] = Field(None, alias="minSpacing", description="Minimum spacing")
-    max_spacing: Optional[FlexibleUnitValue] = Field(None, alias="maxSpacing", description="Maximum spacing")
+    min_spacing: Optional[Union[UnitValue, str, float]] = Field(None, alias="minSpacing", description="Minimum spacing")
+    max_spacing: Optional[Union[UnitValue, str, float]] = Field(None, alias="maxSpacing", description="Maximum spacing")
 
 
 # Abstract base for graphics
@@ -180,10 +237,17 @@ class AbstractGraphic(BaseCartoSymModel, AlterMixin):
     position: Optional[UnitPoint] = Field(None, description="Graphic position")
     opacity: Optional[FlexibleOpacity] = Field(None, description="Graphic opacity")
 
+    @field_validator('position', mode='before')
+    def validate_position(cls, v):
+        if isinstance(v, list) and len(v) == 2:
+            return UnitPoint(x=v[0], y=v[1])
+        return v
+
 
 class Graphic(AbstractGraphic):
     """Base graphic element - can be Image, Text, Shape, etc."""
     type: Optional[str] = Field(None, description="Graphic type: Image, Text, Shape, etc.")
+    model_config = ConfigDict(extra="allow")
 
 
 class ImageGraphic(Graphic):
@@ -194,6 +258,7 @@ class ImageGraphic(Graphic):
     tint: Optional[FlexibleColor] = Field(None, description="Tint color")
     black_tint: Optional[FlexibleColor] = Field(None, alias="blackTint", description="Black tint color")
     alpha_threshold: Optional[FlexibleOpacity] = Field(None, alias="alphaThreshold", description="Alpha threshold")
+    model_config = ConfigDict(extra="allow")
 
 
 class TextGraphic(Graphic):
@@ -208,19 +273,19 @@ class TextGraphic(Graphic):
 class ShapeGraphic(Graphic):
     """Base class for shape graphics."""
     type: str = Field("Shape", description="Graphic type")
-    size: Optional[FlexibleUnitValue] = Field(None, description="Shape size")
+    size: Optional[Union[UnitValue, str, float]] = Field(None, description="Shape size")
     outline: Optional[Stroke] = Field(None, description="Shape outline")
 
 
 class CircleGraphic(ShapeGraphic):
     """Circle shape graphic."""
-    radius: FlexibleUnitValue = Field(..., description="Circle radius")
+    radius: Union[UnitValue, str, float] = Field(..., description="Circle radius")
 
 
 class RectangleGraphic(ShapeGraphic):
     """Rectangle shape graphic."""
-    width: FlexibleUnitValue = Field(..., description="Rectangle width")
-    height: FlexibleUnitValue = Field(..., description="Rectangle height")
+    width: Union[UnitValue, str, float] = Field(..., description="Rectangle width")
+    height: Union[UnitValue, str, float] = Field(..., description="Rectangle height")
 
 
 class ColorMap(BaseCartoSymModel):

@@ -3,9 +3,14 @@ Command-line interface for CartoSym Transcoder.
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Optional
+from antlr4 import FileStream, CommonTokenStream
+from cartosym_transcoder.grammar.generated.CartoSymCSSLexer import CartoSymCSSLexer
+from cartosym_transcoder.grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+from jsonschema import validate as jsonschema_validate, ValidationError
 
 from . import __version__
 from .parser import CartoSymParser
@@ -22,6 +27,8 @@ def main() -> int:
             return parse_command(args)
         elif args.command == 'convert':
             return convert_command(args)
+        elif args.command == 'validate':
+            return validate_command(args)
         else:
             parser.print_help()
             return 1
@@ -98,6 +105,10 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help='Target format (auto-detected if omitted)'
     )
     
+    # Validate command
+    validate_parser = subparsers.add_parser('validate', help='Validate a CSCSS or CSJSON file')
+    validate_parser.add_argument('input_file', type=Path, help='File to validate (.cscss or .cs.json)')
+    
     return parser
 
 
@@ -137,7 +148,6 @@ def convert_command(args) -> int:
     try:
         if from_format == 'cscss' and to_format == 'csjson':
             result = converter.cscss_to_csjson(args.input_file)
-            import json
             if args.print:
                 print(json.dumps(result, indent=2, ensure_ascii=False))
             if args.output:
@@ -153,7 +163,6 @@ def convert_command(args) -> int:
         elif from_format == 'csjson' and to_format == 'csjson':
             style = converter.csjson_to_style(args.input_file)
             result = style.to_dict()
-            import json
             if args.print:
                 print(json.dumps(result, indent=2, ensure_ascii=False))
             if args.output:
@@ -169,6 +178,47 @@ def convert_command(args) -> int:
         return 1
     except Exception as e:
         print(f"Error during conversion: {e}", file=sys.stderr)
+        return 1
+
+
+def validate_command(args) -> int:
+    """Validate a CSCSS or CSJSON file."""
+    input_path = args.input_file
+    ext = input_path.suffix.lower()
+    try:
+        if ext == '.cscss':
+            input_stream = FileStream(str(input_path), encoding='utf-8')
+            lexer = CartoSymCSSLexer(input_stream)
+            tokens = CommonTokenStream(lexer)
+            parser = CartoSymCSSGrammar(tokens)
+            parser.removeErrorListeners()
+            from antlr4.error.ErrorListener import ConsoleErrorListener
+            parser.addErrorListener(ConsoleErrorListener())
+            tree = parser.styleSheet()
+            if parser.getNumberOfSyntaxErrors() == 0:
+                print(f"Syntaxe CSCSS valide : {input_path}")
+                return 0
+            else:
+                print(f"Erreurs de syntaxe CSCSS dans {input_path}", file=sys.stderr)
+                return 1
+        elif ext == '.json' and input_path.name.endswith('.cs.json'):
+            with open(input_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            schema_path = Path(__file__).parent / 'schemas' / 'CartoSym-JSON.schema.json'
+            with open(schema_path, 'r', encoding='utf-8') as sf:
+                schema = json.load(sf)
+            try:
+                jsonschema_validate(instance=data, schema=schema)
+                print(f"Syntaxe CSJSON valide : {input_path}")
+                return 0
+            except ValidationError as ve:
+                print(f"Erreur de validation CSJSON : {ve.message}", file=sys.stderr)
+                return 1
+        else:
+            print(f"Extension non reconnue pour la validation : {input_path}", file=sys.stderr)
+            return 1
+    except Exception as e:
+        print(f"Erreur lors de la validation : {e}", file=sys.stderr)
         return 1
 
 

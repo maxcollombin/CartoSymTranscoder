@@ -5,7 +5,7 @@ Based on the JSON Schema definitions for style, stylingRule, and metadata.
 """
 
 from typing import Any, Dict, List, Optional, Union
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from .base import BaseCartoSymModel, CommentMixin
 
 # Import symbolizers
@@ -52,6 +52,20 @@ class StylingRule(BaseCartoSymModel, CommentMixin):
         None, 
         description="Symbolizer for this rule"
     )
+
+    @field_validator('symbolizer', mode='before')
+    def ensure_symbolizer_model(cls, v):
+        if isinstance(v, dict):
+            return Symbolizer.from_dict(v)
+        return v
+
+    @model_validator(mode='after')
+    def recursively_validate_nested_rules(self):
+        if self.nested_rules:
+            for i, rule in enumerate(self.nested_rules):
+                if isinstance(rule, dict):
+                    self.nested_rules[i] = StylingRule.model_validate(rule)
+        return self
 
 
 class Style(BaseCartoSymModel, CommentMixin):

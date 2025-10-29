@@ -9,3 +9,6 @@ cartosym_transcoder/grammar/
 
 # Build and distribution
 *.egg-info/
+
+# Output files
+output/*

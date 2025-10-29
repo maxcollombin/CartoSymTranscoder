@@ -6,8 +6,8 @@ including colors, units, ranges, and custom validators.
 """
 
 from enum import Enum
-from typing import Union, List, Literal, Annotated
-from pydantic import BaseModel, Field, validator, root_validator
+from typing import Union, List, Literal, Annotated, Any
+from pydantic import BaseModel, Field, validator, root_validator, field_validator
 import re
 
 
@@ -237,24 +237,31 @@ class UnitValue(BaseModel):
     """Value with a specific unit."""
     value: float = Field(..., description="Numeric value")
     unit: UnitType = Field(..., description="Unit type")
-    
+
+    @field_validator('value', 'unit', mode='before')
+    def parse_dict_input(cls, v, info):
+        # Accept dicts like {"px": 2.0}
+        if isinstance(v, dict) and len(v) == 1:
+            unit, value = next(iter(v.items()))
+            if info.field_name == 'value':
+                return value
+            if info.field_name == 'unit':
+                return unit
+        return v
+
     @validator('unit', pre=True)
     def validate_unit(cls, v):
         if isinstance(v, str) and v in UnitType.__members__.values():
             return v
         return UnitType(v)
-    
+
     def __str__(self) -> str:
         """String representation like '10px' or '2.5mm'."""
         return f"{self.value}{self.unit.value}"
 
 
 # Flexible unit value that accepts expressions or objects
-UnitValueFlexible = Union[
-    UnitValue,              # Explicit unit object
-    float,                  # Plain number (assumes default unit)
-    str                     # Expression or string like "10px"
-]
+FlexibleUnitValue = Union[UnitValue, str, float]
 
 
 # =============================================================================
@@ -340,3 +347,21 @@ FlexibleAngle = Union[Angle, str, float]
 
 FlexibleOpacity = Union[ZeroToOne, str]
 """Opacity that accepts 0-1 float or string expressions."""
+
+# UnitPoint validator
+class UnitPoint(BaseModel):
+    x: FlexibleUnitValue
+    y: FlexibleUnitValue
+
+    @field_validator('x', 'y', mode='before')
+    def parse_unit_point(cls, v, info):
+        # Accept list like [x, y]
+        if isinstance(v, list) and len(v) == 2:
+            return v[info.field_index]
+        return v
+
+    @classmethod
+    def from_list(cls, v):
+        if isinstance(v, list) and len(v) == 2:
+            return cls(x=v[0], y=v[1])
+        return v

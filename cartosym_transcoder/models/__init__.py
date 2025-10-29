@@ -12,7 +12,7 @@ from .types import (
     WebColorName, RGBColor, RGBColorNormalized, Color, ColorNormalized,
     FlexibleColor,
     # Unit types
-    UnitType, UnitValue, UnitValueFlexible, FlexibleUnitValue,
+    UnitType, UnitValue, FlexibleUnitValue,
     # Angle types
     AngleUnit, Angle, FlexibleAngle,
     # Range types
@@ -40,7 +40,7 @@ __all__ = [
     # Phase B precise types
     "WebColorName", "RGBColor", "RGBColorNormalized", "Color", "ColorNormalized",
     "FlexibleColor",
-    "UnitType", "UnitValue", "UnitValueFlexible", "FlexibleUnitValue",
+    "UnitType", "UnitValue", "FlexibleUnitValue",
     "AngleUnit", "Angle", "FlexibleAngle", 
     "ZeroToOne", "Percent", "ColorComponent255", "FlexibleOpacity",
     
