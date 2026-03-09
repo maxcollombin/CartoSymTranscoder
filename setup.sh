@@ -57,6 +57,10 @@ cp grammar/CartoSymCSSGrammar.g4 "$temp_dir/"
 # Aller dans le répertoire temporaire pour la génération
 cd "$temp_dir"
 
+# Rappel explicite pour activer le venv dans le shell courant
+echo "\nPour activer l'environnement virtuel dans votre terminal, exécutez :"
+echo "source CartoSym/bin/activate"
+
 # Générer d'abord le lexer, puis le parser
 echo "  Génération du lexer..."
 antlr4 -Dlanguage=Python3 CartoSymCSSLexer.g4

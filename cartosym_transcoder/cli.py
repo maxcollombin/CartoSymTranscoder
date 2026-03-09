@@ -17,47 +17,126 @@ from .parser import CartoSymParser
 from .converter import Converter
 
 
+# Subcommands that are dispatched explicitly (not the default conversion path)
+_SUBCOMMANDS = frozenset({'parse', 'validate'})
+
+
 def main() -> int:
     """Main CLI entry point."""
-    parser = create_argument_parser()
+    # Pre-detect whether a named subcommand is being used so that argparse
+    # doesn't confuse a file path for a subcommand name (or vice-versa).
+    positionals = [a for a in sys.argv[1:] if not a.startswith('-')]
+    is_subcommand = bool(positionals) and positionals[0] in _SUBCOMMANDS
+
+    parser = _create_subcommand_parser() if is_subcommand else _create_convert_parser()
     args = parser.parse_args()
-    
+
     try:
-        if args.command == 'parse':
-            return parse_command(args)
-        elif args.command == 'convert':
-            return convert_command(args)
-        elif args.command == 'validate':
-            return validate_command(args)
+        if is_subcommand:
+            if args.command == 'parse':
+                return parse_command(args)
+            elif args.command == 'validate':
+                return validate_command(args)
         else:
-            parser.print_help()
-            return 1
+            if getattr(args, 'input_file', None) is None:
+                parser.print_help()
+                return 1
+            return convert_command(args)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
+    return 0
+
 
 def create_argument_parser() -> argparse.ArgumentParser:
-    """Create the command-line argument parser."""
+    """Return the default (conversion) argument parser."""
+    return _create_convert_parser()
+
+
+def _create_convert_parser() -> argparse.ArgumentParser:
+    """Parser for the default conversion mode: cartosym <input> -o <output>."""
     parser = argparse.ArgumentParser(
-        prog='cartosym-parse',
-        description='CartoSym CSS parser and converter',
+        prog='cartosym',
+        description='CartoSym transcoder: convert between .cscss and .cs.json formats',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            'Examples:\n'
+            '  cartosym input/example.cscss -o output/example.cs.json\n'
+            '  cartosym output/example.cs.json -o output/example.cscss\n'
+            '  cartosym input/example.cscss --print\n'
+            '\n'
+            'Other commands:\n'
+            '  cartosym parse <input>     Parse a CSCSS file\n'
+            '  cartosym validate <input>  Validate a .cscss or .cs.json file\n'
+        ),
     )
-    
+
     parser.add_argument(
         '--version',
         action='version',
         version=f'cartosym-transcoder {__version__}'
     )
-    
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
-    # Parse command
-    parse_parser = subparsers.add_parser('parse', help='Parse a CartoSym CSS file')
+    parser.add_argument(
+        'input_file',
+        nargs='?',
+        type=Path,
+        default=None,
+        help='Input file to convert (.cscss or .cs.json)'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        type=Path,
+        help='Output file (if omitted, prints to console)'
+    )
+    parser.add_argument(
+        '--validate',
+        action='store_true',
+        help='Validate the output after conversion'
+    )
+    parser.add_argument(
+        '--print',
+        action='store_true',
+        help='Print the result to stdout'
+    )
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Overwrite output file if it exists'
+    )
+    parser.add_argument(
+        '--from-format',
+        choices=['cscss', 'csjson'],
+        help='Source format (auto-detected from file extension if omitted)'
+    )
+    parser.add_argument(
+        '--to-format',
+        choices=['cscss', 'csjson'],
+        help='Target format (auto-detected from file extension if omitted)'
+    )
+    return parser
+
+
+def _create_subcommand_parser() -> argparse.ArgumentParser:
+    """Parser for named subcommands: cartosym parse|validate <input>."""
+    parser = argparse.ArgumentParser(
+        prog='cartosym',
+        description='CartoSym transcoder',
+    )
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'cartosym-transcoder {__version__}'
+    )
+
+    subparsers = parser.add_subparsers(dest='command')
+
+    # parse subcommand
+    parse_parser = subparsers.add_parser('parse', help='Parse a CSCSS file and display info')
     parse_parser.add_argument(
         'input_file',
         type=Path,
-        help='Input CartoSym CSS (CSCSS) file to parse'
+        help='Input CartoSym CSS (.cscss) file to parse'
     )
     parse_parser.add_argument(
         '--log-level',
@@ -65,50 +144,15 @@ def create_argument_parser() -> argparse.ArgumentParser:
         default='INFO',
         help='Set the logging level'
     )
-    
-    # Convert command
-    convert_parser = subparsers.add_parser('convert', help='Convert between formats')
-    convert_parser.add_argument(
+
+    # validate subcommand
+    validate_parser = subparsers.add_parser('validate', help='Validate a .cscss or .cs.json file')
+    validate_parser.add_argument(
         'input_file',
         type=Path,
-        help='Input file to convert'
+        help='File to validate (.cscss or .cs.json)'
     )
-    convert_parser.add_argument(
-        '-o', '--output',
-        type=Path,
-        help='Output file (if omitted, prints to console)'
-    )
-    convert_parser.add_argument(
-        '--validate',
-        action='store_true',
-        help='Validate the output after conversion'
-    )
-    convert_parser.add_argument(
-        '--print',
-        action='store_true',
-        help='Print the result to stdout instead of writing to a file'
-    )
-    convert_parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Overwrite output file if it exists'
-    )
-    # Optional: allow explicit format override
-    convert_parser.add_argument(
-        '--from-format',
-        choices=['cscss', 'csjson'],
-        help='Source format (auto-detected if omitted)'
-    )
-    convert_parser.add_argument(
-        '--to-format',
-        choices=['cscss', 'csjson'],
-        help='Target format (auto-detected if omitted)'
-    )
-    
-    # Validate command
-    validate_parser = subparsers.add_parser('validate', help='Validate a CSCSS or CSJSON file')
-    validate_parser.add_argument('input_file', type=Path, help='File to validate (.cscss or .cs.json)')
-    
+
     return parser
 
 
@@ -146,6 +190,43 @@ def convert_command(args) -> int:
         print(f"Conversion from {from_format} to {to_format} not supported yet", file=sys.stderr)
         return 1
     try:
+        # Validate input before conversion
+        input_path = args.input_file
+        ext = input_path.suffix.lower()
+        has_errors = False
+        if from_format == 'cscss':
+            from antlr4 import FileStream, CommonTokenStream
+            from cartosym_transcoder.grammar.generated.CartoSymCSSLexer import CartoSymCSSLexer
+            from cartosym_transcoder.grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+            input_stream = FileStream(str(input_path), encoding='utf-8')
+            lexer = CartoSymCSSLexer(input_stream)
+            tokens = CommonTokenStream(lexer)
+            parser = CartoSymCSSGrammar(tokens)
+            parser.removeErrorListeners()
+            from antlr4.error.ErrorListener import ConsoleErrorListener
+            parser.addErrorListener(ConsoleErrorListener())
+            parser.styleSheet()
+            if parser.getNumberOfSyntaxErrors() > 0:
+                print(f"Error: Input CSCSS file contains syntax errors. Conversion aborted.", file=sys.stderr)
+                has_errors = True
+        elif from_format == 'csjson':
+            try:
+                with open(input_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                schema_path = Path(__file__).parent / 'schemas' / 'CartoSym-JSON.schema.json'
+                with open(schema_path, 'r', encoding='utf-8') as sf:
+                    schema = json.load(sf)
+                from jsonschema import validate as jsonschema_validate, ValidationError
+                jsonschema_validate(instance=data, schema=schema)
+            except (json.JSONDecodeError, ValidationError) as ve:
+                print(f"Error: Input CSJSON file is invalid: {ve}", file=sys.stderr)
+                has_errors = True
+            except Exception as e:
+                print(f"Error: Could not validate CSJSON: {e}", file=sys.stderr)
+                has_errors = True
+        if has_errors:
+            return 1
+        # If no errors, proceed with conversion
         if from_format == 'cscss' and to_format == 'csjson':
             result = converter.cscss_to_csjson(args.input_file)
             if args.print:

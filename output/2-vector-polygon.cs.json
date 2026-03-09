@@ -81,6 +81,34 @@
                       },
                       "parking"
                     ]
+                  },
+                  "symbolizer": {
+                    "marker": {
+                      "elements": {
+                        "index": 1,
+                        "value": {
+                          "type": "Image",
+                          "image": {
+                            "uri": "http://example.com/parkingIcon",
+                            "path": "parkingIcon.png",
+                            "id": "parking",
+                            "type": "image/png",
+                            "ext": "png"
+                          },
+                          "hotSpot": [
+                            {
+                              "pc": 50
+                            },
+                            {
+                              "pc": 50
+                            }
+                          ],
+                          "tint": "white",
+                          "blackTint": "blue",
+                          "alphaThreshold": 0.1
+                        }
+                      }
+                    }
                   }
                 },
                 {
@@ -92,6 +120,34 @@
                       },
                       "park"
                     ]
+                  },
+                  "symbolizer": {
+                    "marker": {
+                      "elements": {
+                        "index": 1,
+                        "value": {
+                          "type": "Image",
+                          "image": {
+                            "uri": "http://example.com/park",
+                            "path": "park.png",
+                            "id": "park",
+                            "type": "image/png",
+                            "ext": "png"
+                          },
+                          "hotSpot": [
+                            {
+                              "pc": 50
+                            },
+                            {
+                              "pc": 50
+                            }
+                          ],
+                          "tint": "white",
+                          "blackTint": "blue",
+                          "alphaThreshold": 0.1
+                        }
+                      }
+                    }
                   }
                 },
                 {
@@ -103,29 +159,125 @@
                       },
                       "commercial"
                     ]
+                  },
+                  "symbolizer": {
+                    "marker": {
+                      "elements": {
+                        "index": 1,
+                        "value": {
+                          "type": "Image",
+                          "image": {
+                            "uri": "http://example.com/commercial",
+                            "path": "commercial.png",
+                            "id": "commercial",
+                            "type": "image/png",
+                            "ext": "png"
+                          },
+                          "hotSpot": [
+                            {
+                              "pc": 50
+                            },
+                            {
+                              "pc": 50
+                            }
+                          ],
+                          "tint": "white",
+                          "blackTint": "blue",
+                          "alphaThreshold": 0.1
+                        }
+                      }
+                    }
                   }
                 }
               ],
               "selector": {
-                "sysId": "viz.sd<10000"
+                "op": "<",
+                "args": [
+                  {
+                    "sysId": "viz.sd"
+                  },
+                  10000
+                ]
               },
               "symbolizer": {
-                "opacity": 1.0,
                 "stroke": {
                   "width": {
-                    "value": 4.0,
-                    "unit": "px"
+                    "px": 4.0
                   }
+                },
+                "marker": {
+                  "elements": [
+                    {
+                      "type": "Text",
+                      "position": {
+                        "x": 20.0,
+                        "y": 0.0
+                      },
+                      "text": {
+                        "property": "FunctionTitle"
+                      },
+                      "alignment": [
+                        "left",
+                        "top"
+                      ],
+                      "font": {
+                        "face": "Arial",
+                        "size": 14,
+                        "bold": true,
+                        "italic": true,
+                        "opacity": 1.0,
+                        "color": "black"
+                      }
+                    }
+                  ]
                 }
               }
             }
           ],
           "selector": {
-            "property": "date"
+            "op": "and",
+            "args": [
+              {
+                "op": "<",
+                "args": [
+                  {
+                    "sysId": "viz.sd"
+                  },
+                  200000
+                ]
+              },
+              {
+                "op": "and",
+                "args": [
+                  {
+                    "op": ">=",
+                    "args": [
+                      {
+                        "property": "validDate"
+                      },
+                      {
+                        "sysId": "viz.timeInterval.start.date"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "<=",
+                    "args": [
+                      {
+                        "property": "validDate"
+                      },
+                      {
+                        "sysId": "viz.timeInterval.end.date"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
           },
           "symbolizer": {
             "visibility": true,
-            "opacity": 1.0,
+            "opacity": 0.8,
             "zOrder": 1,
             "fill": {
               "color": "gray",
@@ -135,8 +287,7 @@
               "color": "gray",
               "opacity": 1.0,
               "width": {
-                "value": 2.0,
-                "unit": "px"
+                "px": 2.0
               }
             }
           }
@@ -151,13 +302,31 @@
               {
                 "sysId": "dataLayer.id"
               },
-              {
-                "property": "Landuse"
-              }
+              "Landuse"
             ]
           },
           {
-            "property": "featuresGeometryDimensions=2"
+            "op": "and",
+            "args": [
+              {
+                "op": "=",
+                "args": [
+                  {
+                    "sysId": "dataLayer.type"
+                  },
+                  "vector"
+                ]
+              },
+              {
+                "op": "=",
+                "args": [
+                  {
+                    "sysId": "dataLayer.featuresGeometryDimensions"
+                  },
+                  2
+                ]
+              }
+            ]
           }
         ]
       },

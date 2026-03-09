@@ -848,23 +848,23 @@
                 "factor": { "$ref": "#/$defs/numericExpression" },
                 "sun": { "$ref": "#/$defs/azimuthElevation" },
                 "colorMap": {
-                  "oneOf": [
-                    { "$ref": "#/$defs/idOrFnExpression" },
-                    {
-                       "type": "array",
-                       "items":
+                  "allOf": [
+                   {"$ref": "#/$defs/colorMap"},
+                   {
+                     "oneOf": [
+                       { "$ref": "#/$defs/idOrFnExpression" },
                        {
                           "type": "array",
-                          "minItems": 2,
-                          "maxItems": 3,
-                          "prefixItems": [
-                             { "$ref": "#/$defs/zeroToOne" },
-                             { "$ref": "#/$defs/color" },
-                             { "type": "string" }
-                          ]
-                       },
-                       "minItems": 1
-                    }
+                          "items":
+                          {
+                             "type": "array",
+                             "prefixItems": [
+                                { "$ref": "#/$defs/zeroToOne" }
+                             ]
+                          }
+                       }
+                     ]
+                   }
                   ]
                 },
                 "opacityMap": { "$ref": "#/$defs/hsOpacityMap" },

@@ -10,6 +10,7 @@ A Python package for lossless transcoding between CartoSym CSS (`.cscss`) and ot
 git clone --recursive https://github.com/maxcollombin/CartoSymTranscoder.git
 cd CartoSymTranscoder
 ./setup.sh
+source CartoSym/bin/activate
 ```
 
 ### From PyPI (Coming Soon)
@@ -23,21 +24,29 @@ pip install cartosym-transcoder
 ### Command Line
 
 ```bash
-# Parse a file
-cartosym-parse parse input/0-basic.cscss
+# Convert a CSCSS file to CS-JSON
+cartosym input/example.cscss -o output/example.cs.json
 
-# Convert between formats
-cartosym-parse convert input/example.cscss -o output/example.json
+# Convert a CS-JSON file back to CSCSS
+cartosym output/example.cs.json -o output/example.cscss
+
 # Convert and display the result in the console
-cartosym-parse convert input/example.cscss --print
-# Validate the styles
-cartosym-parse convert input/example.cscss or cartosym-parse convert input/example.cs.json 
-# Convert and validate the result
-cartosym-parse convert input/example.cscss -o output/example.cs.json --validate
+cartosym input/example.cscss --print
+
+# Convert and validate the result against the schema
+cartosym input/example.cscss -o output/example.cs.json --validate
+
+# Parse a CSCSS file (display structure info only)
+cartosym parse input/example.cscss
+
+# Validate a file
+cartosym validate input/example.cs.json
+
 # Display help
-cartosym-parse --help
+cartosym --help
+
 # Display version
-cartosym-parse --version
+cartosym --version
 ```
 
 ## Development

@@ -42,12 +42,18 @@ class StylingRule:
     """Individual styling rule with selector and properties."""
     name: Optional[str] = None
     selector: Optional['Selector'] = None
+    selectors: Optional[list] = None  # <-- Add this line to store all selectors (for nested rules)
     symbolizer: Optional['Symbolizer'] = None
     nested_rules: List['StylingRule'] = None
-    
+    property_assignments: list = None  # <-- Store all property assignments for post-processing
+
     def __post_init__(self):
         if self.nested_rules is None:
             self.nested_rules = []
+        if self.selectors is None:
+            self.selectors = []
+        if self.property_assignments is None:
+            self.property_assignments = []
 
 
 @dataclass
@@ -126,10 +132,13 @@ class Stroke:
 @dataclass
 class Marker:
     """Marker styling properties."""
-    pass
+    elements: Optional[list] = None
 
 
 @dataclass
 class Label:
     """Label styling properties."""
-    pass
+    elements: Optional[list] = None
+    position: Optional[Any] = None
+    opacity: Optional[float] = None
+    placement: Optional[Any] = None

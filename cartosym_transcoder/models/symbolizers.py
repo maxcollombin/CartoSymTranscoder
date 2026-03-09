@@ -131,11 +131,14 @@ class Marker(BaseCartoSymModel):
     alter: Optional[bool] = Field(None, description="Alter behavior flag")
     position: Optional['UnitPoint'] = Field(None, description="Marker position")
     opacity: Optional[FlexibleOpacity] = Field(None, description="Marker opacity")
-    elements: Optional[List['Graphic']] = Field(None, description="Graphic elements in marker")
+    elements: Optional[Any] = Field(None, description="Graphic elements in marker (list) or indexed override {index, value}")
 
     @field_validator('elements', mode='before')
     def ensure_elements_list(cls, v):
-        # Accept dicts like {"index": ..., "value": ...} and convert to list
+        # Preserve indexed override form {"index": N, "value": graphic} as-is
+        if isinstance(v, dict) and 'index' in v and 'value' in v:
+            return v
+        # Accept dicts like {"value": ...} without index and convert to list
         if isinstance(v, dict) and 'value' in v:
             return [v['value']]
         if isinstance(v, dict):
@@ -177,17 +180,33 @@ class UnitPoint(BaseCartoSymModel):
     x: Union[UnitValue, str, float]
     y: Union[UnitValue, str, float]
 
+    @classmethod
+    def from_string(cls, v):
+        # Accept string like '0 0' or '20 0'
+        if isinstance(v, str):
+            parts = v.strip().split()
+            if len(parts) == 2:
+                try:
+                    x = float(parts[0]) if '.' in parts[0] else int(parts[0])
+                    y = float(parts[1]) if '.' in parts[1] else int(parts[1])
+                    return cls(x=x, y=y)
+                except Exception:
+                    pass
+        return v
+
     @field_validator('x', 'y', mode='before')
     def parse_unit_point(cls, v, info):
         # Accept list like [x, y]
         if isinstance(v, list) and len(v) == 2:
             return v[info.field_index]
-        return v
-
-    @classmethod
-    def from_list(cls, v):
-        if isinstance(v, list) and len(v) == 2:
-            return cls(x=v[0], y=v[1])
+        # Accept string like '0 0' for position
+        if isinstance(v, str):
+            parts = v.strip().split()
+            if len(parts) == 2:
+                try:
+                    return float(parts[info.field_index]) if '.' in parts[info.field_index] else int(parts[info.field_index])
+                except Exception:
+                    return v
         return v
 
 

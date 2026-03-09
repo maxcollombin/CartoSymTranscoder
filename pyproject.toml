@@ -46,7 +46,7 @@ Repository = "https://github.com/maxcollombin/CartoSymTranscoder.git"
 Issues = "https://github.com/maxcollombin/CartoSymTranscoder/issues"
 
 [project.scripts]
-cartosym-parse = "cartosym_transcoder.cli:main"
+cartosym = "cartosym_transcoder.cli:main"
 
 [tool.setuptools]
 packages = ["cartosym_transcoder"]

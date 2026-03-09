@@ -259,6 +259,14 @@ class UnitValue(BaseModel):
         """String representation like '10px' or '2.5mm'."""
         return f"{self.value}{self.unit.value}"
 
+    def to_dict(self) -> dict:
+        """Convert to JSON schema format like {"px": 2.0}."""
+        return {self.unit.value: self.value}
+
+    def model_dump(self, **kwargs):
+        """Override model_dump to use JSON schema format."""
+        return self.to_dict()
+
 
 # Flexible unit value that accepts expressions or objects
 FlexibleUnitValue = Union[UnitValue, str, float]

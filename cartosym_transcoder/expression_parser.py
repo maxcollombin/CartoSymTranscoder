@@ -24,131 +24,134 @@ class ExpressionParser:
         """Convert ANTLR expression context to Pydantic Expression."""
         if not ctx:
             return None
-        
-        # Get the text representation for fallback parsing
-        ctx_text = ctx.getText() if hasattr(ctx, 'getText') else str(ctx)
-        
-        # Handle different expression types based on context structure
-        
-        # Check for binary operations first (most common in conditions)
-        # Use original text with proper spacing if available
-        original_text = ctx_text
+
+        # Always use the original text with spaces for parsing
+        original_text = None
         if hasattr(ctx, 'start') and hasattr(ctx, 'stop') and hasattr(ctx.start, 'source'):
             try:
-                # Try to get original text with spacing from token stream
                 input_stream = ctx.start.source
                 start_idx = ctx.start.start
                 stop_idx = ctx.stop.stop
                 original_text = input_stream.strdata[start_idx:stop_idx + 1]
-            except:
-                # Fallback to getText() if extraction fails
+            except Exception:
                 pass
-        
-        # Check for logical operations with proper spacing
-        if ' and ' in original_text or ' or ' in original_text:
+        if not original_text:
+            original_text = ctx.getText() if hasattr(ctx, 'getText') else str(ctx)
+
+        # Check for logical operations with proper spacing (case-insensitive)
+        text_lower = original_text.lower()
+        if ' and ' in text_lower or ' or ' in text_lower:
             return ExpressionParser._parse_logical_expression(original_text)
-        
+
         # Check for relational operations with proper spacing
         for op in ['>=', '<=', '!=', '=', '>', '<']:
             if f' {op} ' in original_text:
                 return ExpressionParser._parse_relational_expression(original_text, op)
-        
+
         # Handle member access (contains dots)
-        if '.' in ctx_text and not ctx_text.startswith('"') and not ctx_text.startswith("'"):
-            return ExpressionParser._parse_member_access_from_text(ctx_text)
-        
+        if '.' in original_text and not original_text.startswith('"') and not original_text.startswith("'"):
+            return ExpressionParser._parse_member_access_from_text(original_text)
+
         # Handle string literals
-        if (ctx_text.startswith('"') and ctx_text.endswith('"')) or \
-           (ctx_text.startswith("'") and ctx_text.endswith("'")):
-            return StringExpression(value=ctx_text[1:-1])
-        
+        if (original_text.startswith('"') and original_text.endswith('"')) or \
+            (original_text.startswith("'") and original_text.endswith("'")):
+            return StringExpression(value=original_text[1:-1])
+
         # Handle numbers
-        if ctx_text.replace('.', '').replace('-', '').isdigit():
+        if original_text.replace('.', '').replace('-', '').isdigit():
             try:
-                value = int(ctx_text) if '.' not in ctx_text else float(ctx_text)
+                value = int(original_text) if '.' not in original_text else float(original_text)
                 return ConstantExpression(value=value)
             except ValueError:
                 pass
-        
+
         # Handle boolean constants
-        if ctx_text.lower() in ['true', 'false']:
-            return ConstantExpression(value=ctx_text.lower() == 'true')
-        
+        if original_text.lower() in ['true', 'false']:
+            return ConstantExpression(value=original_text.lower() == 'true')
+
         # Handle function calls (Text(...), DATE(...))
-        if '(' in ctx_text and ')' in ctx_text:
+        if '(' in original_text and ')' in original_text:
             return ExpressionParser._parse_function_call_from_text(original_text)
-        
+
         # Handle object literals {color: red; opacity: 0.5}
-        if ctx_text.startswith('{') and ctx_text.endswith('}'):
+        if original_text.startswith('{') and original_text.endswith('}'):
             return ExpressionParser._parse_instance_from_text(original_text)
-        
+
         # Default: treat as identifier
-        return IdentifierExpression(name=ctx_text)
+        return IdentifierExpression(name=original_text)
     
     @staticmethod
     def _parse_logical_expression(text: str) -> BinaryOperationExpression:
         """Parse logical expressions like 'a and b' or 'x or y'."""
-        # Handle nested logical expressions with proper precedence
-        # OR has lower precedence than AND, so we parse OR first
-        
-        # Find the main logical operator (rightmost OR for left-associativity)
-        or_pos = -1
+        # Always split at the top-level logical operator (lowest precedence), respecting parentheses
+        text_lower = text.lower()
         paren_depth = 0
-        for i in range(len(text) - 4, -1, -1):  # -4 for ' or '
-            if text[i] == ')':
-                paren_depth += 1
-            elif text[i] == '(':
-                paren_depth -= 1
-            elif paren_depth == 0 and text[i:i+4] == ' or ':
-                or_pos = i
-                break
-        
-        if or_pos != -1:
-            left_part = text[:or_pos].strip()
-            right_part = text[or_pos+4:].strip()  # +4 for ' or '
-            left_expr = ExpressionParser._parse_single_expression(left_part)
-            right_expr = ExpressionParser._parse_single_expression(right_part)
-            return BinaryOperationExpression(left=left_expr, operator=BinaryOperator.OR, right=right_expr)
-        
-        # If no OR, look for AND
-        and_pos = -1
+        # Find top-level ' or '
+        for i in range(len(text)):
+            if text[i] == '(': paren_depth += 1
+            elif text[i] == ')': paren_depth -= 1
+            elif paren_depth == 0 and text_lower[i:i+4] == ' or ':
+                left = text[:i].strip()
+                right = text[i+4:].strip()
+                return BinaryOperationExpression(
+                    left=ExpressionParser.parse_expression(left),
+                    operator=BinaryOperator.OR,
+                    right=ExpressionParser.parse_expression(right)
+                )
+        # Find top-level ' and '
         paren_depth = 0
-        for i in range(len(text) - 5, -1, -1):  # -5 for ' and '
-            if text[i] == ')':
-                paren_depth += 1
-            elif text[i] == '(':
-                paren_depth -= 1
-            elif paren_depth == 0 and text[i:i+5] == ' and ':
-                and_pos = i
-                break
-        
-        if and_pos != -1:
-            left_part = text[:and_pos].strip()
-            right_part = text[and_pos+5:].strip()  # +5 for ' and '
-            left_expr = ExpressionParser._parse_single_expression(left_part)
-            right_expr = ExpressionParser._parse_single_expression(right_part)
-            return BinaryOperationExpression(left=left_expr, operator=BinaryOperator.AND, right=right_expr)
-        
-        # No logical operators found, parse as single expression
+        for i in range(len(text)):
+            if text[i] == '(': paren_depth += 1
+            elif text[i] == ')': paren_depth -= 1
+            elif paren_depth == 0 and text_lower[i:i+5] == ' and ':
+                left = text[:i].strip()
+                right = text[i+5:].strip()
+                return BinaryOperationExpression(
+                    left=ExpressionParser.parse_expression(left),
+                    operator=BinaryOperator.AND,
+                    right=ExpressionParser.parse_expression(right)
+                )
+        # No logical op at top level, parse as relational or single
         return ExpressionParser._parse_single_expression(text)
     
     @staticmethod  
     def _parse_relational_expression(text: str, operator_str: str) -> BinaryOperationExpression:
         """Parse relational expressions like 'a = b' or 'x < 5'."""
-        # Find the operator position, respecting parentheses
+        # Always check for logical operators at the same level first
+        text_lower = text.lower()
+        paren_depth = 0
+        for i in range(len(text) - 4, -1, -1):  # -4 for ' or '
+            if text[i] == ')':
+                paren_depth += 1
+            elif text[i] == '(': 
+                paren_depth -= 1
+            elif paren_depth == 0 and text_lower[i:i+4] == ' or ':
+                left = text[:i].strip()
+                right = text[i+4:].strip()
+                return ExpressionParser._parse_logical_expression(text)
+        paren_depth = 0
+        for i in range(len(text) - 5, -1, -1):  # -5 for ' and '
+            if text[i] == ')':
+                paren_depth += 1
+            elif text[i] == '(': 
+                paren_depth -= 1
+            elif paren_depth == 0 and text_lower[i:i+5] == ' and ':
+                left = text[:i].strip()
+                right = text[i+5:].strip()
+                return ExpressionParser._parse_logical_expression(text)
+
+        # No logical op at this level, parse as relational
         op_pos = -1
         paren_depth = 0
         op_pattern = f' {operator_str} '
-        
         for i in range(len(text) - len(op_pattern) + 1):
-            if text[i] == '(':
+            if text[i] == '(': 
                 paren_depth += 1
             elif text[i] == ')':
                 paren_depth -= 1
             elif paren_depth == 0 and text[i:i+len(op_pattern)] == op_pattern:
                 op_pos = i
                 break
-        
         if op_pos != -1:
             left_part = text[:op_pos].strip()
             right_part = text[op_pos+len(op_pattern):].strip()
@@ -156,7 +159,6 @@ class ExpressionParser:
             right_expr = ExpressionParser._parse_single_expression(right_part)
             operator = ExpressionParser._map_relational_operator(operator_str)
             return BinaryOperationExpression(left=left_expr, operator=operator, right=right_expr)
-        
         # Fallback: try without spaces for cases like 'a=b'
         if operator_str in text:
             parts = text.split(operator_str, 1)
@@ -165,7 +167,6 @@ class ExpressionParser:
                 right_expr = ExpressionParser._parse_single_expression(parts[1].strip())
                 operator = ExpressionParser._map_relational_operator(operator_str)
                 return BinaryOperationExpression(left=left_expr, operator=operator, right=right_expr)
-        
         return IdentifierExpression(name=text)
     
     @staticmethod
@@ -246,8 +247,9 @@ class ExpressionParser:
                 # Parentheses wrap the whole expression, remove them
                 text = text[1:-1].strip()
         
-        # Check for logical operations
-        if ' and ' in text or ' or ' in text:
+        # Check for logical operations (case-insensitive)
+        text_lower = text.lower()
+        if ' and ' in text_lower or ' or ' in text_lower:
             return ExpressionParser._parse_logical_expression(text)
         
         # Check for relational operations  
@@ -490,13 +492,13 @@ class ExpressionParser:
     def _parse_single_expression(text: str) -> Expression:
         """Parse a single expression without logical operators."""
         text = text.strip()
-        
+
         # Handle parentheses - remove outer parentheses if they wrap the entire expression
         if text.startswith('(') and text.endswith(')'):
             # Check if these parentheses actually wrap the whole expression
             paren_depth = 0
             for i, char in enumerate(text):
-                if char == '(':
+                if char == '(': 
                     paren_depth += 1
                 elif char == ')':
                     paren_depth -= 1
@@ -506,37 +508,44 @@ class ExpressionParser:
             else:
                 # Parentheses wrap the whole expression, remove them
                 text = text[1:-1].strip()
-        
+
         # Check for relational operations  
         for op in ['>=', '<=', '!=', '=', '>', '<']:
             if f' {op} ' in text:
-                return ExpressionParser._parse_relational_expression(text, op)
-        
+                result = ExpressionParser._parse_relational_expression(text, op)
+                return result
+
         # Handle string literals
         if (text.startswith('"') and text.endswith('"')) or \
            (text.startswith("'") and text.endswith("'")):
-            return StringExpression(value=text[1:-1])
-        
+            result = StringExpression(value=text[1:-1])
+            return result
+
         # Handle function calls
         if '(' in text and text.endswith(')'):
-            return ExpressionParser._parse_function_call_from_text(text)
-        
+            result = ExpressionParser._parse_function_call_from_text(text)
+            return result
+
         # Handle numbers
         try:
             if '.' in text:
-                return ConstantExpression(value=float(text))
+                result = ConstantExpression(value=float(text))
             else:
-                return ConstantExpression(value=int(text))
+                result = ConstantExpression(value=int(text))
+            return result
         except ValueError:
             pass
-        
+
         # Handle boolean
         if text.lower() in ['true', 'false']:
-            return ConstantExpression(value=text.lower() == 'true')
-        
+            result = ConstantExpression(value=text.lower() == 'true')
+            return result
+
         # Handle member access
         if '.' in text:
-            return ExpressionParser._parse_member_access_from_text(text)
-        
+            result = ExpressionParser._parse_member_access_from_text(text)
+            return result
+
         # Default: identifier
-        return IdentifierExpression(name=text)
+        result = IdentifierExpression(name=text)
+        return result

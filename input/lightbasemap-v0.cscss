@@ -1,0 +1,1271 @@
+{
+   visibility: false;
+   stroke:
+   {
+      opacity: 0.0
+   };
+   fill:
+   {
+      opacity: 0.0
+   };
+}
+
+hillshade
+{
+   zOrder: 1;
+   visibility: false;
+
+   [luminosity < 0]
+   {
+      stroke:
+      {
+         color: (luminosity = -15) ? { 200, 210, 213 } : (luminosity = -14) ? { 203, 213, 216 } : (luminosity = -13) ? { 207, 215, 218 } : (luminosity = -12) ? { 210, 218, 221 } : (luminosity = -11) ? { 213, 221, 224 } : (luminosity = -10) ? { 217, 224, 226 } : (luminosity = -9) ? { 220, 227, 229 } : (luminosity = -8) ? { 224, 230, 231 } : (luminosity = -7) ? { 227, 232, 234 } : (luminosity = -6) ? { 231, 235, 237 } : (luminosity = -5) ? { 234, 238, 239 } : (luminosity = -4) ? { 238, 241, 242 } : (luminosity = -3) ? { 241, 244, 245 } : (luminosity = -2) ? { 245, 247, 247 } : (luminosity = -1) ? { 248, 249, 250 } : { 252, 252, 252 }
+      };
+      fill:
+      {
+         opacity: (viz.sd < 2200000) ? 0.5 : 1 * (luminosity = -15) ? 1.0 : (luminosity = -14) ? 1.0 : (luminosity = -13) ? 1.0 : (luminosity = -12) ? 1.0 : (luminosity = -11) ? 1.0 : (luminosity = -10) ? 1.0 : (luminosity = -9) ? 1.0 : (luminosity = -8) ? 1.0 : (luminosity = -7) ? 1.0 : (luminosity = -6) ? 1.0 : (luminosity = -5) ? 1.0 : (luminosity = -4) ? 1.0 : (luminosity = -3) ? 1.0 : (luminosity = -2) ? 1.0 : (luminosity = -1) ? 1.0 : 1.0;
+         color: (luminosity = -15) ? { 200, 210, 213 } : (luminosity = -14) ? { 203, 213, 216 } : (luminosity = -13) ? { 207, 215, 218 } : (luminosity = -12) ? { 210, 218, 221 } : (luminosity = -11) ? { 213, 221, 224 } : (luminosity = -10) ? { 217, 224, 226 } : (luminosity = -9) ? { 220, 227, 229 } : (luminosity = -8) ? { 224, 230, 231 } : (luminosity = -7) ? { 227, 232, 234 } : (luminosity = -6) ? { 231, 235, 237 } : (luminosity = -5) ? { 234, 238, 239 } : (luminosity = -4) ? { 238, 241, 242 } : (luminosity = -3) ? { 241, 244, 245 } : (luminosity = -2) ? { 245, 247, 247 } : (luminosity = -1) ? { 248, 249, 250 } : { 252, 252, 252 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 8700000][luminosity > 0][mask NOT IN [ 'rock', 'ice', 'scree' ]]
+   {
+      stroke:
+      {
+         color: { 255, 217, 5 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, 0.015, 11, 0.02) * 1.0;
+         color: { 255, 217, 5 }
+      };
+      visibility: true;
+   }
+}
+
+scree
+{
+   zOrder: 2;
+   visibility: false;
+
+   [viz.sd <= 4300]
+   {
+      fill:
+      {
+         opacity: 0.5
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][viz.sd >= 4300]
+   {
+      fill:
+      {
+         opacity: 0.5
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 68000][viz.sd >= 17000]
+   {
+      fill:
+      {
+         opacity: 0.5
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 270000][viz.sd >= 68000]
+   {
+      fill:
+      {
+         opacity: 0.5
+      };
+      visibility: true;
+   }
+}
+
+contour_line
+{
+   zOrder: 3;
+   visibility: false;
+
+   [viz.sd <= 68000][class NOT IN [ 'rock', 'ice', 'water' ]]
+   {
+      stroke:
+      {
+         color: (class IN [ {  }, {  } ]) ? { g = 136, 208 } : (class = {  }) ? {  } : { 191, 138, 64 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, (class IN [ 'scree', 'ice', 'water' ]) ? 0.25 : 0.45, 14, (class IN [ 'scree', 'ice', 'water' ]) ? 0.3 : 0.55) * (class IN [ 'ice', 'water' ]) ? 1.0 : (class = 'scree') ? 1.0 : 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 12, (strtod(ele) % 100 = 0) ? 0.75 : 0, 14, (strtod(ele) % 100 = 0) ? 1 : 0, 15, (strtod(ele) % 100 = 0) ? 1.5 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 0.75 : 0, 18, (strtod(ele) % 100 = 0) ? 2 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1, 1)) > (strtod(ele) % 100 = 0) ? 2 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1 ? Meters { ((strtod(ele) % 100 = 0) ? 2 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1) * 0.59716428347794 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 12, (strtod(ele) % 100 = 0) ? 0.75 : 0, 14, (strtod(ele) % 100 = 0) ? 1 : 0, 15, (strtod(ele) % 100 = 0) ? 1.5 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 0.75 : 0, 18, (strtod(ele) % 100 = 0) ? 2 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1, 1)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 68000][class IN [ 'ice', 'water' ]]
+   {
+      stroke:
+      {
+         color: { g = 136, 208 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, (class IN [ 'scree', 'ice', 'water' ]) ? 0.25 : 0.45, 14, (class IN [ 'scree', 'ice', 'water' ]) ? 0.3 : 0.55) * 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 12, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 0.75 : 0 : (strtod(ele) % 100 = 0) ? 0.75 : 0, 14, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 1 : 0 : (strtod(ele) % 100 = 0) ? 1 : 0, 15, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 1.5 : (strtod(lake_depth) % 100 IN [ 20, 40, 60, 80 ]) ? 0.75 : 0 : (strtod(ele) % 100 = 0) ? 1.5 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 0.75 : 0, 18, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 2 : (strtod(lake_depth) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1 : (strtod(ele) % 100 = 0) ? 2 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1, 1)) > (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 2 : (strtod(lake_depth) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1 : (strtod(ele) % 100 = 0) ? 2 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1 ? Meters { ((lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 2 : (strtod(lake_depth) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1 : (strtod(ele) % 100 = 0) ? 2 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1) * 0.59716428347794 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 12, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 0.75 : 0 : (strtod(ele) % 100 = 0) ? 0.75 : 0, 14, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 1 : 0 : (strtod(ele) % 100 = 0) ? 1 : 0, 15, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 1.5 : (strtod(lake_depth) % 100 IN [ 20, 40, 60, 80 ]) ? 0.75 : 0 : (strtod(ele) % 100 = 0) ? 1.5 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 0.75 : 0, 18, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 2 : (strtod(lake_depth) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1 : (strtod(ele) % 100 = 0) ? 2 : (strtod(ele) % 100 IN [ 20, 40, 60, 80 ]) ? 1.5 : 1, 1)
+      };
+      visibility: true;
+   }
+}
+
+Bodenbedeckung
+{
+   zOrder: 4;
+   visibility: false;
+
+   [viz.sd <= 17000][Art = 'geschlossener_Wald' OR Art = 'uebrige_bestockte' OR Art = 'Wytweide_dicht']
+   {
+      stroke:
+      {
+         color: { 186, 210, 172 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0.3) * 1.0;
+         color: { 186, 210, 172 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Gartenanlage']
+   {
+      stroke:
+      {
+         color: { 225, 233, 220 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0.3) * 1.0;
+         color: { 225, 233, 220 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][Art = 'Acker_Wiese_Weide' OR Art = 'Reben' OR Art = 'uebrige_humusierte' OR Art = 'uebrige_Intensivkultur' OR Art = 'Wytweide_offen']
+   {
+      stroke:
+      {
+         color: { 215, 224, 209 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0.3) * 1.0;
+         color: { 215, 224, 209 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][Art IN ('Hoch_Flachmoor', 'Schilfguertel')]
+   {
+      stroke:
+      {
+         color: { 204, 229, 245 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0.3) * 1.0;
+         color: { 204, 229, 245 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Abbau_Deponie']
+   {
+      stroke:
+      {
+         color: { 240, 218, 188 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0.3) * 1.0;
+         color: { 240, 218, 188 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Geroell_Sand']
+   {
+      stroke:
+      {
+         color: { 240, 218, 188 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0.3) * 1.0;
+         color: { 240, 218, 188 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Gletscher_Firn']
+   {
+      stroke:
+      {
+         color: { 205, 232, 244 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0) * 1.0;
+         color: { 205, 232, 244 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][Art IN ('Fels', 'uebrige_vegetationslose')]
+   {
+      stroke:
+      {
+         color: { 215, 224, 209 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0.3) * 1.0;
+         color: { 215, 224, 209 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][Art IN ('Gewaesser_fliessendes', 'Gewaesser_stehendes')]
+   {
+      stroke:
+      {
+         color: { 199, 224, 245 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * 1.0;
+         color: { 199, 224, 245 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Wasserbecken']
+   {
+      stroke:
+      {
+         color: { 199, 224, 245 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * 1.0;
+         color: { 199, 224, 245 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Flugplatz']
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * 'hsl(220, 4%, 94%)';
+         color: { 1, 1, 1 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Bahn']
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * 'hsl(0, 0%, 96%)';
+         color: { 1, 1, 1 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Strasse_Weg']
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * 'hsl(0, 0%, 98%)';
+         color: { 1, 1, 1 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Trottoir']
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * 'hsl(0, 0%, 93%)';
+         color: { 1, 1, 1 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'Verkehrsinsel']
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * 'hsl(220, 4%, 92%)';
+         color: { 1, 1, 1 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'uebrige_befestigte']
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * 'hsl(220, 3%, 88%)';
+         color: { 1, 1, 1 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][Art = 'Gebaeude']
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 1) * interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, 'hsl(220, 10%, 82%)', 17, 'hsl(220, 10%, 75%)');
+         color: { 1, 1, 1 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][Art NOT IN [ 'geschlossener_Wald', 'uebrige_bestockte', 'Wytweide_dicht', 'Gartenanlage', 'Acker_Wiese_Weide', 'Reben', 'uebrige_humusierte', 'uebrige_Intensivkultur', 'Wytweide_offen', 'Hoch_Flachmoor', 'Schilfguertel', 'Abbau_Deponie', 'Geroell_Sand', 'Gletscher_Firn', 'Fels', 'uebrige_vegetationslose', 'Gewaesser_fliessendes', 'Gewaesser_stehendes', 'Wasserbecken', 'Flugplatz', 'Bahn', 'Strasse_Weg', 'Trottoir', 'Verkehrsinsel', 'uebrige_befestigte', 'Gebaeude' ]]
+   {
+      stroke:
+      {
+         color: { 215, 224, 209 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0.3) * 1.0;
+         color: { 215, 224, 209 }
+      };
+      visibility: true;
+   }
+}
+
+landcover
+{
+   zOrder: 5;
+   visibility: false;
+
+   [viz.sd <= 17000000][subclass IN [ 'allotments', 'forest', 'glacier', 'golf_course', 'loose_forest', 'park', 'plant_nursery', 'recreation_ground', 'scrub', 'woody_plant' ] OR ([ 'typeof', class ] = 'string') ? class = 'sand' : false]
+   {
+      stroke:
+      {
+         color: (class IN [ { b = 15 }, {  } ]) ? { 186, 210, 172 } : (class IN [ {  }, {  } ]) ? { 205, 232, 244 } : (class = {  }) ? { 204, 229, 245 } : (class = {  }) ? { 240, 218, 188 } : { 215, 224, 209 }
+      };
+      fill:
+      {
+         opacity: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 5, 0, 6, (class IN [ 'ice', 'glacier' ]) ? 0.3 : 0, 10, (class IN [ 'ice', 'glacier' ]) ? 0.2 : 0, 11, (class IN [ 'ice', 'glacier' ]) ? 0.2 : 0.3, 14, (class IN [ 'ice', 'glacier' ]) ? 0 : 0.3, 15, (class IN [ 'ice', 'glacier' ]) ? 0 : 0.3, 15.5, 0, 1.5) * (class IN [ 'forest', 'wood' ]) ? 1.0 : (class IN [ 'ice', 'glacier' ]) ? 1.0 : (class = 'wetland') ? 1.0 : (class = 'sand') ? 1.0 : 1.0;
+         color: (class IN [ { b = 15 }, {  } ]) ? { 186, 210, 172 } : (class IN [ {  }, {  } ]) ? { 205, 232, 244 } : (class = {  }) ? { 204, 229, 245 } : (class = {  }) ? { 240, 218, 188 } : { 215, 224, 209 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 550000][subclass IN [ 'wood', 'scrub', 'recreation_ground', 'park', 'golf_course', 'allotments', 'plant_nursery', 'forest' ]]
+   {
+      stroke:
+      {
+         color: { 186, 199, 172 };
+         opacity: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 12, 0, 14, 1, 15, 1, 15.5, 0, 1.5) * 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 6, 0, 11, 0.25, 16, 0.75, 1.5)) > 0.75 ? Meters { 1.79 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 6, 0, 11, 0.25, 16, 0.75, 1.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 68000][subclass IN [ 'orchard', 'swamp', 'vineyard' ]]
+   {
+      fill:
+      {
+         opacity: 0.5
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000000][class = 'hazard']
+   {
+      stroke:
+      {
+         color: { 240, 218, 188 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0.4, 15.5, 0) * 1.0;
+         color: { 240, 218, 188 }
+      };
+      visibility: true;
+   }
+}
+
+landuse
+{
+   zOrder: 6;
+   visibility: false;
+
+   [class IN [ 'landfill', 'cemetery', 'quarry', 'zoo', 'pitch' ]]
+   {
+      stroke:
+      {
+         color: (class = {  }) ? { 224, 234, 221 } : (class IN [ {  }, {  } ]) ? { 240, 218, 188 } : (class IN [ { b = 206 }, {  } ]) ? { 215, 224, 209 } : (class = {  }) ? { 255, 255, 255 } : { 215, 224, 209 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, (class = 'pitch') ? 1 : 0.3, 15.5, 0) * (class = 'pitch') ? 1.0 : (class IN [ 'landfill', 'quarry' ]) ? 1.0 : (class IN [ 'cemetery', 'zoo' ]) ? 1.0 : (class = 'parking') ? 1.0 : 1.0;
+         color: (class = {  }) ? { 224, 234, 221 } : (class IN [ {  }, {  } ]) ? { 240, 218, 188 } : (class IN [ { b = 206 }, {  } ]) ? { 215, 224, 209 } : (class = {  }) ? { 255, 255, 255 } : { 215, 224, 209 }
+      };
+      visibility: true;
+   }
+
+   [class IN [ 'cemetery', 'zoo', 'pitch' ]]
+   {
+      stroke:
+      {
+         color: (class = {  }) ? { 130, 130, 130 } : { 186, 199, 172 };
+         opacity: (viz.sd < 17000) ? 0 : 1 * (class = 'pitch') ? 1.0 : 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 11, 0.25, 16, 0.75, 1.5)) > 0.75 ? Meters { 1.79 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 11, 0.25, 16, 0.75, 1.5)
+      };
+      visibility: true;
+   }
+
+   [class IN [ 'parking' ]]
+   {
+      stroke:
+      {
+         color: { 130, 130, 130 };
+         opacity: (viz.sd < 17000) ? 0 : 1 * 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 11, 0.25, 16, 0.75, 1.5)) > 0.75 ? Meters { 1.79 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 11, 0.25, 16, 0.75, 1.5)
+      };
+      fill:
+      {
+         opacity: (viz.sd < 17000) ? 0 : 1 * 1.0;
+         color: { 255, 255, 255 }
+      };
+      visibility: true;
+   }
+}
+
+waterway
+{
+   zOrder: 7;
+   visibility: false;
+
+   [viz.sd <= 140000][intermittent = 1]
+   {
+      stroke:
+      {
+         color: { 48, 48, 48 };
+         opacity: (viz.sd < 8500) ? 0.25 : 0.35 * 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 13, (width IN [ '10', '9', '8' ]) ? 3.5 : (width IN [ '7', '6', '5' ]) ? 2.5 : (width IN [ '4', '3' ]) ? 1.5 : (width IN [ '1', '2' ]) ? 1 : (class IN [ 'river', 'canal' ]) ? 3.5 : 1, 16, (width = '10') ? 5 : (width = '9') ? 4.5 : (width = '8') ? 4 : (width = '7') ? 3.5 : (width IN [ '6', '5' ]) ? 3 : (width = '4') ? 2.5 : (width = '3') ? 2 : (width = '2') ? 1.5 : (width = '1') ? 1 : (class IN [ 'river', 'canal' ]) ? 5 : 1.5, 20, (width = '10') ? 10 : (width = '9') ? 9.6 : (width = '8') ? 8.9 : (width = '7') ? 8.2 : (width = '6') ? 7.5 : (width = '5') ? 6.8 : (width = '4') ? 6.1 : (width = '3') ? 5.4 : (width = '2') ? 4.7 : (width = '1') ? 4 : (class IN [ 'river', 'canal' ]) ? 10 : 4, 1.5)) > (width = '10') ? 10 : (width = '9') ? 9.6 : (width = '8') ? 8.9 : (width = '7') ? 8.2 : (width = '6') ? 7.5 : (width = '5') ? 6.8 : (width = '4') ? 6.1 : (width = '3') ? 5.4 : (width = '2') ? 4.7 : (width = '1') ? 4 : (class IN [ 'river', 'canal' ]) ? 10 : 4 ? Meters { ((width = '10') ? 10 : (width = '9') ? 9.6 : (width = '8') ? 8.9 : (width = '7') ? 8.2 : (width = '6') ? 7.5 : (width = '5') ? 6.8 : (width = '4') ? 6.1 : (width = '3') ? 5.4 : (width = '2') ? 4.7 : (width = '1') ? 4 : (class IN [ 'river', 'canal' ]) ? 10 : 4) * 0.149291070869485 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 13, (width IN [ '10', '9', '8' ]) ? 3.5 : (width IN [ '7', '6', '5' ]) ? 2.5 : (width IN [ '4', '3' ]) ? 1.5 : (width IN [ '1', '2' ]) ? 1 : (class IN [ 'river', 'canal' ]) ? 3.5 : 1, 16, (width = '10') ? 5 : (width = '9') ? 4.5 : (width = '8') ? 4 : (width = '7') ? 3.5 : (width IN [ '6', '5' ]) ? 3 : (width = '4') ? 2.5 : (width = '3') ? 2 : (width = '2') ? 1.5 : (width = '1') ? 1 : (class IN [ 'river', 'canal' ]) ? 5 : 1.5, 20, (width = '10') ? 10 : (width = '9') ? 9.6 : (width = '8') ? 8.9 : (width = '7') ? 8.2 : (width = '6') ? 7.5 : (width = '5') ? 6.8 : (width = '4') ? 6.1 : (width = '3') ? 5.4 : (width = '2') ? 4.7 : (width = '1') ? 4 : (class IN [ 'river', 'canal' ]) ? 10 : 4, 1.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 4400000][viz.sd >= 17000][intermittent <> 1][class NOT IN [ 'riverbank', 'shoreline', 'shoreline_changing_level' ]]
+   {
+      stroke:
+      {
+         color: interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, { 138, 195, 229 }, 16, (class IN [ {  }, { b = 202 } ]) ? { 160, 205, 236 } : { 140, 185, 226 });
+         opacity: 0.7 * interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, 1.0, 16, (class IN [ 'river', 'canal' ]) ? 1.0 : 1.0);
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 1, 10, (width IN [ '10', '9', '8', '7', '6' ]) ? 1.5 : (width IN [ '5', '4', '3', '2', '1' ]) ? 1 : (class IN [ 'river', 'canal' ]) ? 1.5 : 1, 13, (width IN [ '10', '9', '8' ]) ? 3.5 : (width IN [ '7', '6', '5' ]) ? 2.5 : (width IN [ '4', '3' ]) ? 1.5 : (width IN [ '1', '2' ]) ? 1 : (class IN [ 'river', 'canal' ]) ? 3.5 : 1, 16, (width = '10') ? 5 : (width = '9') ? 4.5 : (width = '8') ? 4 : (width = '7') ? 3.5 : (width IN [ '6', '5' ]) ? 3 : (width = '4') ? 2.5 : (width = '3') ? 2 : (width = '2') ? 1.5 : (width = '1') ? 1 : (class IN [ 'river', 'canal' ]) ? 5 : 1.5, 20, (width = '10') ? 10 : (width = '9') ? 9.6 : (width = '8') ? 8.9 : (width = '7') ? 8.2 : (width = '6') ? 7.5 : (width = '5') ? 6.8 : (width = '4') ? 6.1 : (width = '3') ? 5.4 : (width = '2') ? 4.7 : (width = '1') ? 4 : (class IN [ 'river', 'canal' ]) ? 10 : 4, 1.5)) > (width = '10') ? 10 : (width = '9') ? 9.6 : (width = '8') ? 8.9 : (width = '7') ? 8.2 : (width = '6') ? 7.5 : (width = '5') ? 6.8 : (width = '4') ? 6.1 : (width = '3') ? 5.4 : (width = '2') ? 4.7 : (width = '1') ? 4 : (class IN [ 'river', 'canal' ]) ? 10 : 4 ? Meters { ((width = '10') ? 10 : (width = '9') ? 9.6 : (width = '8') ? 8.9 : (width = '7') ? 8.2 : (width = '6') ? 7.5 : (width = '5') ? 6.8 : (width = '4') ? 6.1 : (width = '3') ? 5.4 : (width = '2') ? 4.7 : (width = '1') ? 4 : (class IN [ 'river', 'canal' ]) ? 10 : 4) * 0.149291070869485 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 1, 10, (width IN [ '10', '9', '8', '7', '6' ]) ? 1.5 : (width IN [ '5', '4', '3', '2', '1' ]) ? 1 : (class IN [ 'river', 'canal' ]) ? 1.5 : 1, 13, (width IN [ '10', '9', '8' ]) ? 3.5 : (width IN [ '7', '6', '5' ]) ? 2.5 : (width IN [ '4', '3' ]) ? 1.5 : (width IN [ '1', '2' ]) ? 1 : (class IN [ 'river', 'canal' ]) ? 3.5 : 1, 16, (width = '10') ? 5 : (width = '9') ? 4.5 : (width = '8') ? 4 : (width = '7') ? 3.5 : (width IN [ '6', '5' ]) ? 3 : (width = '4') ? 2.5 : (width = '3') ? 2 : (width = '2') ? 1.5 : (width = '1') ? 1 : (class IN [ 'river', 'canal' ]) ? 5 : 1.5, 20, (width = '10') ? 10 : (width = '9') ? 9.6 : (width = '8') ? 8.9 : (width = '7') ? 8.2 : (width = '6') ? 7.5 : (width = '5') ? 6.8 : (width = '4') ? 6.1 : (width = '3') ? 5.4 : (width = '2') ? 4.7 : (width = '1') ? 4 : (class IN [ 'river', 'canal' ]) ? 10 : 4, 1.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 1100000]["name:latin" IS NOT null][(intermittent IS NOT null) ? intermittent <> 1 : true]['geometry-type' = 'LineString']
+   {
+      label:
+      {
+         elements: [
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Italic', size: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 10, 10.5, 16, (width IN [ '9', '10' ]) ? 18 : (width IN [ '7', '8' ]) ? 17 : (width IN [ '5', '6' ]) ? 16 : (width = '4') ? 15 : (width = '3') ? 14 : (width = '2') ? 13 : (width = '1') ? 12 : (class IN [ 'river', 'canal' ]) ? 18 : 14, 1.5)) * 0.75, outline: { size: 2, color: { 242, 242, 242 }, opacity: 1.0 }, color: { 47, 134, 188 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+water
+{
+   zOrder: 8;
+   stroke:
+   {
+      color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 4, { 209, 228, 240 }, 10, { 199, 224, 245 }, 1.5)
+   };
+   fill:
+   {
+      opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 1, 15.5, 0) * interpolate('exponential', 29.0584853377 - log(2, viz.sd), 4, 1.0, 10, 1.0, 1.5);
+      color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 4, { 209, 228, 240 }, 10, { 199, 224, 245 }, 1.5)
+   };
+   visibility: false;
+
+   [class <> 'ocean']
+   {
+      stroke:
+      {
+         color: { 133, 189, 224 };
+         opacity: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 0, 0, 8, 1, 14, 0, 1.5) * 1.0;
+         width: 0.5
+      };
+      visibility: true;
+   }
+}
+
+hachure
+{
+   zOrder: 9;
+   stroke:
+   {
+      color: (class = 1) ? { 32, 32, 32 } : { 1, 1, 1 }
+   };
+   fill:
+   {
+      opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, 0, 11, 0.2, 14, 0.25) * (class = 1) ? 1.0 : 'hsl(203, 60%, 46%)';
+      color: (class = 1) ? { 32, 32, 32 } : { 1, 1, 1 }
+   };
+   visibility: true;
+}
+
+park
+{
+   zOrder: 10;
+   visibility: false;
+
+   [viz.sd <= 4400000][class IN [ 'national_park' ]]
+   {
+      stroke:
+      {
+         color: { 171, 197, 159 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 7, 0, 8, 1, 13, 1, 14, 0.6) * 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, 1.5, 15, 8, 18, 12, 1.5)) > 12 ? Meters { 7.17 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, 1.5, 15, 8, 18, 12, 1.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 2200000][class IN [ 'national_park' ]]["$type" = 'Point']
+   {
+      label:
+      {
+         elements: [
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Regular', size: (interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 8, 14, 16, 28, 0.5)) * 0.75, outline: { size: 1, color: { 255, 255, 255 }, opacity: 1.0 }, color: { 70, 130, 25 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+boundary
+{
+   zOrder: 11;
+   visibility: false;
+
+   [admin_level IN [ 2, 4 ]][maritime <> 1][disputed = 1]["$type" = 'LineString']
+   {
+      stroke:
+      {
+         color: (viz.sd < 1100000) ? { 1, 1, 1 } : { 1, 1, 1 };
+         opacity: (viz.sd < 34000) ? 1 : 0.7 * (viz.sd < 1100000) ? 'hsl(300, 55%, 80%)' : 'hsl(315, 40%, 85%)';
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 2, (admin_level = 2) ? 1 : 0, 3, (admin_level = 2) ? 2 : 1, 7, (admin_level = 2) ? 4 : 1.5, 18, (admin_level = 2) ? 16 : 10)) > (admin_level = 2) ? 16 : 10 ? Meters { ((admin_level = 2) ? 16 : 10) * 0.59716428347794 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 2, (admin_level = 2) ? 1 : 0, 3, (admin_level = 2) ? 2 : 1, 7, (admin_level = 2) ? 4 : 1.5, 18, (admin_level = 2) ? 16 : 10)
+      };
+      visibility: true;
+   }
+
+   [admin_level IN [ 2, 4 ]][maritime <> 1][disputed <> 1]["$type" = 'LineString']
+   {
+      stroke:
+      {
+         color: (viz.sd < 1100000) ? { 1, 1, 1 } : { 1, 1, 1 };
+         opacity: (viz.sd < 34000) ? 1 : 0.8 * (viz.sd < 1100000) ? 'hsl(300, 55%, 80%)' : 'hsl(315, 40%, 85%)';
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 2, (admin_level = 2) ? 1 : 0, 3, (admin_level = 2) ? 2 : 1, 7, (admin_level = 2) ? 3 : 1, 18, (admin_level = 2) ? 16 : 10)) > (admin_level = 2) ? 16 : 10 ? Meters { ((admin_level = 2) ? 16 : 10) * 0.59716428347794 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 2, (admin_level = 2) ? 1 : 0, 3, (admin_level = 2) ? 2 : 1, 7, (admin_level = 2) ? 3 : 1, 18, (admin_level = 2) ? 16 : 10)
+      };
+      visibility: true;
+   }
+}
+
+transportation
+{
+   zOrder: 12;
+   visibility: false;
+
+   [viz.sd <= 2200000][brunnel = 'tunnel'][class IN [ 'rail', 'transit', 'cable_car', 'gondola' ]]["$type" = 'LineString']
+   {
+      stroke:
+      {
+         color: (viz.sd < 17000) ? { 255, 50, 50 } : { 255, 80, 80 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 8, 0, 9, (is_route = 99) ? (class = 'rail') ? 0.8 : 0 : 0, 13, (subclass IN [ 'rail', 'subway', 'funicular', 'rack_rail', 'narrow_gauge' ]) ? 0.8 : 0, 14, (subclass IN [ 'rail', 'narrow_gauge', 'funicular', 'rack_rail', 'subway' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.8 : 0, 14.5, 0.8) * (viz.sd < 17000) ? 1.0 : 1.0;
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, (subclass = 'rail') ? 0.75 : 0, 10, (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.75 : 0.5 : (subclass IN [ 'cable_car', 'funicular' ]) ? 0.75 : 0.5, 14, (class = 'transit') ? 1 : (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 2 : 1 : (subclass IN [ 'cable_car', 'funicular' ]) ? 1 : 0, 18, (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2)) > (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2 ? Meters { ((class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2) * 0.59716428347794 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, (subclass = 'rail') ? 0.75 : 0, 10, (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.75 : 0.5 : (subclass IN [ 'cable_car', 'funicular' ]) ? 0.75 : 0.5, 14, (class = 'transit') ? 1 : (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 2 : 1 : (subclass IN [ 'cable_car', 'funicular' ]) ? 1 : 0, 18, (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 4400000][brunnel = 'tunnel'][class NOT IN [ 'rail', 'ferry', 'car_ferry', 'transit', 'cable_car', 'chair_lift', 'gondola', 'drag_lift', 'aerialway_transportation', 'aerialway_closed', 'aerialway_goods', 'goods_conveyor', 'path', 'footway', 'trail', 'rail', 'transit', 'via_ferrata', 'mask_terrain' ]]["$type" = 'LineString']
+   {
+      stroke:
+      {
+         color: (viz.sd < 270000) ? { 170, 170, 170 } : { 130, 130, 130 };
+         opacity: viz.sd > 140000 ? ((oneway = 2) ? 0 : 1) : viz.sd > 15.5 ? 1 : 0 * (viz.sd < 270000) ? 1.0 : 1.0;
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 8, (is_route IN [ 5, 10, 99 ]) ? 1 : (ramp = 1) ? 1 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? 1.2 : (class IN [ 'primary', 'secondary', 'tertiary', 'minor' ]) ? 1 : 0 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? 1.3 : (class IN [ 'primary', 'secondary', 'tertiary', 'minor' ]) ? 1 : 0 : 0.25, 13, (class IN [ 'motorway', 'trunk' ]) ? 1.5 : (class IN [ 'primary', 'secondary', 'tertiary', 'minor' ]) ? 1 : 0, 14, (class IN [ 'motorway', 'trunk' ]) ? 2 : (class IN [ 'primary', 'secondary', 'tertiary', 'minor' ]) ? 1.5 : 0, 15, (class IN [ 'motorway', 'trunk' ]) ? 3 : 2, 20, (class IN [ 'motorway', 'trunk' ]) ? 5 : 2.5)) > (class IN [ 'motorway', 'trunk' ]) ? 5 : 2.5 ? Meters { ((class IN [ 'motorway', 'trunk' ]) ? 5 : 2.5) * 0.149291070869485 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 8, (is_route IN [ 5, 10, 99 ]) ? 1 : (ramp = 1) ? 1 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? 1.2 : (class IN [ 'primary', 'secondary', 'tertiary', 'minor' ]) ? 1 : 0 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? 1.3 : (class IN [ 'primary', 'secondary', 'tertiary', 'minor' ]) ? 1 : 0 : 0.25, 13, (class IN [ 'motorway', 'trunk' ]) ? 1.5 : (class IN [ 'primary', 'secondary', 'tertiary', 'minor' ]) ? 1 : 0, 14, (class IN [ 'motorway', 'trunk' ]) ? 2 : (class IN [ 'primary', 'secondary', 'tertiary', 'minor' ]) ? 1.5 : 0, 15, (class IN [ 'motorway', 'trunk' ]) ? 3 : 2, 20, (class IN [ 'motorway', 'trunk' ]) ? 5 : 2.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 8700000][brunnel = 'tunnel'][class IN [ 'path', 'footway', 'trail' ]]["$type" = 'LineString']
+   {
+      stroke:
+      {
+         color: { 140, 140, 140 };
+         opacity: (viz.sd < 17000) ? 0 : 1 * 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 15, 1.1, 20, 3, 1.5)) > 3 ? Meters { 0.45 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 15, 1.1, 20, 3, 1.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 34000][class IN [ 'via_ferrata', 'trail' ]][brunnel NOT IN [ 'bridge', 'tunnel' ]]["$type" = 'LineString']
+   {
+      stroke:
+      {
+         color: (viz.sd < 2100) ? { 20, 20, 20 } : { 90, 90, 90 };
+         opacity: (viz.sd < 17000) ? 0 : 1 * (viz.sd < 2100) ? 1.0 : 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 15, 1.1, 20, 3, 1.5)) > 3 ? Meters { 0.45 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 15, 1.1, 20, 3, 1.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 270000][class IN [ 'car_ferry', 'ferry', 'footway', 'footway_construction', 'path', 'path_construction' ]][(brunnel IN [ 'bridge', 'tunnel' ]) ? subclass = 'covered_bridge' : true]
+   {
+      stroke:
+      {
+         color: (class IN [ { b = 254 }, { b = 202 } ]) ? { 105, 187, 218 } : { 115, 115, 115 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 11, (is_route = 11) ? 0.5 : 0, 12, (is_route = 11) ? (class IN [ 'path', 'track', 'footway' ]) ? 0.5 : 0 : 0, 14, 1, 15, 1, 15.5, 0) * (class IN [ 'ferry', 'car_ferry' ]) ? 1.0 : 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 13, 0.5, 15, 1.1, 20, 3, 1.5)) > 3 ? Meters { 0.45 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 13, 0.5, 15, 1.1, 20, 3, 1.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 4400000][NOT(class IN [ 'aerialway_closed', 'aerialway_goods', 'aerialway_transportation', 'cable_car', 'car_ferry', 'chair_lift', 'drag_lift', 'ferry', 'footway', 'gondola', 'goods_conveyor', 'mask_terrain', 'path', 'rail', 'trail', 'transit', 'via_ferrata' ])][(brunnel IN [ 'bridge', 'tunnel' ]) ? subclass = 'covered_bridge' : true]['geometry-type' = 'LineString']
+   {
+      stroke:
+      {
+         color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ {  }, {  } ]) ? { 170, 136, 30 } : { 80, 80, 80 }, 15, (class IN [ {  }, {  } ]) ? { 139, 107, 63 } : { 90, 90, 90 }, 1.7);
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 1, 15.5, 0) * interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : 1.0, 15, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : 1.0, 1.7);
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3 : (class = 'trunk') ? 3 : 3 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 3.5 : (class = 'trunk') ? 3.5 : 3 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 4 : (class = 'trunk') ? 4 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 0 : (ramp = 1) ? 2 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.5 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.5 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5 : (class = 'primary') ? 5 : (class = 'secondary') ? 4.5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? 0.75 : 0 : (is_route = 11) ? (class IN [ 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor' ]) ? (ramp = 1) ? 2.75 : 0.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.75 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 3 : 6 : (class = 'trunk') ? 6 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4.5 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 1 : 3 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 3 : 6 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.75 : (class = 'tertiary') ? 3.75 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 0.5 : 3 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 4 : 7 : (class = 'trunk') ? 7 : (class = 'primary') ? 6.5 : (class = 'secondary') ? 6 : (class = 'tertiary') ? 5 : (class IN [ 'minor', 'service' ]) ? 4 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 4 : 7 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5, 15, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 6.5 : 8 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 8 : 12 : (class IN [ 'primary', 'primary_construction' ]) ? 8 : (class IN [ 'secondary', 'secondary_construction' ]) ? 7 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 6 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 4 : 1.1 : 4.5, 16, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 10 : 12 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 12 : 15 : (class IN [ 'primary', 'primary_construction' ]) ? 12 : (class IN [ 'secondary', 'secondary_construction' ]) ? 11 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 10 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 9 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 8.5 : 1.1 : 8, 20, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100, 2)) > (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100 ? Meters { ((class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100) * 0.149291070869485 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3 : (class = 'trunk') ? 3 : 3 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 3.5 : (class = 'trunk') ? 3.5 : 3 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 4 : (class = 'trunk') ? 4 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 0 : (ramp = 1) ? 2 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.5 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.5 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5 : (class = 'primary') ? 5 : (class = 'secondary') ? 4.5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? 0.75 : 0 : (is_route = 11) ? (class IN [ 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor' ]) ? (ramp = 1) ? 2.75 : 0.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.75 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 3 : 6 : (class = 'trunk') ? 6 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4.5 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 1 : 3 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 3 : 6 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.75 : (class = 'tertiary') ? 3.75 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 0.5 : 3 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 4 : 7 : (class = 'trunk') ? 7 : (class = 'primary') ? 6.5 : (class = 'secondary') ? 6 : (class = 'tertiary') ? 5 : (class IN [ 'minor', 'service' ]) ? 4 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 4 : 7 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5, 15, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 6.5 : 8 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 8 : 12 : (class IN [ 'primary', 'primary_construction' ]) ? 8 : (class IN [ 'secondary', 'secondary_construction' ]) ? 7 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 6 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 4 : 1.1 : 4.5, 16, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 10 : 12 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 12 : 15 : (class IN [ 'primary', 'primary_construction' ]) ? 12 : (class IN [ 'secondary', 'secondary_construction' ]) ? 11 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 10 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 9 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 8.5 : 1.1 : 8, 20, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100, 2)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 4400000][NOT(class IN [ 'aerialway_closed', 'aerialway_goods', 'aerialway_transportation', 'cable_car', 'car_ferry', 'chair_lift', 'drag_lift', 'ferry', 'footway', 'gondola', 'goods_conveyor', 'mask_terrain', 'path', 'rail', 'track', 'trail', 'transit', 'via_ferrata' ])][(brunnel IN [ 'bridge', 'tunnel' ]) ? subclass = 'covered_bridge' : true]['geometry-type' = 'LineString']
+   {
+      stroke:
+      {
+         color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ {  }, {  } ]) ? { 255, 230, 160 } : { 255, 255, 255 }, 15, (class IN [ {  }, {  } ]) ? { 255, 224, 138 } : { 255, 255, 255 }, 1);
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 1, 15.5, 0) * interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : 1.0, 15, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : 1.0, 1);
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.5 : 2 : (class = 'trunk') ? 2 : 2 : (ramp = 1) ? 0.5 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.25 : (class = 'trunk') ? 2.25 : 2 : (ramp = 1) ? 0.75 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.75 : (class = 'trunk') ? 2.75 : (class = 'primary') ? 2.5 : (class = 'secondary') ? 2.5 : (class = 'tertiary') ? 2 : (class IN [ 'minor', 'service' ]) ? 1.5 : 0 : (ramp = 1) ? 0.75 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.25 : 3.25 : (class = 'trunk') ? 3.25 : (class = 'primary') ? 3 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 2.5 : (class IN [ 'minor', 'service' ]) ? 1.75 : 0 : (ramp = 1) ? 1.25 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3.75 : (class = 'trunk') ? 3.75 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2 : 0 : (ramp = 1) ? 1.5 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.75 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 1.75 : 4.5 : (class = 'primary') ? 3 : (class = 'secondary') ? 2.75 : (class = 'tertiary') ? 2.75 : (class IN [ 'minor', 'service' ]) ? 2 : 2 : (ramp = 1) ? 1.75 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.75 : 5.5 : (class = 'trunk') ? 5.5 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : 2.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5.5 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2.5, 15, (subclass = 'funicular') ? 3 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 5 : 6.5 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 6.5 : 10.5 : (class IN [ 'primary', 'primary_construction' ]) ? 6.5 : (class IN [ 'secondary', 'secondary_construction' ]) ? 5.5 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 4.5 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 3.5 : (class IN [ 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 1.25 : 3, 16, (subclass = 'funicular') ? 6 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 8 : 10 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 10 : 13 : (class IN [ 'primary', 'primary_construction' ]) ? 10 : (class IN [ 'secondary', 'secondary_construction' ]) ? 9 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 8 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 7 : (class IN [ 'rail', 'rail_construction' ]) ? 9.5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 6.5 : 6, 20, (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92, 2)) > (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92 ? Meters { ((subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92) * 0.149291070869485 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.5 : 2 : (class = 'trunk') ? 2 : 2 : (ramp = 1) ? 0.5 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.25 : (class = 'trunk') ? 2.25 : 2 : (ramp = 1) ? 0.75 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.75 : (class = 'trunk') ? 2.75 : (class = 'primary') ? 2.5 : (class = 'secondary') ? 2.5 : (class = 'tertiary') ? 2 : (class IN [ 'minor', 'service' ]) ? 1.5 : 0 : (ramp = 1) ? 0.75 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.25 : 3.25 : (class = 'trunk') ? 3.25 : (class = 'primary') ? 3 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 2.5 : (class IN [ 'minor', 'service' ]) ? 1.75 : 0 : (ramp = 1) ? 1.25 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3.75 : (class = 'trunk') ? 3.75 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2 : 0 : (ramp = 1) ? 1.5 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.75 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 1.75 : 4.5 : (class = 'primary') ? 3 : (class = 'secondary') ? 2.75 : (class = 'tertiary') ? 2.75 : (class IN [ 'minor', 'service' ]) ? 2 : 2 : (ramp = 1) ? 1.75 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.75 : 5.5 : (class = 'trunk') ? 5.5 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : 2.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5.5 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2.5, 15, (subclass = 'funicular') ? 3 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 5 : 6.5 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 6.5 : 10.5 : (class IN [ 'primary', 'primary_construction' ]) ? 6.5 : (class IN [ 'secondary', 'secondary_construction' ]) ? 5.5 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 4.5 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 3.5 : (class IN [ 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 1.25 : 3, 16, (subclass = 'funicular') ? 6 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 8 : 10 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 10 : 13 : (class IN [ 'primary', 'primary_construction' ]) ? 10 : (class IN [ 'secondary', 'secondary_construction' ]) ? 9 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 8 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 7 : (class IN [ 'rail', 'rail_construction' ]) ? 9.5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 6.5 : 6, 20, (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92, 2)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 2200000][class IN [ 'rail', 'transit' ]][brunnel NOT IN [ 'bridge', 'tunnel' ]]
+   {
+      stroke:
+      {
+         color: (viz.sd < 17000) ? { 255, 50, 50 } : { 255, 80, 80 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 8, 0, 9, (class = 'rail') ? 1 : 0, 13, (class = 'rail') ? 1 : 0, 14, (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail', 'funicular' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 1 : 0 : 0, 14.5, 1) * (viz.sd < 17000) ? 1.0 : 1.0;
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, (is_route = 99) ? (subclass = 'rail') ? 0.75 : 0 : 0, 10, (is_route = 99) ? (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.75 : 0.5 : 0.5 : (subclass IN [ 'cable_car', 'funicular' ]) ? 0.75 : 0, 14, (is_route = 99) ? (class = 'transit') ? 1 : (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? 2 : 1 : 0 : (subclass IN [ 'cable_car', 'funicular' ]) ? 1 : 0, 18, (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2)) > (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2 ? Meters { ((class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2) * 0.59716428347794 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, (is_route = 99) ? (subclass = 'rail') ? 0.75 : 0 : 0, 10, (is_route = 99) ? (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.75 : 0.5 : 0.5 : (subclass IN [ 'cable_car', 'funicular' ]) ? 0.75 : 0, 14, (is_route = 99) ? (class = 'transit') ? 1 : (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? 2 : 1 : 0 : (subclass IN [ 'cable_car', 'funicular' ]) ? 1 : 0, 18, (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2)
+      };
+      visibility: true;
+   }
+
+   [layer IS NOT null]['layer' = 1][[ 'class' ]]['$type' = 'LineString']['subclass' <> 'covered_bridge']
+   {
+
+      [viz.sd <= 4400000]
+      {
+         stroke:
+         {
+            color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ {  }, {  } ]) ? { 170, 136, 30 } : { 80, 80, 80 }, 15, (class IN [ {  }, {  } ]) ? { 139, 107, 63 } : { 90, 90, 90 }, 1.7);
+            opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 1, 15.5, 0) * interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : 1.0, 15, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : 1.0, 1.7);
+            width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3 : (class = 'trunk') ? 3 : 3 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 3.5 : (class = 'trunk') ? 3.5 : 3 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 4 : (class = 'trunk') ? 4 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 0 : (ramp = 1) ? 2 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.5 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.5 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5 : (class = 'primary') ? 5 : (class = 'secondary') ? 4.5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? 0.75 : 0 : (is_route = 11) ? (class IN [ 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor' ]) ? (ramp = 1) ? 2.75 : 0.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.75 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 3 : 6 : (class = 'trunk') ? 6 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4.5 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 1 : 3 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 3 : 6 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.75 : (class = 'tertiary') ? 3.75 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 0.5 : 3 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 4 : 7 : (class = 'trunk') ? 7 : (class = 'primary') ? 6.5 : (class = 'secondary') ? 6 : (class = 'tertiary') ? 5 : (class IN [ 'minor', 'service' ]) ? 4 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 4 : 7 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5, 15, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 6.5 : 8 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 8 : 12 : (class IN [ 'primary', 'primary_construction' ]) ? 8 : (class IN [ 'secondary', 'secondary_construction' ]) ? 7 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 6 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 4 : 1.1 : 4.5, 16, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 10 : 12 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 12 : 15 : (class IN [ 'primary', 'primary_construction' ]) ? 12 : (class IN [ 'secondary', 'secondary_construction' ]) ? 11 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 10 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 9 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 8.5 : 1.1 : 8, 20, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100, 2)) > (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100 ? Meters { ((class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100) * 0.149291070869485 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3 : (class = 'trunk') ? 3 : 3 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 3.5 : (class = 'trunk') ? 3.5 : 3 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 4 : (class = 'trunk') ? 4 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 0 : (ramp = 1) ? 2 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.5 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.5 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5 : (class = 'primary') ? 5 : (class = 'secondary') ? 4.5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? 0.75 : 0 : (is_route = 11) ? (class IN [ 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor' ]) ? (ramp = 1) ? 2.75 : 0.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.75 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 3 : 6 : (class = 'trunk') ? 6 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4.5 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 1 : 3 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 3 : 6 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.75 : (class = 'tertiary') ? 3.75 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 0.5 : 3 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 4 : 7 : (class = 'trunk') ? 7 : (class = 'primary') ? 6.5 : (class = 'secondary') ? 6 : (class = 'tertiary') ? 5 : (class IN [ 'minor', 'service' ]) ? 4 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 4 : 7 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5, 15, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 6.5 : 8 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 8 : 12 : (class IN [ 'primary', 'primary_construction' ]) ? 8 : (class IN [ 'secondary', 'secondary_construction' ]) ? 7 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 6 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 4 : 1.1 : 4.5, 16, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 10 : 12 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 12 : 15 : (class IN [ 'primary', 'primary_construction' ]) ? 12 : (class IN [ 'secondary', 'secondary_construction' ]) ? 11 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 10 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 9 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 8.5 : 1.1 : 8, 20, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100, 2);
+            center.color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ {  }, {  } ]) ? { 255, 230, 160 } : (class IN [ {  }, {  }, {  }, { b = 15 } ]) ? (subclass = { b = 15 }) ? { 243, 243, 246 } : { 243, 243, 246 } : (class = { 255, 255, 255 }) ? { 243, 243, 246 } : { 255, 255, 255 }, 15, (class IN [ {  }, {  } ]) ? { 255, 224, 138 } : (class IN [ {  }, {  }, {  }, { b = 15 } ]) ? (subclass = { b = 15 }) ? { 243, 243, 246 } : { 243, 243, 246 } : { 255, 255, 255 }, 1);
+            center.opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 1, 15.5, 0) * interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : (class IN [ 'rail', 'path', 'track', 'footway' ]) ? (subclass = 'funicular') ? 0.0 : 1.0 : (class = 1.0) ? 1.0 : 1.0, 15, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : (class IN [ 'rail', 'path', 'track', 'footway' ]) ? (subclass = 'funicular') ? 0.0 : 1.0 : 1.0, 1);
+            center.width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.5 : 2 : (class = 'trunk') ? 2 : 2 : (ramp = 1) ? 0.5 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.25 : (class = 'trunk') ? 2.25 : 2 : (ramp = 1) ? 0.75 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.75 : (class = 'trunk') ? 2.75 : (class = 'primary') ? 2.5 : (class = 'secondary') ? 2.5 : (class = 'tertiary') ? 2 : (class IN [ 'minor', 'service' ]) ? 1.5 : 0 : (ramp = 1) ? 0.75 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.25 : 3.25 : (class = 'trunk') ? 3.25 : (class = 'primary') ? 3 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 2.5 : (class IN [ 'minor', 'service' ]) ? 1.75 : 0 : (ramp = 1) ? 1.25 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3.75 : (class = 'trunk') ? 3.75 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2 : 0 : (ramp = 1) ? 1.5 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.75 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 1.75 : 4.5 : (class = 'primary') ? 3 : (class = 'secondary') ? 2.75 : (class = 'tertiary') ? 2.75 : (class IN [ 'minor', 'service' ]) ? 2 : 2 : (ramp = 1) ? 1.75 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.75 : 5.5 : (class = 'trunk') ? 5.5 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : 1.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5.5 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2.5, 15, (subclass = 'funicular') ? 3 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 5 : 6.5 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 6.5 : 10.5 : (class IN [ 'primary', 'primary_construction' ]) ? 6.5 : (class IN [ 'secondary', 'secondary_construction' ]) ? 5.5 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 4.5 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 3.5 : (class IN [ 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 1.25 : 3, 16, (subclass = 'funicular') ? 6 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 8 : 10 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 10 : 13 : (class IN [ 'primary', 'primary_construction' ]) ? 10 : (class IN [ 'secondary', 'secondary_construction' ]) ? 9 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 8 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 7 : (class IN [ 'rail', 'rail_construction' ]) ? 9.5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 6.5 : 6, 20, (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92, 2)) > (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92 ? Meters { ((subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92) * 0.149291070869485 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.5 : 2 : (class = 'trunk') ? 2 : 2 : (ramp = 1) ? 0.5 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.25 : (class = 'trunk') ? 2.25 : 2 : (ramp = 1) ? 0.75 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.75 : (class = 'trunk') ? 2.75 : (class = 'primary') ? 2.5 : (class = 'secondary') ? 2.5 : (class = 'tertiary') ? 2 : (class IN [ 'minor', 'service' ]) ? 1.5 : 0 : (ramp = 1) ? 0.75 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.25 : 3.25 : (class = 'trunk') ? 3.25 : (class = 'primary') ? 3 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 2.5 : (class IN [ 'minor', 'service' ]) ? 1.75 : 0 : (ramp = 1) ? 1.25 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3.75 : (class = 'trunk') ? 3.75 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2 : 0 : (ramp = 1) ? 1.5 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.75 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 1.75 : 4.5 : (class = 'primary') ? 3 : (class = 'secondary') ? 2.75 : (class = 'tertiary') ? 2.75 : (class IN [ 'minor', 'service' ]) ? 2 : 2 : (ramp = 1) ? 1.75 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.75 : 5.5 : (class = 'trunk') ? 5.5 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : 1.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5.5 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2.5, 15, (subclass = 'funicular') ? 3 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 5 : 6.5 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 6.5 : 10.5 : (class IN [ 'primary', 'primary_construction' ]) ? 6.5 : (class IN [ 'secondary', 'secondary_construction' ]) ? 5.5 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 4.5 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 3.5 : (class IN [ 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 1.25 : 3, 16, (subclass = 'funicular') ? 6 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 8 : 10 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 10 : 13 : (class IN [ 'primary', 'primary_construction' ]) ? 10 : (class IN [ 'secondary', 'secondary_construction' ]) ? 9 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 8 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 7 : (class IN [ 'rail', 'rail_construction' ]) ? 9.5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 6.5 : 6, 20, (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92, 2)
+         };
+         visibility: true;
+      }
+
+      [viz.sd <= 550000]
+      {
+         stroke:
+         {
+            color: (viz.sd < 17000) ? { 255, 50, 50 } : { 255, 80, 80 };
+            opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 8, 0, 9, (class = 'rail') ? 1 : 0, 12, (class = 'rail') ? 1 : 0, 13, (class = 'rail') ? 1 : 0, 14, (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail', 'funicular' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 1 : 0 : 0, 14.5, 1) * (viz.sd < 17000) ? 1.0 : 1.0;
+            width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, (is_route = 99) ? (subclass = 'rail') ? 0.75 : 0 : 0, 10, (is_route = 99) ? (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.75 : 0.5 : 0.5 : (subclass IN [ 'cable_car', 'funicular' ]) ? 0.75 : 0, 14, (is_route = 99) ? (class = 'transit') ? 1 : (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 2 : 1 : 0 : (subclass IN [ 'cable_car', 'funicular' ]) ? 1 : 0, 18, (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2)) > (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2 ? Meters { ((class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2) * 0.59716428347794 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, (is_route = 99) ? (subclass = 'rail') ? 0.75 : 0 : 0, 10, (is_route = 99) ? (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.75 : 0.5 : 0.5 : (subclass IN [ 'cable_car', 'funicular' ]) ? 0.75 : 0, 14, (is_route = 99) ? (class = 'transit') ? 1 : (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 2 : 1 : 0 : (subclass IN [ 'cable_car', 'funicular' ]) ? 1 : 0, 18, (class = 'transit') ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2)
+         };
+         visibility: true;
+      }
+   }
+
+   [viz.sd <= 270000][layer IS NOT null]['layer' > 0][[ 'class' ]]['subclass' <> 'covered_bridge']['$type' = 'LineString']
+   {
+      stroke:
+      {
+         color: { 90, 90, 90 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, (class IN [ 'track', 'footway', 'path' ]) ? 1 : 0.5, 15.5, 0) * 1.0;
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 11, 0, 13, 0.5, 15, 1.1, 20, 3, 1.5)) > 3 ? Meters { 0.45 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 11, 0, 13, 0.5, 15, 1.1, 20, 3, 1.5)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 4400000][layer IS NOT null]['layer' > 1][[ 'class' ]]['$type' = 'LineString']['subclass' <> 'covered_bridge']
+   {
+      stroke:
+      {
+         color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ {  }, {  } ]) ? { 170, 136, 30 } : { 80, 80, 80 }, 15, (class IN [ {  }, {  } ]) ? { 139, 107, 63 } : { 90, 90, 90 }, 1.7);
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 1, 15.5, 0) * interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : 1.0, 15, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : 1.0, 1.7);
+         width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3 : (class = 'trunk') ? 3 : 3 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 3.5 : (class = 'trunk') ? 3.5 : 3 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 4 : (class = 'trunk') ? 4 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 0 : (ramp = 1) ? 2 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.5 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.5 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5 : (class = 'primary') ? 5 : (class = 'secondary') ? 4.5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? 0.75 : 0 : (is_route = 11) ? (class IN [ 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor' ]) ? (ramp = 1) ? 2.75 : 0.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.75 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 3 : 6 : (class = 'trunk') ? 6 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4.5 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 1 : 3 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 3 : 6 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.75 : (class = 'tertiary') ? 3.75 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 0.5 : 3 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 4 : 7 : (class = 'trunk') ? 7 : (class = 'primary') ? 6.5 : (class = 'secondary') ? 6 : (class = 'tertiary') ? 5 : (class IN [ 'minor', 'service' ]) ? 4 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 4 : 7 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5, 15, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 6.5 : 8 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 8 : 12 : (class IN [ 'primary', 'primary_construction' ]) ? 8 : (class IN [ 'secondary', 'secondary_construction' ]) ? 7 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 6 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 4 : 1.1 : 4.5, 16, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 10 : 12 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 12 : 15 : (class IN [ 'primary', 'primary_construction' ]) ? 12 : (class IN [ 'secondary', 'secondary_construction' ]) ? 11 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 10 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 9 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 8.5 : 1.1 : 8, 20, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100, 2)) > (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100 ? Meters { ((class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100) * 0.149291070869485 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3 : (class = 'trunk') ? 3 : 3 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 3.5 : (class = 'trunk') ? 3.5 : 3 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2 : 4 : (class = 'trunk') ? 4 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 0 : (ramp = 1) ? 2 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.5 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.5 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5 : (class = 'primary') ? 5 : (class = 'secondary') ? 4.5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? 0.75 : 0 : (is_route = 11) ? (class IN [ 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor' ]) ? (ramp = 1) ? 2.75 : 0.75 : (class IN [ 'track', 'path', 'footway' ]) ? 0.5 : 0 : (ramp = 1) ? 2.75 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 3 : 6 : (class = 'trunk') ? 6 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4.5 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 1 : 3 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 3 : 6 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.75 : (class = 'tertiary') ? 3.75 : (class IN [ 'minor', 'service' ]) ? 3 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3 : 0.5 : 3 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 4 : 7 : (class = 'trunk') ? 7 : (class = 'primary') ? 6.5 : (class = 'secondary') ? 6 : (class = 'tertiary') ? 5 : (class IN [ 'minor', 'service' ]) ? 4 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 4 : 7 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3.5 : (class IN [ 'track', 'path', 'footway' ]) ? (subclass = 'covered_bridge') ? 3.5 : 0.75 : 3.5, 15, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 6.5 : 8 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 8 : 12 : (class IN [ 'primary', 'primary_construction' ]) ? 8 : (class IN [ 'secondary', 'secondary_construction' ]) ? 7 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 6 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 4 : 1.1 : 4.5, 16, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 10 : 12 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 12 : 15 : (class IN [ 'primary', 'primary_construction' ]) ? 12 : (class IN [ 'secondary', 'secondary_construction' ]) ? 11 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 10 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 9 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 8.5 : 1.1 : 8, 20, (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 115 : 130 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 130 : 140 : (class IN [ 'primary', 'primary_construction' ]) ? 120 : (class IN [ 'secondary', 'secondary_construction' ]) ? 115 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 110 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction', 'rail', 'rail_construction' ]) ? 100 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? (subclass = 'covered_bridge') ? 84 : 5 : 100, 2);
+         center.color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ {  }, {  } ]) ? { 255, 230, 160 } : (class IN [ {  }, {  }, {  }, { b = 15 } ]) ? (subclass = { b = 15 }) ? { 243, 243, 246 } : { 243, 243, 246 } : (class = { 255, 255, 255 }) ? { 243, 243, 246 } : { 255, 255, 255 }, 15, (class IN [ {  }, {  } ]) ? { 255, 224, 138 } : (class IN [ {  }, {  }, {  }, { b = 15 } ]) ? (subclass = { b = 15 }) ? { 243, 243, 246 } : { 243, 243, 246 } : { 255, 255, 255 }, 1);
+         center.opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 1, 15.5, 0) * interpolate('exponential', 29.0584853377 - log(2, viz.sd), 9, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : (class IN [ 'rail', 'path', 'track', 'footway' ]) ? (subclass = 'funicular') ? 0.0 : 1.0 : (class = 1.0) ? 1.0 : 1.0, 15, (class IN [ 'motorway', 'trunk' ]) ? 1.0 : (class IN [ 'rail', 'path', 'track', 'footway' ]) ? (subclass = 'funicular') ? 0.0 : 1.0 : 1.0, 1);
+         center.width: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.5 : 2 : (class = 'trunk') ? 2 : 2 : (ramp = 1) ? 0.5 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.25 : (class = 'trunk') ? 2.25 : 2 : (ramp = 1) ? 0.75 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.75 : (class = 'trunk') ? 2.75 : (class = 'primary') ? 2.5 : (class = 'secondary') ? 2.5 : (class = 'tertiary') ? 2 : (class IN [ 'minor', 'service' ]) ? 1.5 : 0 : (ramp = 1) ? 0.75 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.25 : 3.25 : (class = 'trunk') ? 3.25 : (class = 'primary') ? 3 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 2.5 : (class IN [ 'minor', 'service' ]) ? 1.75 : 0 : (ramp = 1) ? 1.25 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3.75 : (class = 'trunk') ? 3.75 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2 : 0 : (ramp = 1) ? 1.5 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.75 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 1.75 : 4.5 : (class = 'primary') ? 3 : (class = 'secondary') ? 2.75 : (class = 'tertiary') ? 2.75 : (class IN [ 'minor', 'service' ]) ? 2 : 2 : (ramp = 1) ? 1.75 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.75 : 5.5 : (class = 'trunk') ? 5.5 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : 2.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5.5 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2.5, 15, (subclass = 'funicular') ? 3 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 5 : 6.5 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 6.5 : 10.5 : (class IN [ 'primary', 'primary_construction' ]) ? 6.5 : (class IN [ 'secondary', 'secondary_construction' ]) ? 5.5 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 4.5 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 3.5 : (class IN [ 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 1.25 : 3, 16, (subclass = 'funicular') ? 6 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 8 : 10 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 10 : 13 : (class IN [ 'primary', 'primary_construction' ]) ? 10 : (class IN [ 'secondary', 'secondary_construction' ]) ? 9 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 8 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 7 : (class IN [ 'rail', 'rail_construction' ]) ? 9.5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 6.5 : 6, 20, (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92, 2)) > (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92 ? Meters { ((subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92) * 0.149291070869485 } : interpolate('exponential', 29.0584853377 - log(2, viz.sd), 7, 0, 8, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.5 : 2 : (class = 'trunk') ? 2 : 2 : (ramp = 1) ? 0.5 : 0, 9, (is_route IN [ 5, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.25 : (class = 'trunk') ? 2.25 : 2 : (ramp = 1) ? 0.75 : 0, 10, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 0.75 : 2.75 : (class = 'trunk') ? 2.75 : (class = 'primary') ? 2.5 : (class = 'secondary') ? 2.5 : (class = 'tertiary') ? 2 : (class IN [ 'minor', 'service' ]) ? 1.5 : 0 : (ramp = 1) ? 0.75 : 0, 11, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.25 : 3.25 : (class = 'trunk') ? 3.25 : (class = 'primary') ? 3 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 2.5 : (class IN [ 'minor', 'service' ]) ? 1.75 : 0 : (ramp = 1) ? 1.25 : 0, 12, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.5 : 3.75 : (class = 'trunk') ? 3.75 : (class = 'primary') ? 4 : (class = 'secondary') ? 3.5 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2 : 0 : (ramp = 1) ? 1.5 : 0, 13, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 1.75 : 4.5 : (class = 'trunk') ? 4.5 : (class = 'primary') ? 4.5 : (class = 'secondary') ? 4 : (class = 'tertiary') ? 3.5 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2 : (is_route = 11) ? (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 1.75 : 4.5 : (class = 'primary') ? 3 : (class = 'secondary') ? 2.75 : (class = 'tertiary') ? 2.75 : (class IN [ 'minor', 'service' ]) ? 2 : 2 : (ramp = 1) ? 1.75 : 0, 14, (is_route IN [ 5, 6, 7, 8, 10, 99 ]) ? (class = 'motorway') ? (ramp = 1) ? 2.75 : 5.5 : (class = 'trunk') ? 5.5 : (class = 'primary') ? 5.5 : (class = 'secondary') ? 5 : (class = 'tertiary') ? 4 : (class IN [ 'minor', 'service' ]) ? 3 : 2.5 : (class IN [ 'motorway', 'trunk' ]) ? (ramp = 1) ? 2.75 : 5.5 : (class = 'primary') ? 3.5 : (class = 'secondary') ? 3 : (class = 'tertiary') ? 3 : (class IN [ 'minor', 'service' ]) ? 2.5 : 2.5, 15, (subclass = 'funicular') ? 3 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 5 : 6.5 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 6.5 : 10.5 : (class IN [ 'primary', 'primary_construction' ]) ? 6.5 : (class IN [ 'secondary', 'secondary_construction' ]) ? 5.5 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 4.5 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 3.5 : (class IN [ 'rail', 'rail_construction' ]) ? 5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 1.25 : 3, 16, (subclass = 'funicular') ? 6 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 8 : 10 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 10 : 13 : (class IN [ 'primary', 'primary_construction' ]) ? 10 : (class IN [ 'secondary', 'secondary_construction' ]) ? 9 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 8 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 7 : (class IN [ 'rail', 'rail_construction' ]) ? 9.5 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 6.5 : 6, 20, (subclass = 'funicular') ? 20 : (class IN [ 'motorway', 'motorway_construction' ]) ? (ramp = 1) ? 112 : 126 : (class IN [ 'trunk', 'trunk_construction' ]) ? (oneway = 1) ? 126 : 136 : (class IN [ 'primary', 'primary_construction' ]) ? 117 : (class IN [ 'secondary', 'secondary_construction' ]) ? 112 : (class IN [ 'tertiary', 'tertiary_construction' ]) ? 107 : (class IN [ 'minor', 'minor_construction', 'service', 'service_construction' ]) ? 97 : (class IN [ 'rail', 'rail_construction' ]) ? 120 : (class IN [ 'track', 'track_construction', 'path', 'path_construction', 'footway', 'footway_construction', 'transit', 'transit_construction' ]) ? 81 : 92, 2)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 550000][(class IN [ 'cable_car', 'chair_lift', 'gondola' ]) ? true : (class IN [ 'rail', 'rail_construction', 'transit', 'transit_construction' ]) ? (layer IS NOT null) ? layer > 1 : false : false]['geometry-type' = 'LineString']
+   {
+      stroke:
+      {
+         color: (viz.sd < 17000) ? { 255, 50, 50 } : { 255, 80, 80 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 8, 0, 9, (class = 'rail') ? 1 : 0, 12, (class = 'rail') ? 1 : 0, 13, (class IN [ 'cable_car', 'gondola', 'rail' ]) ? 1 : 0, 14, (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail', 'funicular' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 1 : 0 : (class IN [ 'cable_car', 'gondola', 'chair_lift' ]) ? 1 : 0, 14.5, 1) * (viz.sd < 17000) ? 1.0 : 1.0;
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, (class IN [ 'cable_car', 'chair_lift', 'gondola' ]) ? 0.3 : (is_route = 99) ? (subclass = 'rail') ? 0.75 : 0 : 0, 10, (is_route = 99) ? (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.75 : 0.5 : 0.5 : (class IN [ 'cable_car', 'chair_lift', 'gondola' ]) ? 0.4 : (subclass IN [ 'cable_car', 'funicular' ]) ? 0.75 : 0, 14, (is_route = 99) ? (class = 'transit') ? 1 : (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 2 : 1 : 0 : (class = 'cable_car') ? 1 : (class IN [ 'chair_lift', 'gondola' ]) ? 0.4 : (subclass IN [ 'cable_car', 'funicular' ]) ? 1 : 0, 18, (class IN [ 'chair_lift', 'gondola', 'transit' ]) ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2)) > (class IN [ 'chair_lift', 'gondola', 'transit' ]) ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2 ? Meters { ((class IN [ 'chair_lift', 'gondola', 'transit' ]) ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2) * 0.59716428347794 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 9, (class IN [ 'cable_car', 'chair_lift', 'gondola' ]) ? 0.3 : (is_route = 99) ? (subclass = 'rail') ? 0.75 : 0 : 0, 10, (is_route = 99) ? (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 0.75 : 0.5 : 0.5 : (class IN [ 'cable_car', 'chair_lift', 'gondola' ]) ? 0.4 : (subclass IN [ 'cable_car', 'funicular' ]) ? 0.75 : 0, 14, (is_route = 99) ? (class = 'transit') ? 1 : (class = 'rail') ? (subclass IN [ 'rail', 'narrow_gauge', 'rack_rail' ]) ? (service IN [ 'yard', 'siding' ]) ? 0 : 2 : 1 : 0 : (class = 'cable_car') ? 1 : (class IN [ 'chair_lift', 'gondola' ]) ? 0.4 : (subclass IN [ 'cable_car', 'funicular' ]) ? 1 : 0, 18, (class IN [ 'chair_lift', 'gondola', 'transit' ]) ? 1.5 : (service IN [ 'yard', 'siding' ]) ? 1.5 : 2)
+      };
+      visibility: true;
+   }
+}
+
+construct
+{
+   zOrder: 13;
+   visibility: false;
+
+   [viz.sd <= 34000][class = 'lock']
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 };
+         opacity: (viz.sd < 17000) ? 0 : 1 * 'hsl(220, 10%, 67%)';
+         width: (viz.sd < 2100) ? 1 : 4
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 68000][class <> 'lock']
+   {
+      stroke:
+      {
+         color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 13, (class = {  }) ? { 1, 1, 1 } : { 1, 1, 1 }, 17, (class = {  }) ? { 1, 1, 1 } : (class = { b = 218 }) ? { 1, 1, 1 } : { 1, 1, 1 }, 1)
+      };
+      fill:
+      {
+         opacity: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 12, 0, 13, (class = 'dam') ? 1 : 0, 14, (class = 'dam') ? 1 : 0, 15, 1, 15.5, 0, 1) * interpolate('exponential', 29.0584853377 - log(2, viz.sd), 13, (class = 'weir') ? 'hsl(220, 10%, 82%)' : 'hsl(220, 10%, 86%)', 17, (class = 'weir') ? 'hsl(220, 10%, 75%)' : (class = 'dam') ? 'hsl(220, 10%, 82%)' : 'hsl(220, 10%, 86%)', 1);
+         color: interpolate('exponential', 29.0584853377 - log(2, viz.sd), 13, (class = {  }) ? { 1, 1, 1 } : { 1, 1, 1 }, 17, (class = {  }) ? { 1, 1, 1 } : (class = { b = 218 }) ? { 1, 1, 1 } : { 1, 1, 1 }, 1)
+      };
+      visibility: true;
+   }
+}
+
+aeroway
+{
+   zOrder: 14;
+   visibility: false;
+
+   [viz.sd <= 270000][class IN [ 'runway', 'taxiway', 'apron', 'runway_grass' ]]["$type" = 'Polygon']
+   {
+      stroke:
+      {
+         color: (class = {  }) ? { 224, 234, 221 } : { 255, 255, 255 }
+      };
+      fill:
+      {
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 1, 15.5, 0) * (class = 'runway_grass') ? 1.0 : 1.0;
+         color: (class = {  }) ? { 224, 234, 221 } : { 255, 255, 255 }
+      };
+      visibility: true;
+   }
+}
+
+building_ln
+{
+   zOrder: 15;
+   visibility: false;
+
+   [viz.sd <= 68000][class IN [ 'horse_racing', 'ski_jump', 'toboggan', 'track', 'weir' ]]['geometry-type' = 'LineString']
+   {
+      stroke:
+      {
+         color: (class = {  }) ? { 20, 136, 205 } : { 130, 130, 130 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, (class = 'weir') ? 0.2 : 1, 15.5, 0) * (class = 'weir') ? 1.0 : 1.0;
+         width: (viz.sd < 2100) ? (viz.sd < 8500) ? 0 : 2 : 3
+      };
+      visibility: true;
+   }
+}
+
+building
+{
+   zOrder: 16;
+   visibility: false;
+
+   [viz.sd <= 68000]
+   {
+      stroke:
+      {
+         color: (viz.sd < 4300) ? { 1, 1, 1 } : { 1, 1, 1 }
+      };
+      fill:
+      {
+         opacity: (viz.sd < 17000) ? 0 : 1 * (viz.sd < 4300) ? 'hsl(220, 10%, 82%)' : 'hsl(220, 10%, 75%)';
+         color: (viz.sd < 4300) ? { 1, 1, 1 } : { 1, 1, 1 }
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000]
+   {
+      stroke:
+      {
+         color: { 1, 1, 1 };
+         opacity: interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0, 15.5, 0) * 'hsl(220, 10%, 67%)';
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0.2, 18, 1.2)) > 1.2 ? Meters { 0.72 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 15, 0.2, 18, 1.2)
+      };
+      visibility: true;
+   }
+}
+
+Einzelobjekte_Flaechen
+{
+   zOrder: 17;
+   visibility: false;
+
+   [viz.sd <= 4300]
+   {
+      stroke:
+      {
+         color: { 184, 184, 184 };
+         opacity: (viz.sd < 2100) ? 0 : 1 * 1.0;
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 20, (Art = 'Rinnsal') ? 2 : (Art = 'schmaler_Weg') ? 2 : (Art = 'Bruecke_Passerelle') ? 1.3 : (Art = 'Bahngeleise') ? 1.3 : (Art = 'Bahnsteig') ? 1.3 : (Art = 'Faehre') ? 1.3 : (Art = 'Gondelbahn_Sesselbahn') ? 1.3 : (Art = 'Luftseilbahn') ? 1.3 : (Art = 'Skilift') ? 1.3 : (Art = 'Tunnel_Unterfuehrung_Galerie') ? 1.3 : (Art = 'Hochspannungsfreileitung') ? 1.3 : (Art = 'Lawinenverbauung') ? 1.3 : (Art = 'schmale_bestockte_Flaeche') ? 1.3 : 1, 22, (Einzelobjektart = 'Rinnsal') ? 3.2 : (Einzelobjektart = 'schmaler_Weg') ? 3.2 : (Einzelobjektart = 'Bruecke_Passerelle') ? 2.08 : (Einzelobjektart = 'Bahngeleise') ? 2.08 : (Einzelobjektart = 'Bahnsteig') ? 2.08 : (Einzelobjektart = 'Faehre') ? 2.08 : (Einzelobjektart = 'Gondelbahn_Sesselbahn') ? 2.08 : (Einzelobjektart = 'Luftseilbahn') ? 2.08 : (Einzelobjektart = 'Skilift') ? 2.08 : (Einzelobjektart = 'Tunnel_Unterfuehrung_Galerie') ? 2.08 : (Einzelobjektart = 'Hochspannungsfreileitung') ? 2.08 : (Einzelobjektart = 'Lawinenverbauung') ? 2.08 : (Einzelobjektart = 'schmale_bestockte_Flaeche') ? 2.08 : 1.6)) > (Einzelobjektart = 'Rinnsal') ? 3.2 : (Einzelobjektart = 'schmaler_Weg') ? 3.2 : (Einzelobjektart = 'Bruecke_Passerelle') ? 2.08 : (Einzelobjektart = 'Bahngeleise') ? 2.08 : (Einzelobjektart = 'Bahnsteig') ? 2.08 : (Einzelobjektart = 'Faehre') ? 2.08 : (Einzelobjektart = 'Gondelbahn_Sesselbahn') ? 2.08 : (Einzelobjektart = 'Luftseilbahn') ? 2.08 : (Einzelobjektart = 'Skilift') ? 2.08 : (Einzelobjektart = 'Tunnel_Unterfuehrung_Galerie') ? 2.08 : (Einzelobjektart = 'Hochspannungsfreileitung') ? 2.08 : (Einzelobjektart = 'Lawinenverbauung') ? 2.08 : (Einzelobjektart = 'schmale_bestockte_Flaeche') ? 2.08 : 1.6 ? Meters { ((Einzelobjektart = 'Rinnsal') ? 3.2 : (Einzelobjektart = 'schmaler_Weg') ? 3.2 : (Einzelobjektart = 'Bruecke_Passerelle') ? 2.08 : (Einzelobjektart = 'Bahngeleise') ? 2.08 : (Einzelobjektart = 'Bahnsteig') ? 2.08 : (Einzelobjektart = 'Faehre') ? 2.08 : (Einzelobjektart = 'Gondelbahn_Sesselbahn') ? 2.08 : (Einzelobjektart = 'Luftseilbahn') ? 2.08 : (Einzelobjektart = 'Skilift') ? 2.08 : (Einzelobjektart = 'Tunnel_Unterfuehrung_Galerie') ? 2.08 : (Einzelobjektart = 'Hochspannungsfreileitung') ? 2.08 : (Einzelobjektart = 'Lawinenverbauung') ? 2.08 : (Einzelobjektart = 'schmale_bestockte_Flaeche') ? 2.08 : 1.6) * 0.0373227677173712 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 20, (Art = 'Rinnsal') ? 2 : (Art = 'schmaler_Weg') ? 2 : (Art = 'Bruecke_Passerelle') ? 1.3 : (Art = 'Bahngeleise') ? 1.3 : (Art = 'Bahnsteig') ? 1.3 : (Art = 'Faehre') ? 1.3 : (Art = 'Gondelbahn_Sesselbahn') ? 1.3 : (Art = 'Luftseilbahn') ? 1.3 : (Art = 'Skilift') ? 1.3 : (Art = 'Tunnel_Unterfuehrung_Galerie') ? 1.3 : (Art = 'Hochspannungsfreileitung') ? 1.3 : (Art = 'Lawinenverbauung') ? 1.3 : (Art = 'schmale_bestockte_Flaeche') ? 1.3 : 1, 22, (Einzelobjektart = 'Rinnsal') ? 3.2 : (Einzelobjektart = 'schmaler_Weg') ? 3.2 : (Einzelobjektart = 'Bruecke_Passerelle') ? 2.08 : (Einzelobjektart = 'Bahngeleise') ? 2.08 : (Einzelobjektart = 'Bahnsteig') ? 2.08 : (Einzelobjektart = 'Faehre') ? 2.08 : (Einzelobjektart = 'Gondelbahn_Sesselbahn') ? 2.08 : (Einzelobjektart = 'Luftseilbahn') ? 2.08 : (Einzelobjektart = 'Skilift') ? 2.08 : (Einzelobjektart = 'Tunnel_Unterfuehrung_Galerie') ? 2.08 : (Einzelobjektart = 'Hochspannungsfreileitung') ? 2.08 : (Einzelobjektart = 'Lawinenverbauung') ? 2.08 : (Einzelobjektart = 'schmale_bestockte_Flaeche') ? 2.08 : 1.6)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 4300][ORArt = 'uebriger_Gebaeudeteil']
+   {
+      stroke:
+      {
+         color: { 136, 136, 136 }
+      };
+      fill:
+      {
+         opacity: (viz.sd < 2100) ? 0 : 1 * 1.0;
+         color: { 237, 240, 251 }
+      };
+      visibility: true;
+   }
+}
+
+Einzelobjekte_Linien
+{
+   zOrder: 18;
+   visibility: false;
+
+   [viz.sd <= 4300]
+   {
+      stroke:
+      {
+         color: { 184, 184, 184 };
+         opacity: (viz.sd < 2100) ? 0 : 1 * 1.0;
+         width: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 20, (Art = 'Rinnsal') ? 2 : (Art = 'schmaler_Weg') ? 2 : (Art = 'Bruecke_Passerelle') ? 1.3 : (Art = 'Bahngeleise') ? 1.3 : (Art = 'Bahnsteig') ? 1.3 : (Art = 'Faehre') ? 1.3 : (Art = 'Gondelbahn_Sesselbahn') ? 1.3 : (Art = 'Luftseilbahn') ? 1.3 : (Art = 'Skilift') ? 1.3 : (Art = 'Tunnel_Unterfuehrung_Galerie') ? 1.3 : (Art = 'Hochspannungsfreileitung') ? 1.3 : (Art = 'Lawinenverbauung') ? 1.3 : (Art = 'schmale_bestockte_Flaeche') ? 1.3 : 1, 22, (Einzelobjektart = 'Rinnsal') ? 3.2 : (Einzelobjektart = 'schmaler_Weg') ? 3.2 : (Einzelobjektart = 'Bruecke_Passerelle') ? 2.08 : (Einzelobjektart = 'Bahngeleise') ? 2.08 : (Einzelobjektart = 'Bahnsteig') ? 2.08 : (Einzelobjektart = 'Faehre') ? 2.08 : (Einzelobjektart = 'Gondelbahn_Sesselbahn') ? 2.08 : (Einzelobjektart = 'Luftseilbahn') ? 2.08 : (Einzelobjektart = 'Skilift') ? 2.08 : (Einzelobjektart = 'Tunnel_Unterfuehrung_Galerie') ? 2.08 : (Einzelobjektart = 'Hochspannungsfreileitung') ? 2.08 : (Einzelobjektart = 'Lawinenverbauung') ? 2.08 : (Einzelobjektart = 'schmale_bestockte_Flaeche') ? 2.08 : 1.6)) > (Einzelobjektart = 'Rinnsal') ? 3.2 : (Einzelobjektart = 'schmaler_Weg') ? 3.2 : (Einzelobjektart = 'Bruecke_Passerelle') ? 2.08 : (Einzelobjektart = 'Bahngeleise') ? 2.08 : (Einzelobjektart = 'Bahnsteig') ? 2.08 : (Einzelobjektart = 'Faehre') ? 2.08 : (Einzelobjektart = 'Gondelbahn_Sesselbahn') ? 2.08 : (Einzelobjektart = 'Luftseilbahn') ? 2.08 : (Einzelobjektart = 'Skilift') ? 2.08 : (Einzelobjektart = 'Tunnel_Unterfuehrung_Galerie') ? 2.08 : (Einzelobjektart = 'Hochspannungsfreileitung') ? 2.08 : (Einzelobjektart = 'Lawinenverbauung') ? 2.08 : (Einzelobjektart = 'schmale_bestockte_Flaeche') ? 2.08 : 1.6 ? Meters { ((Einzelobjektart = 'Rinnsal') ? 3.2 : (Einzelobjektart = 'schmaler_Weg') ? 3.2 : (Einzelobjektart = 'Bruecke_Passerelle') ? 2.08 : (Einzelobjektart = 'Bahngeleise') ? 2.08 : (Einzelobjektart = 'Bahnsteig') ? 2.08 : (Einzelobjektart = 'Faehre') ? 2.08 : (Einzelobjektart = 'Gondelbahn_Sesselbahn') ? 2.08 : (Einzelobjektart = 'Luftseilbahn') ? 2.08 : (Einzelobjektart = 'Skilift') ? 2.08 : (Einzelobjektart = 'Tunnel_Unterfuehrung_Galerie') ? 2.08 : (Einzelobjektart = 'Hochspannungsfreileitung') ? 2.08 : (Einzelobjektart = 'Lawinenverbauung') ? 2.08 : (Einzelobjektart = 'schmale_bestockte_Flaeche') ? 2.08 : 1.6) * 0.0373227677173712 } : interpolate('linear', 29.0584853377 - log(2, viz.sd), 20, (Art = 'Rinnsal') ? 2 : (Art = 'schmaler_Weg') ? 2 : (Art = 'Bruecke_Passerelle') ? 1.3 : (Art = 'Bahngeleise') ? 1.3 : (Art = 'Bahnsteig') ? 1.3 : (Art = 'Faehre') ? 1.3 : (Art = 'Gondelbahn_Sesselbahn') ? 1.3 : (Art = 'Luftseilbahn') ? 1.3 : (Art = 'Skilift') ? 1.3 : (Art = 'Tunnel_Unterfuehrung_Galerie') ? 1.3 : (Art = 'Hochspannungsfreileitung') ? 1.3 : (Art = 'Lawinenverbauung') ? 1.3 : (Art = 'schmale_bestockte_Flaeche') ? 1.3 : 1, 22, (Einzelobjektart = 'Rinnsal') ? 3.2 : (Einzelobjektart = 'schmaler_Weg') ? 3.2 : (Einzelobjektart = 'Bruecke_Passerelle') ? 2.08 : (Einzelobjektart = 'Bahngeleise') ? 2.08 : (Einzelobjektart = 'Bahnsteig') ? 2.08 : (Einzelobjektart = 'Faehre') ? 2.08 : (Einzelobjektart = 'Gondelbahn_Sesselbahn') ? 2.08 : (Einzelobjektart = 'Luftseilbahn') ? 2.08 : (Einzelobjektart = 'Skilift') ? 2.08 : (Einzelobjektart = 'Tunnel_Unterfuehrung_Galerie') ? 2.08 : (Einzelobjektart = 'Hochspannungsfreileitung') ? 2.08 : (Einzelobjektart = 'Lawinenverbauung') ? 2.08 : (Einzelobjektart = 'schmale_bestockte_Flaeche') ? 2.08 : 1.6)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 17000][ORArt = 'unterirdisches_Gebaeude']
+   {
+      stroke:
+      {
+         color: { 145, 145, 145 };
+         opacity: (viz.sd < 2100) ? 0 : 1 * 1.0
+      };
+      visibility: true;
+   }
+}
+
+Bodenbedeckung_projektiert
+{
+   zOrder: 19;
+   visibility: false;
+
+   [viz.sd <= 34000][Art = 'Gebaeude']
+   {
+      stroke:
+      {
+         color: { 255 }
+      };
+      fill:
+      {
+         opacity: (viz.sd < 17000) ? 0 : 1 * 0.3;
+         color: { 255 }
+      };
+      visibility: true;
+   }
+}
+
+Liegenschaften
+{
+   zOrder: 20;
+   visibility: false;
+
+   [viz.sd <= 8500]
+   {
+      stroke:
+      {
+         color: { 153, 153, 153 };
+         opacity: (viz.sd < 2100) ? 0 : 1 * 1.0;
+         width: 1
+      };
+      visibility: true;
+   }
+}
+
+Liegenschaften_projektiert
+{
+   zOrder: 21;
+   visibility: false;
+
+   [viz.sd <= 8500]
+   {
+      stroke:
+      {
+         color: { 255 };
+         opacity: (viz.sd < 2100) ? 0 : 1 * 1.0;
+         width: 1
+      };
+      visibility: true;
+   }
+}
+
+Grenzpunkte
+{
+   zOrder: 22;
+   visibility: false;
+
+   [viz.sd <= 2100]
+   {
+      label:
+      {
+         elements: [
+            Image { image: { path: 'symbols/routeMarker-local.png', id: 'routeMarker-local' }, hotSpot: { x: 0.5, y: 0.5 }, tint: { 255, 255, 255 }, blackTint: { 153, 153, 153 } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+contour_line_pt
+{
+   zOrder: 23;
+   visibility: false;
+
+   [viz.sd <= 34000][lake_depth IS NOT null OR strtod(ele) % 20 = 0]
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: (lake_depth IS NOT null) ? 'arrow_blue' : '' }, scaling: interpolate('linear', 29.0584853377 - log(2, viz.sd), 14, 0.7, 16, (strtod(lake_depth) % 100 = 0) ? 0.9 : 0.7), hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: (lake_depth IS NOT null) ? lake_depth : ele, font: { face: 'Frutiger Neue Italic', size: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 14, 10.5, 16, (lake_depth IS NOT null) ? (strtod(lake_depth) % 100 = 0) ? 14 : 12 : (strtod(ele) % 100 = 0) ? 14 : 12, 2)) * 0.75, outline: { size: 1, opacity: 1.0 }, color: (class = {  }) ? { 110, 110, 110 } : (class = {  }) ? { 179, 136, 77 } : (class = {  }) ? { 47, 134, 188 } : (class = {  }) ? { 80, 123, 149 } : { 110, 110, 110 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+spot_elevation
+{
+   zOrder: 24;
+   visibility: false;
+
+   [viz.sd <= 1100000][class <> 'doline']
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: (class = 'sinkhole') ? 'arrow_brown' : (class IN [ 'sinkhole_ice', 'sinkhole_water', 'lake_spot_depth' ]) ? 'arrow_blue' : (class IN [ 'sinkhole_rock', 'sinkhole_scree' ]) ? 'arrow_grey' : (class IN [ 'spot_elevation', 'terrain_spot_elevation' ]) ? 'dot_dark_grey_3' : (class = 'lake_elevation') ? (lake_depth IS NOT null) ? 'arrow_line_blue' : ([ 'length', ele ] = 3) ? 'line_blue_short' : 'line_blue_long' : '' }, scaling: interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, (class = 'lake_spot_depth') ? 0.6 : 1, 16, (class = 'lake_spot_depth') ? 0.6 : 1), hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: (class IN [ 'spot_elevation', 'terrain_spot_elevation' ]) ? ele : (class IN [ 'sinkhole', 'sinkhole_rock', 'sinkhole_scree', 'sinkhole_water', 'sinkhole_ice' ]) ? '' : (class = 'lake_spot_depth') ? lake_depth : (lake_depth IS NOT null) ? concatenate(ele, '\n', lake_depth) : ele, font: { face: 'match', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, 10, 14, 10.5, 16, 13)) * 0.75, outline: { size: 0.5, opacity: 1.0 }, color: (class IN [ {  }, {  } ]) ? { 47, 134, 188 } : { 80, 80, 80 } }, alignment: { horzAlign: center, vertAlign: middle }, position2D: { x: *interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, 10, 14, 10.5, 16, 13), y: *interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, 10, 14, 10.5, 16, 13) } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+Gebaeudeadressen
+{
+   zOrder: 25;
+   visibility: false;
+
+   [viz.sd <= 8500]
+   {
+      label:
+      {
+         elements: [
+            Text { text: Hausnummer, font: { face: 'Frutiger Neue Condensed Regular', size: (12) * 0.75, outline: { size: 1.2, color: { 255, 255, 255 }, opacity: 1.0 } }, alignment: { horzAlign: center, vertAlign: middle }, position2D: { x: *12, y: *12 } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+transportation_name
+{
+   zOrder: 26;
+   visibility: false;
+
+   [viz.sd <= 68000][class NOT IN [ 'cable_car', 'gondola', 'chair_lift', 'drag_lift', 'aerialway_transportation', 'aerialway_closed', 'aerialway_goods', 'goods_conveyor' ]]["$type" = 'LineString']
+   {
+      label:
+      {
+         elements: [
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Condensed Regular', size: (interpolate('exponential', 29.0584853377 - log(2, viz.sd), 14, (class IN [ 'motorway', 'trunk' ]) ? 11 : 10.5, 18, (class IN [ 'motorway', 'trunk' ]) ? 18 : 16, 1.5)) * 0.75, outline: { size: interpolate('linear', 29.0584853377 - log(2, viz.sd), 14, (class IN [ 'rail', 'transit', 'cable_car', 'gondola', 'chair_lift' ]) ? 1.5 : 1.5, 20, 3), opacity: 1.0 }, color: (class IN [ {  }, {  }, { g = 12, 171 }, {  }, { b = 12 } ]) ? { 255, 50, 50 } : (class IN [ { b = 254 }, { b = 202 } ]) ? { 47, 134, 188 } : { 60, 60, 70 } }, alignment: { horzAlign: center, vertAlign: middle }, position2D: { x: *interpolate('exponential', 29.0584853377 - log(2, viz.sd), 14, (class IN [ 'motorway', 'trunk' ]) ? 11 : 10.5, 18, (class IN [ 'motorway', 'trunk' ]) ? 18 : 16, 1.5), y: *interpolate('exponential', 29.0584853377 - log(2, viz.sd), 14, (class IN [ 'motorway', 'trunk' ]) ? 11 : 10.5, 18, (class IN [ 'motorway', 'trunk' ]) ? 18 : 16, 1.5) } }
+         ]
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 68000][[ 'class' ]][ref IS NOT null]['ref_length' <= 12]['ref_length' > 0]['$type' = 'LineString']
+   {
+      label:
+      {
+         elements: [
+            Image { image: { path: 'symbols/box_white_grey_casing_{ref_length}.png', id: 'box_white_grey_casing_{ref_length}' }, scaling: 1, hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: ref, font: { face: 'Frutiger Neue Condensed Bold', size: (10.5) * 0.75, outline: { size: 0, color: {  }, opacity: 1.0 }, color: { 64, 64, 64 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+area_name
+{
+   zOrder: 27;
+   visibility: false;
+
+   [viz.sd <= 34000]["$type" = 'Point'][subclass IN [ 'glacier' ]]
+   {
+      label:
+      {
+         elements: [
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Italic', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, 11, 16, 20)) * 0.75, outline: { size: 1, color: { 242, 242, 242 }, opacity: 1.0 }, color: { 47, 134, 188 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 140000]["$type" = 'LineString'][subclass IN [ 'glacier' ]]
+   {
+      label:
+      {
+         elements: [
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Italic', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, 11, 16, 20)) * 0.75, outline: { size: 1, color: { 242, 242, 242 }, opacity: 1.0 }, color: { 47, 134, 188 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 270000]["$type" = 'Point'][subclass IN [ 'massif' ]]
+   {
+      label:
+      {
+         elements: [
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Regular', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, 14, 16, 23)) * 0.75, outline: { size: 1, color: { 242, 242, 242 }, opacity: 1.0 }, color: { 48, 48, 48 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+poi
+{
+   zOrder: 28;
+   visibility: false;
+
+   [viz.sd <= 34000][class IN [ 'monastery', 'place_of_worship' ] OR subclass IN [ 'aerialway', 'aerialway_station', 'allottments', 'antenna_area', 'attraction', 'building', 'bus_stop', 'cable_car_station', 'camp_site', 'cave', 'cemetery', 'chair_lift_station', 'church_tower', 'communications_tower', 'dam', 'driving_centre', 'elevator', 'entrance', 'ferry', 'ferry_terminal', 'fuel', 'funicular', 'funicular_stop', 'garden', 'golf', 'golf_course', 'gondola_station', 'halt', 'horse_racing', 'incineration_plant', 'military', 'monastery', 'observation_tower', 'observatory', 'park', 'pitch', 'power', 'power_plant', 'prison', 'ruins', 'shooting', 'solar', 'sports_centre', 'stadium', 'subway_entrance', 'subway_stop', 'survey_point', 'swimming_pool', 'tower', 'tram_stop', 'wastewater_plant', 'waterfall', 'weir', 'wind_turbine', 'zoo' ]]
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: (subclass IN [ 'aerialway_station', 'bus_stop', 'cable_car_station', 'chair_lift_station', 'elevator', 'funicular_stop', 'gondola_station', 'halt', 'subway_entrance', 'subway_stop', 'tram_stop' ]) ? 'dot_red' : (subclass IN [ 'camp_site', 'caravan_site' ]) ? 'camping_grey' : (subclass IN [ 'car_ferry', 'ferry', 'ferry_terminal' ]) ? 'dot_blue' : (subclass = 'church_tower') ? 'dot_circle_dark_grey_12' : (subclass = 'communications_tower') ? 'communications_tower_grey' : (subclass IN [ 'golf', 'golf_course' ]) ? 'golf_grey' : (subclass = 'hospital') ? 'hospital_grey' : (subclass = 'observation_tower') ? 'observation_tower_grey' : (subclass IN [ 'survey_point', 'surveying_pyramid' ]) ? 'dot_dark_grey_4' : (subclass = 'waterfall') ? 'waterfall_blue' : (subclass = 'wind_turbine') ? 'windturbine_grey' : '' }, scaling: 1, hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: ("name:latin" IS NOT null) ? "name:latin" : '', font: { face: 'Frutiger Neue Condensed Regular', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 14, 12, 18, 18)) * 0.75, outline: { size: interpolate('linear', 29.0584853377 - log(2, viz.sd), 14, 1, 17, 2), color: { 242, 242, 242 }, opacity: 1.0 }, color: (subclass IN [ { b = 254 }, { b = 202 }, { b = 254 } ]) ? { 47, 134, 188 } : (subclass IN [ { b = 15 }, {  }, {  }, { b = 11 }, { g = 12, 171 }, {  }, { b = 12 }, { b = 174 }, { b = 14 }, {  }, {  } ]) ? { 255, 50, 50 } : (subclass IN [ {  }, {  } ]) ? { 47, 134, 188 } : { 48, 48, 48 } }, alignment: { horzAlign: center, vertAlign: middle }, position2D: { x: *interpolate('linear', 29.0584853377 - log(2, viz.sd), 14, 12, 18, 18), y: *interpolate('linear', 29.0584853377 - log(2, viz.sd), 14, 12, 18, 18) } }
+         ]
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 270000][subclass IN [ 'castle', 'railway_station' ] OR class = 'hazard']
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: (subclass = 'railway_station') ? 'square_red' : (subclass = 'castle') ? 'castle_grey' : '' }, scaling: 1, hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: ("name:latin" IS NOT null) ? "name:latin" : '', font: { face: 'Frutiger Neue Condensed Regular', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, (class = 'hazard') ? 15 : 13, 18, (class = 'hazard') ? 24 : 20)) * 0.75, outline: { size: interpolate('linear', 29.0584853377 - log(2, viz.sd), 14, 1, 17, 2), color: { 242, 242, 242 }, opacity: 1.0 }, color: (subclass = {  }) ? { 255, 50, 50 } : (class = {  }) ? { 139, 96, 37 } : { 48, 48, 48 } }, alignment: { horzAlign: center, vertAlign: middle }, position2D: { x: *interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, (class = 'hazard') ? 15 : 13, 18, (class = 'hazard') ? 24 : 20), y: *interpolate('linear', 29.0584853377 - log(2, viz.sd), 13, (class = 'hazard') ? 15 : 13, 18, (class = 'hazard') ? 24 : 20) } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+mountain_peak
+{
+   zOrder: 29;
+   visibility: false;
+
+   [viz.sd <= 550000][rank IS NOT null]['rank' > 1][[ 'class' ]]
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: viz.sd > 550000 ? '' : viz.sd > 34000 ? 'dot_dark_grey_4' : viz.sd > 2100 ? 'dot_dark_grey_6' : 'dot_dark_grey_8' }, scaling: 1, hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: concatenate("name:latin"), font: { face: 'Frutiger Neue Italic', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, (ele <= 4000) ? 14 : (ele <= 3000) ? 13 : (ele <= 2000) ? 12 : 11, 18, (ele <= 4000) ? 23 : (ele <= 3000) ? 22 : (ele <= 2000) ? 21 : 20)) * 0.75, outline: { size: interpolate('linear', 29.0584853377 - log(2, viz.sd), 12, 1.5, 18, 3), color: { 242, 242, 242 }, opacity: 1.0 }, color: { 48, 48, 48 } }, alignment: { horzAlign: center, vertAlign: middle } },
+            Text { text: concatenate(ele), font: { face: 'Frutiger Neue Italic', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, (ele <= 4000) ? 14 : (ele <= 3000) ? 13 : (ele <= 2000) ? 12 : 11, 18, (ele <= 4000) ? 23 : (ele <= 3000) ? 22 : (ele <= 2000) ? 21 : 20)) * 0.75, outline: { size: interpolate('linear', 29.0584853377 - log(2, viz.sd), 12, 1.5, 18, 3), color: { 242, 242, 242 }, opacity: 1.0 }, color: { 48, 48, 48 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 1100000][rank IS NOT null]['rank' = 1][[ 'class' ]]
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: viz.sd > 34000 ? 'dot_dark_grey_4' : viz.sd > 2100 ? 'dot_dark_grey_6' : 'dot_dark_grey_8' }, scaling: 1, hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: concatenate("name:latin"), font: { face: 'Frutiger Neue Italic', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, (ele <= 4000) ? 14 : (ele <= 3000) ? 13 : (ele <= 2000) ? 12 : 11, 18, (ele <= 4000) ? 23 : (ele <= 3000) ? 22 : (ele <= 2000) ? 21 : 20)) * 0.75, outline: { size: interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, 1.5, 18, 3), color: { 242, 242, 242 }, opacity: 1.0 }, color: { 48, 48, 48 } }, alignment: { horzAlign: center, vertAlign: middle } },
+            Text { text: concatenate(ele), font: { face: 'Frutiger Neue Italic', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, (ele <= 4000) ? 14 : (ele <= 3000) ? 13 : (ele <= 2000) ? 12 : 11, 18, (ele <= 4000) ? 23 : (ele <= 3000) ? 22 : (ele <= 2000) ? 21 : 20)) * 0.75, outline: { size: interpolate('linear', 29.0584853377 - log(2, viz.sd), 10, 1.5, 18, 3), color: { 242, 242, 242 }, opacity: 1.0 }, color: { 48, 48, 48 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+place
+{
+   zOrder: 30;
+   visibility: false;
+
+   [viz.sd <= 140000][class NOT IN [ 'continent', 'country', 'state', 'city', 'town', 'village' ]]
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: viz.sd > 140000 ? ((class IN [ 'hamlet', 'isolated_dwelling' ]) ? 'circle_dark_grey_4' : '') : (class IN [ 'hamlet', 'isolated_dwelling' ]) ? 'circle_dark_grey_6' : '' }, scaling: 1, hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Condensed Medium', size: (interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 4, (class IN [ 'hamlet', 'isolated_dwelling' ]) ? (population <= 50) ? 6 : 4 : (population <= 5000) ? 8 : (population <= 2000) ? 6 : 4, 16, (class IN [ 'hamlet', 'isolated_dwelling' ]) ? (population <= 50) ? 20 : 18 : (population <= 5000) ? 22 : (population <= 2000) ? 20 : 18, 0.5)) * 0.75, outline: { size: interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 12, 1, 16, 2, 0), color: { 242, 242, 242 }, opacity: 1.0 }, color: { 64, 64, 64 } }, alignment: { horzAlign: center, vertAlign: middle }, position2D: { x: *interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 4, (class IN [ 'hamlet', 'isolated_dwelling' ]) ? (population <= 50) ? 6 : 4 : (population <= 5000) ? 8 : (population <= 2000) ? 6 : 4, 16, (class IN [ 'hamlet', 'isolated_dwelling' ]) ? (population <= 50) ? 20 : 18 : (population <= 5000) ? 22 : (population <= 2000) ? 20 : 18, 0.5), y: *interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 4, (class IN [ 'hamlet', 'isolated_dwelling' ]) ? (population <= 50) ? 6 : 4 : (population <= 5000) ? 8 : (population <= 2000) ? 6 : 4, 16, (class IN [ 'hamlet', 'isolated_dwelling' ]) ? (population <= 50) ? 20 : 18 : (population <= 5000) ? 22 : (population <= 2000) ? 20 : 18, 0.5) } }
+         ];
+         priority: strtod(rank)
+      };
+      visibility: true;
+   }
+
+   [viz.sd <= 8700000][viz.sd >= 8500][class IN [ 'town', 'village' ]]
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: viz.sd > 8700000 ? 'circle_dark_grey_4' : viz.sd > 2200000 ? ((class = 'town') ? 'circle_dark_grey_6' : 'circle_dark_grey_4') : viz.sd > 550000 ? ((class = 'town') ? 'circle_dark_grey_8' : 'circle_dark_grey_6') : viz.sd > 140000 ? ((class = 'town') ? 'circle_dark_grey_10' : 'circle_dark_grey_8') : (class = 'town') ? 'circle_dark_grey_12' : 'circle_dark_grey_10' }, scaling: 1, hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: "name:latin", font: { face: 'match', size: (interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 4, 11, 10, (class = 'town') ? (population <= 30000) ? 20 : 18 : (population <= 3000) ? 16 : 14, 16, (class = 'town') ? (population <= 30000) ? 32 : 28 : (population <= 3000) ? 28 : 24, 0.5)) * 0.75, outline: { size: interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 12, 1, 16, (class = 'town') ? 3 : 2, 0), color: { 242, 242, 242 }, opacity: 1.0 }, color: { 64, 64, 64 } }, alignment: { horzAlign: [ left, left, right, right, left, right ], vertAlign: [ bottom, top, bottom, top, middle, middle ] }, position2D: { x: (0.3) * [ 1.0, 1.0, -1.0, -1.0, 1.0, -1.0 ] * interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 4, 11, 10, (class = 'town') ? (population <= 30000) ? 20 : 18 : (population <= 3000) ? 16 : 14, 16, (class = 'town') ? (population <= 30000) ? 32 : 28 : (population <= 3000) ? 28 : 24, 0.5), y: (0.3) * [ -1.0, 1.0, -1.0, 1.0, 0.0, 0.0 ] * interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 4, 11, 10, (class = 'town') ? (population <= 30000) ? 20 : 18 : (population <= 3000) ? 16 : 14, 16, (class = 'town') ? (population <= 30000) ? 32 : 28 : (population <= 3000) ? 28 : 24, 0.5) } }
+         ];
+         priority: strtod(rank)
+      };
+      visibility: true;
+   }
+
+   [viz.sd >= 34000][class = 'city']
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: viz.sd > 8700000 ? 'dot_circle_dark_grey_6' : viz.sd > 2200000 ? 'dot_circle_dark_grey_8' : viz.sd > 550000 ? 'circle_circle_dark_grey_10' : viz.sd > 140000 ? 'circle_circle_dark_grey_12' : 'circle_circle_dark_grey_12' }, scaling: 1, hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: strupr("name:latin"), font: { face: 'Frutiger Neue Condensed Bold', size: (interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 1, 11, 4, 12, 16, 48, 0.5)) * 0.75, outline: { size: interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 12, 1, 16, 3, 0), color: { 242, 242, 242 }, opacity: 1.0 }, color: { 64, 64, 64 } }, alignment: { horzAlign: center, vertAlign: middle }, position2D: { x: *interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 1, 11, 4, 12, 16, 48, 0.5), y: *interpolate('cubic-bezier', 29.0584853377 - log(2, viz.sd), 1, 11, 4, 12, 16, 48, 0.5) } }
+         ];
+         priority: strtod(rank)
+      };
+      visibility: true;
+   }
+
+   [viz.sd >= 34000][class = 'country']
+   {
+      label:
+      {
+         elements: [
+            Text { text: strupr("name:latin"), font: { face: 'Frutiger Neue Condensed Regular', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 1, 12, 7, 14, 11, 16, 18, 24)) * 0.75, outline: { size: 1, color: { 255, 255, 255 }, opacity: 1.0 }, color: { 145, 70, 145 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+aerodrome_label
+{
+   zOrder: 31;
+   visibility: false;
+
+   [viz.sd <= 270000][class <> 'helipad']
+   {
+      label:
+      {
+         elements: [
+            Image { image: { id: (class = 'international') ? 'airplane_large_grey' : (class = 'regional') ? 'airplane_medium_grey' : (class = 'other') ? 'airplane_small_grey' : (class = 'helipad') ? 'helicopter_grey' : '' }, scaling: interpolate('linear', 29.0584853377 - log(2, viz.sd), 11, 0.7, 14, 1), hotSpot: { x: 0.5, y: 0.5 } },
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Condensed Regular', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 11, (class = 'international') ? 16 : (class = 'regional') ? 16 : 12, 14, (class = 'international') ? 20 : (class = 'regional') ? 18 : 16)) * 0.75, outline: { size: interpolate('linear', 29.0584853377 - log(2, viz.sd), 14, 1, 17, 2), color: { 242, 242, 242 }, opacity: 1.0 }, color: { 64, 64, 64 } }, alignment: { horzAlign: center, vertAlign: middle }, position2D: { x: *interpolate('linear', 29.0584853377 - log(2, viz.sd), 11, (class = 'international') ? 16 : (class = 'regional') ? 16 : 12, 14, (class = 'international') ? 20 : (class = 'regional') ? 18 : 16), y: *interpolate('linear', 29.0584853377 - log(2, viz.sd), 11, (class = 'international') ? 16 : (class = 'regional') ? 16 : 12, 14, (class = 'international') ? 20 : (class = 'regional') ? 18 : 16) } }
+         ]
+      };
+      visibility: true;
+   }
+}
+
+water_name
+{
+   zOrder: 32;
+   visibility: false;
+
+   [viz.sd <= 4400000]["$type" = 'Point'][class = 'lake']
+   {
+      label:
+      {
+         elements: [
+            Text { text: "name:latin", font: { face: 'Frutiger Neue Italic', size: (interpolate('linear', 29.0584853377 - log(2, viz.sd), 8, (size IN [ 10, 9 ]) ? 12 : (size IN [ 8, 7 ]) ? 10 : 10, 10, (size IN [ 10, 9 ]) ? 22 : (size IN [ 8, 7, 6 ]) ? 18 : (size IN [ 5, 4 ]) ? 16 : (size = 3) ? 14 : (size = 2) ? 12 : (size = 1) ? 10 : 10, 12, (size IN [ 10, 9 ]) ? 24 : (size IN [ 8, 7 ]) ? 22 : (size IN [ 6, 5, 4, 3 ]) ? 20 : (size = 2) ? 16 : (size = 1) ? 12 : 12, 14, (size IN [ 10, 9 ]) ? 28 : (size IN [ 8, 7 ]) ? 26 : (size IN [ 6, 5, 4, 3 ]) ? 24 : (size = 2) ? 22 : (size = 1) ? 14 : 12, 15, (size IN [ 10, 9 ]) ? 30 : (size IN [ 8, 7 ]) ? 28 : (size IN [ 6, 5, 4, 3 ]) ? 26 : (size = 2) ? 24 : (size = 1) ? 18 : 18)) * 0.75, outline: { size: 1, color: { 242, 242, 242 }, opacity: 1.0 }, color: { 47, 134, 188 } }, alignment: { horzAlign: center, vertAlign: middle } }
+         ]
+      };
+      visibility: true;
+   }
+}

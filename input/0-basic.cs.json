@@ -1,12 +1,19 @@
 {
-    "stylingRules": [
-        {
-            "selector": [
-                "Landuse"
-            ],
-            "symbolizer": {
-                "visibility": "false"
-            }
-        }
-    ]
+  "stylingRules": [
+    {
+      "name": "Landuse",
+      "selector": {
+        "op": "=",
+        "args": [
+          {
+            "sysId": "dataLayer.id"
+          },
+          "Landuse"
+        ]
+      },
+      "symbolizer": {
+        "visibility": false
+      }
+    }
+  ]
 }
