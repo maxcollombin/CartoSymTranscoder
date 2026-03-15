@@ -7,7 +7,7 @@ including colors, units, ranges, and custom validators.
 
 from enum import Enum
 from typing import Union, List, Literal, Annotated, Any
-from pydantic import BaseModel, Field, validator, root_validator, field_validator
+from pydantic import BaseModel, Field, field_validator
 import re
 
 
@@ -239,6 +239,7 @@ class UnitValue(BaseModel):
     unit: UnitType = Field(..., description="Unit type")
 
     @field_validator('value', 'unit', mode='before')
+    @classmethod
     def parse_dict_input(cls, v, info):
         # Accept dicts like {"px": 2.0}
         if isinstance(v, dict) and len(v) == 1:
@@ -247,13 +248,12 @@ class UnitValue(BaseModel):
                 return value
             if info.field_name == 'unit':
                 return unit
+        # For 'unit' field: coerce string to UnitType enum
+        if info.field_name == 'unit' and isinstance(v, str):
+            if v in UnitType.__members__.values():
+                return v
+            return UnitType(v)
         return v
-
-    @validator('unit', pre=True)
-    def validate_unit(cls, v):
-        if isinstance(v, str) and v in UnitType.__members__.values():
-            return v
-        return UnitType(v)
 
     def __str__(self) -> str:
         """String representation like '10px' or '2.5mm'."""

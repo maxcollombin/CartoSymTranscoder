@@ -183,6 +183,9 @@ class Converter:
             lines.append(f"{pad}{selector_str}")
         # Add symbolizer
         lines.append(f"{pad}{{")
+        # Emit .name directive only when stylingRuleName is explicitly set
+        if getattr(rule, 'styling_rule_name', None):
+            lines.append(f"{pad}    .name '{rule.styling_rule_name}'")
         if rule.symbolizer:
             for l in self._symbolizer_to_css(rule.symbolizer, indent=indent+1):
                 lines.append(f"{pad}    {l.lstrip()}")
@@ -211,7 +214,22 @@ class Converter:
             return " ".join(self._selector_to_cscss(s) for s in selector)
         # Dict selector (expression)
         if isinstance(selector, dict):
-            # Special case: Landuse[filter] form
+            # Special case: simple dataLayer.id = value → emit bare identifier
+            if (
+                selector.get('op') == '='
+                and isinstance(selector.get('args'), list)
+                and len(selector['args']) == 2
+                and isinstance(selector['args'][0], dict)
+                and selector['args'][0].get('sysId') == 'dataLayer.id'
+            ):
+                id_val = selector['args'][1]
+                if isinstance(id_val, dict) and 'property' in id_val:
+                    id_val = id_val['property']
+                id_str = str(id_val)
+                if not id_str.replace('_', '').replace('.', '').isalnum():
+                    id_str = f'"{id_str}"'
+                return id_str
+            # Special case: Landuse[filter] form (and-combined with dataLayer.id)
             if selector.get('op') == 'and' and isinstance(selector.get('args'), list):
                 args = selector['args']
                 id_arg = None
@@ -232,11 +250,15 @@ class Converter:
                     else:
                         other_args.append(arg)
                 if id_arg is not None:
+                    # Quote the id if it contains special characters (e.g. hyphens)
+                    id_str = str(id_arg)
+                    if not id_str.replace('_', '').replace('.', '').isalnum():
+                        id_str = f'"{id_str}"'
                     if other_args:
                         filter_str = self._format_selector_expr(other_args[0]) if len(other_args) == 1 else self._format_selector_expr({'op': 'and', 'args': other_args})
-                        return f"{id_arg}[{filter_str}]"
+                        return f"{id_str}[{filter_str}]"
                     else:
-                        return str(id_arg)
+                        return id_str
             # Otherwise, always reconstruct as a filter expression
             return f"[{self._format_selector_expr(selector)}]"
         # Fallback
@@ -573,8 +595,20 @@ class Converter:
         if alignment is not None:
             if isinstance(alignment, list) and len(alignment) == 2:
                 prop_lines.append(f"alignment: {alignment[0]} {alignment[1]}")
-            else:
-                prop_lines.append(f"alignment: {alignment}")
+            elif isinstance(alignment, dict) and alignment:
+                vals = list(alignment.values())
+                prop_lines.append(f"alignment: {' '.join(str(v) for v in vals)}")
+            # empty dict — emit nothing (no information to preserve)
+
+        # position2D
+        pos2d = _get(el, 'position2D') or _get(el, 'position_2d')
+        if pos2d is not None:
+            if isinstance(pos2d, dict) and pos2d:
+                vals = list(pos2d.values())
+                prop_lines.append(f"position2D: {' '.join(str(v) for v in vals)}")
+            elif isinstance(pos2d, list) and len(pos2d) == 2:
+                prop_lines.append(f"position2D: {pos2d[0]} {pos2d[1]}")
+            # empty dict — emit nothing (no information to preserve)
 
         # font
         font = _get(el, 'font')
@@ -692,15 +726,22 @@ class Converter:
         lines = []
         color = getattr(fill, 'color', None)
         opacity = getattr(fill, 'opacity', None)
+        is_alter = getattr(fill, 'alter', None)
 
-        if color is not None and opacity is not None:
-            # Full compound fill block
-            lines.append(f"  fill: {{color: {self._format_color(color)}; opacity: {opacity}}};")
-        elif color is not None:
-            # Single sub-property: use dot-notation alter (preserves cascade semantics)
-            lines.append(f"  fill.color: {self._format_color(color)};")
-        elif opacity is not None:
-            lines.append(f"  fill.opacity: {opacity};")
+        if is_alter:
+            # Alter mode: use dot-notation
+            if color is not None:
+                lines.append(f"  fill.color: {self._format_color(color)};")
+            if opacity is not None:
+                lines.append(f"  fill.opacity: {opacity};")
+        elif color is not None or opacity is not None:
+            # Normal mode: always use compound block to avoid injecting alter on re-parse
+            parts = []
+            if color is not None:
+                parts.append(f"color: {self._format_color(color)}")
+            if opacity is not None:
+                parts.append(f"opacity: {opacity}")
+            lines.append(f"  fill: {{{'; '.join(parts)}}};")
 
         # TODO: Add pattern support
         return lines
@@ -710,20 +751,22 @@ class Converter:
         color = getattr(stroke, 'color', None)
         width = getattr(stroke, 'width', None)
         opacity = getattr(stroke, 'opacity', None)
+        is_alter = getattr(stroke, 'alter', None)
 
-        set_props = sum(1 for v in (color, width, opacity) if v is not None)
-
-        # Single sub-property: use dot-notation alter (preserves cascade semantics)
-        if set_props == 1:
+        if is_alter:
+            # Alter mode: use dot-notation
+            lines = []
             if color is not None:
-                return [f"  stroke.color: {self._format_color(color)};"]
+                lines.append(f"  stroke.color: {self._format_color(color)};")
             if width is not None:
-                return [f"  stroke.width: {self._format_unit_value(width)};"]
+                lines.append(f"  stroke.width: {self._format_unit_value(width)};")
             if opacity is not None:
-                return [f"  stroke.opacity: {opacity};"]
+                lines.append(f"  stroke.opacity: {opacity};")
+            return lines
 
-        # Multiple sub-properties: full compound block
-        if set_props > 1:
+        # Normal mode: always use compound block to avoid injecting alter on re-parse
+        set_props = sum(1 for v in (color, width, opacity) if v is not None)
+        if set_props > 0:
             parts = []
             if color is not None:
                 parts.append(f"color: {self._format_color(color)}")

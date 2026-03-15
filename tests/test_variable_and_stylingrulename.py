@@ -146,3 +146,28 @@ def test_field_order_in_serialized_json():
         assert keys.index('symbolizer') < keys.index('nestedRules'), (
             f"'symbolizer' should appear before 'nestedRules', got order: {keys}"
         )
+
+
+def test_stylingrulename_roundtrip():
+    """2.3 — stylingRuleName must survive a full round-trip: .cscss → CS-JSON → .cscss."""
+    from cartosym_transcoder.converter import Converter
+
+    cscss_src = """
+    [TestLayer]
+    {
+       .name 'My Layer Name'
+       visibility: true;
+    }
+    """
+    converter = Converter()
+    # Forward: CSCSS → CS-JSON
+    cs_json = converter.cscss_to_csjson(cscss_src)
+    assert cs_json['stylingRules'][0].get('stylingRuleName') == 'My Layer Name'
+
+    # Reverse: CS-JSON → CSCSS
+    style = Style.from_dict(cs_json)
+    cscss_out = converter.style_to_cscss(style)
+
+    assert ".name 'My Layer Name'" in cscss_out, (
+        f"Expected .name directive in round-trip CSCSS output, got:\n{cscss_out}"
+    )

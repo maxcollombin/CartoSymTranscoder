@@ -127,6 +127,72 @@ def _parse_color_value(v: str):
     return v
 
 
+def _coerce_font_dict(font: dict) -> None:
+    """Coerce font dict string values to proper Python types in-place.
+
+    Handles size → int/float, bold/italic/underline → bool,
+    opacity → float, color → parsed color, outline → parsed sub-dict.
+    """
+    for k in list(font.keys()):
+        v = font[k]
+        if not isinstance(v, str):
+            # Already coerced (or a sub-dict like outline that needs its own pass)
+            if k == 'outline' and isinstance(v, dict):
+                _coerce_outline_dict(v)
+            continue
+        v = v.strip().strip("'\"")
+        if k == 'size':
+            try:
+                font[k] = int(v)
+            except ValueError:
+                try:
+                    font[k] = float(v)
+                except ValueError:
+                    font[k] = v
+        elif k in ('bold', 'italic', 'underline'):
+            font[k] = (v.lower() == 'true')
+        elif k == 'opacity':
+            try:
+                font[k] = float(v)
+            except ValueError:
+                font[k] = v
+        elif k == 'color':
+            font[k] = _parse_color_value(v)
+        elif k == 'outline' and v.startswith('{') and v.endswith('}'):
+            outline_raw = _parse_nested_props(v[1:-1])
+            outline_dict = {ok: ov.strip().strip("'\"") for ok, ov in outline_raw.items()}
+            _coerce_outline_dict(outline_dict)
+            font[k] = outline_dict
+        else:
+            font[k] = v
+
+
+def _coerce_outline_dict(outline: dict) -> None:
+    """Coerce outline dict string values to proper Python types in-place."""
+    for k in list(outline.keys()):
+        v = outline[k]
+        if not isinstance(v, str):
+            continue
+        v = v.strip().strip("'\"")
+        if k == 'size':
+            try:
+                outline[k] = int(v)
+            except ValueError:
+                try:
+                    outline[k] = float(v)
+                except ValueError:
+                    outline[k] = v
+        elif k == 'opacity':
+            try:
+                outline[k] = float(v)
+            except ValueError:
+                outline[k] = v
+        elif k == 'color':
+            outline[k] = _parse_color_value(v)
+        else:
+            outline[k] = v
+
+
 def _normalize_graphic_element(el: dict) -> None:
     """Normalize a raw graphic-element dict in-place so it validates against
     the CartoSym JSON schema.
@@ -182,50 +248,12 @@ def _normalize_graphic_element(el: dict) -> None:
             font_dict: dict = {}
             for k, v in font_raw.items():
                 v = v.strip().strip("'\"")
-                if k == 'size':
-                    try:
-                        font_dict['size'] = int(v)
-                    except ValueError:
-                        try:
-                            font_dict['size'] = float(v)
-                        except ValueError:
-                            font_dict['size'] = v
-                elif k in ('bold', 'italic', 'underline'):
-                    font_dict[k] = (v.lower() == 'true')
-                elif k == 'opacity':
-                    try:
-                        font_dict[k] = float(v)
-                    except ValueError:
-                        font_dict[k] = v
-                elif k == 'color':
-                    font_dict['color'] = _parse_color_value(v)
-                elif k == 'outline' and isinstance(v, str) and v.startswith('{') and v.endswith('}'):
-                    # outline: { size: 3, opacity: 0.75, color: white } → proper dict
-                    outline_raw = _parse_nested_props(v[1:-1])
-                    outline_dict = {}
-                    for ok, ov in outline_raw.items():
-                        ov = ov.strip().strip("'\"")
-                        if ok == 'size':
-                            try:
-                                outline_dict['size'] = int(ov)
-                            except ValueError:
-                                try:
-                                    outline_dict['size'] = float(ov)
-                                except ValueError:
-                                    outline_dict['size'] = ov
-                        elif ok == 'opacity':
-                            try:
-                                outline_dict['opacity'] = float(ov)
-                            except ValueError:
-                                outline_dict['opacity'] = ov
-                        elif ok == 'color':
-                            outline_dict['color'] = _parse_color_value(ov)
-                        else:
-                            outline_dict[ok] = ov
-                    font_dict['outline'] = outline_dict
-                else:
-                    font_dict[k] = v
+                font_dict[k] = v
             el['font'] = font_dict
+
+        # Coerce font dict value types (size → int/float, bold/italic → bool, etc.)
+        if 'font' in el and isinstance(el['font'], dict):
+            _coerce_font_dict(el['font'])
 
     elif el_type == 'Image':
         # Convert image resource string "{uri: '...'; path: '...'; ...}" to a
@@ -245,6 +273,12 @@ def _normalize_graphic_element(el: dict) -> None:
                 el['alphaThreshold'] = float(el['alphaThreshold'])
             except ValueError:
                 pass
+
+    # Strip empty dicts that carry no information (parser artifact for
+    # brace-enclosed comma-separated values it cannot fully parse)
+    for key in ('alignment', 'position2D', 'position_2d'):
+        if key in el and isinstance(el[key], dict) and len(el[key]) == 0:
+            del el[key]
 
 
 class AstToPydanticConverter:
@@ -285,21 +319,79 @@ class AstToPydanticConverter:
                 from .models.styles import Variable
                 variables = [Variable(name=v.name, value=v.value, type=getattr(v, 'type', None)) for v in ast_stylesheet.variables]
 
+            # Build variable lookup and resolve references in the AST
+            # before Pydantic model validation
+            var_lookup = {}
+            if hasattr(ast_stylesheet, 'variables') and ast_stylesheet.variables:
+                for v in ast_stylesheet.variables:
+                    var_lookup[v.name] = v.value
+
             # Convert only top-level styling rules (do not flatten nested rules)
             styling_rules = []
             if ast_stylesheet.styling_rules and hasattr(ast_stylesheet.styling_rules, 'rules'):
                 for ast_rule in ast_stylesheet.styling_rules.rules:
+                    if var_lookup:
+                        self._resolve_ast_variables(ast_rule, var_lookup)
                     pydantic_rule = self._convert_styling_rule(ast_rule)
                     if pydantic_rule:
                         styling_rules.append(pydantic_rule)
 
-            return Style(
+            style = Style(
                 metadata=metadata,
                 styling_rules=styling_rules,
                 variables=variables
             )
+
+            return style
         except Exception as e:
             raise ValueError(f"Failed to convert AST stylesheet: {e}") from e
+
+    def _resolve_ast_variables(self, ast_node, var_lookup: dict):
+        """Recursively resolve @variable references in AST nodes before
+        Pydantic model conversion.
+
+        Walks all attributes of the AST node. String values like
+        ``"@baseColor"`` are replaced with the variable's value.  The
+        resolved value is coerced to int/float when appropriate.
+        """
+        if ast_node is None:
+            return
+
+        def _resolve_value(v):
+            if isinstance(v, str) and v.startswith('@'):
+                var_name = v[1:]
+                if var_name in var_lookup:
+                    return var_lookup[var_name]
+            return v
+
+        # Walk all attributes of the AST node
+        for attr_name in list(vars(ast_node).keys()):
+            val = getattr(ast_node, attr_name, None)
+            if val is None:
+                continue
+            if isinstance(val, str):
+                resolved = _resolve_value(val)
+                if resolved is not val:
+                    setattr(ast_node, attr_name, resolved)
+            elif isinstance(val, list):
+                for i, item in enumerate(val):
+                    if isinstance(item, str):
+                        resolved = _resolve_value(item)
+                        if resolved is not item:
+                            val[i] = resolved
+                    elif hasattr(item, '__dict__'):
+                        self._resolve_ast_variables(item, var_lookup)
+            elif isinstance(val, dict):
+                for k in list(val.keys()):
+                    v = val[k]
+                    if isinstance(v, str):
+                        resolved = _resolve_value(v)
+                        if resolved is not v:
+                            val[k] = resolved
+                    elif hasattr(v, '__dict__'):
+                        self._resolve_ast_variables(v, var_lookup)
+            elif hasattr(val, '__dict__'):
+                self._resolve_ast_variables(val, var_lookup)
     
     def _format_selector_expression(self, expression) -> str:
         """Format a selector expression into a readable string."""
@@ -991,6 +1083,9 @@ class AstToPydanticConverter:
         try:
             fill_data = {}
             
+            if hasattr(ast_fill, 'alter') and ast_fill.alter is not None:
+                fill_data['alter'] = ast_fill.alter
+            
             if hasattr(ast_fill, 'color') and ast_fill.color is not None:
                 # Use _convert_literal_value for proper hex/color conversion
                 fill_data['color'] = self._convert_literal_value(str(ast_fill.color))
@@ -1008,6 +1103,9 @@ class AstToPydanticConverter:
         """Convert AST Stroke to Pydantic Stroke with proper value conversion."""
         try:
             stroke_data = {}
+            
+            if hasattr(ast_stroke, 'alter') and ast_stroke.alter is not None:
+                stroke_data['alter'] = ast_stroke.alter
             
             if hasattr(ast_stroke, 'color') and ast_stroke.color is not None:
                 # Use _convert_literal_value for proper hex/color conversion
@@ -1032,6 +1130,9 @@ class AstToPydanticConverter:
         try:
             from .models.symbolizers import Marker as PydanticMarker
             marker_data = {}
+            # Alter flag (set when marker.elements[N] syntax is used)
+            if hasattr(ast_marker, 'alter') and ast_marker.alter is not None:
+                marker_data['alter'] = ast_marker.alter
             # Position and opacity at marker level
             if hasattr(ast_marker, 'position') and ast_marker.position is not None:
                 marker_data['position'] = ast_marker.position
@@ -1042,7 +1143,13 @@ class AstToPydanticConverter:
                 elements = ast_marker.elements
                 if isinstance(elements, dict) and 'index' in elements and 'value' in elements:
                     # Indexed override: keep the {index, value} form
-                    el_dict = dict(elements['value']) if hasattr(elements['value'], 'items') else elements['value']
+                    val = elements['value']
+                    if hasattr(val, 'model_dump'):
+                        el_dict = val.model_dump(exclude_none=True)
+                    elif hasattr(val, 'items'):
+                        el_dict = dict(val)
+                    else:
+                        el_dict = val
                     if isinstance(el_dict, dict) and 'position' in el_dict:
                         pos = el_dict['position']
                         if isinstance(pos, str):
@@ -1055,8 +1162,13 @@ class AstToPydanticConverter:
                 else:
                     converted_elements = []
                     for el in (elements if isinstance(elements, list) else [elements]):
-                        # Accept dicts (from marker.elements[N] patch) or objects
-                        el_dict = dict(el) if hasattr(el, 'items') else el
+                        # Accept dicts (from marker.elements[N] patch) or Pydantic objects
+                        if hasattr(el, 'model_dump'):
+                            el_dict = el.model_dump(exclude_none=True)
+                        elif hasattr(el, 'items'):
+                            el_dict = dict(el)
+                        else:
+                            el_dict = el
                         # Ensure type is present (default to Dot if missing)
                         if isinstance(el_dict, dict) and 'type' not in el_dict:
                             el_dict['type'] = 'Dot'
@@ -1232,7 +1344,12 @@ class AstToPydanticConverter:
                 elements = ast_label.elements
                 converted_elements = []
                 for el in (elements if isinstance(elements, list) else [elements]):
-                    el_dict = dict(el) if hasattr(el, 'items') else el
+                    if hasattr(el, 'model_dump'):
+                        el_dict = el.model_dump(exclude_none=True)
+                    elif hasattr(el, 'items'):
+                        el_dict = dict(el)
+                    else:
+                        el_dict = el
                     if isinstance(el_dict, dict) and 'type' not in el_dict:
                         el_dict['type'] = 'Dot'
                     if isinstance(el_dict, dict) and 'position' in el_dict:

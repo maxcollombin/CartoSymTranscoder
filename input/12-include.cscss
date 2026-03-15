@@ -1,0 +1,7 @@
+.include '2-vector-polygon.cscss'
+.include '8-coverage-hillshading.cscss'
+
+[viz.sd < 100000]
+{
+   opacity: 1.0;
+}

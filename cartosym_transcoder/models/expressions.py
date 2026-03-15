@@ -6,7 +6,7 @@ Supports complex expressions, conditions, function calls, and JSON Schema expres
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, List, Optional, Union, Dict, Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from .base import BaseCartoSymModel
 
 
@@ -75,10 +75,9 @@ class UnaryOperator(str, Enum):
 
 class Expression(BaseModel, ABC):
     """Base class for all expressions."""
+    model_config = ConfigDict(use_enum_values=True)
+
     type: ExpressionType
-    
-    class Config:
-        use_enum_values = True
 
 
 class IdentifierExpression(Expression):

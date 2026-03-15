@@ -6,12 +6,13 @@ This module provides the main parsing functionality for CartoSym CSS files.
 
 from __future__ import annotations
 
-from cartosym_transcoder.models.symbolizers import Symbolizer as ModelSymbolizer, Fill as ModelFill, Stroke as ModelStroke
+from cartosym_transcoder.models.symbolizers import Symbolizer as ModelSymbolizer, Fill as ModelFill, Stroke as ModelStroke, Marker as ModelMarker, Label as ModelLabel
 import logging
 import argparse
 import functools
+import re
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Set, Union
 from antlr4 import *
 
 from .grammar.generated import (
@@ -52,119 +53,6 @@ def _strip_inline_comment(s: str) -> str:
     return ''.join(result).rstrip()
 
 
-def _extract_class_blocks(s: str) -> list:
-    """Extract ``ClassName{...}`` and ``ClassName(...)`` blocks from *s*.
-
-    Returns a list of dicts, one per block, with a ``type`` key set to the
-    class name and the remaining keys populated by ``_parse_element_props``.
-    Handles arbitrary nesting (e.g. ``font: { ... }`` inside ``Text(...)``).
-    """
-    import re as _re
-    elements = []
-    n = len(s)
-    pos = 0
-    while pos < n:
-        # Skip commas and whitespace between elements.
-        while pos < n and s[pos] in ' \t\n\r,':
-            pos += 1
-        if pos >= n:
-            break
-        # Look for an identifier immediately followed by '{' or '('.
-        m = _re.match(r'([A-Za-z_]\w*)\s*([{(])', s[pos:])
-        if not m:
-            pos += 1
-            continue
-        class_name = m.group(1)
-        open_ch = m.group(2)
-        close_ch = '}' if open_ch == '{' else ')'
-        block_start = pos + m.start(2)  # position of the opening delimiter
-        # Walk forward tracking ALL bracket/paren depth so nested structures
-        # (e.g. font: { ... }) are included in the captured inner text.
-        depth = 1
-        j = block_start + 1
-        while j < n and depth > 0:
-            ch = s[j]
-            if ch in ('{', '('):
-                depth += 1
-            elif ch in ('}', ')'):
-                depth -= 1
-            j += 1
-        inner = s[block_start + 1:j - 1]
-        props = {'type': class_name}
-        props.update(_parse_element_props(inner))
-        elements.append(props)
-        pos = j
-    return elements
-
-
-def _parse_element_props(props_str: str) -> dict:
-    """Parse CSS-like key:value pairs from a block, tracking nested brace depth
-    so that values like ``font: { face: 'Arial'; size: 12; ... }`` are captured
-    as a single entry instead of being split on the semicolons inside."""
-    props = {}
-    parts = []
-    current = ""
-    depth = 0
-    for char in props_str:
-        if char == '{':
-            depth += 1
-            current += char
-        elif char == '}':
-            if depth > 0:
-                depth -= 1
-                current += char
-            else:
-                break  # stray closing brace – end of outer block
-        elif char in (';', ',') and depth == 0:
-            if current.strip():
-                parts.append(current.strip())
-            current = ""
-        else:
-            current += char
-    if current.strip():
-        parts.append(current.strip())
-    for part in parts:
-        # A part may start with a comment line when the previous ; was followed
-        # by an inline comment and the actual property is on the next line, e.g.:
-        #   // Offset 20 pixels to the right
-        #   text: Name
-        # Skip leading comment/empty lines to find the effective property line,
-        # but keep multiline values intact (e.g., font: {\n  face: ...\n}).
-        lines = part.split('\n')
-        start_idx = None
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            if stripped and not stripped.startswith('//'):
-                start_idx = i
-                break
-        if start_idx is None:
-            continue  # entire part is comments / empty
-        # Reconstruct part from first non-comment line (preserves multiline values)
-        effective = '\n'.join(lines[start_idx:]).strip()
-        if not effective:
-            continue
-        # Strip inline comment from the FIRST line only
-        first_nl = effective.find('\n')
-        if first_nl == -1:
-            first_line = effective
-            rest = ''
-        else:
-            first_line = effective[:first_nl]
-            rest = effective[first_nl:]
-        if '//' in first_line:
-            first_line = _strip_inline_comment(first_line).strip()
-        effective = (first_line + rest).strip()
-        if not effective:
-            continue
-        if ':' in effective:
-            colon_idx = effective.index(':')
-            key = effective[:colon_idx].strip()
-            value = effective[colon_idx + 1:].strip()
-            if key:
-                props[key] = value
-    return props
-
-
 class CartoSymParser:
     """Main parser class for CartoSym CSS files."""
     
@@ -181,19 +69,87 @@ class CartoSymParser:
         )
         return logging.getLogger(__name__)
     
+    # Regex matching  .include 'path'  or  .include "path"
+    _INCLUDE_RE = re.compile(r"^\s*\.include\s+['\"](.+?)['\"]\s*$", re.MULTILINE)
+
     def parse_file(self, file_path: Union[str, Path]) -> StyleSheet:
-        """Parse a CartoSym CSS file and return an AST."""
-        file_path = Path(file_path)
-        
+        """Parse a CartoSym CSS file and return an AST.
+
+        Resolves `.include` directives before parsing: each directive is
+        replaced by the content of the referenced file (resolved relative
+        to the including file).  Includes are recursive; circular includes
+        raise ``ValueError``.
+        """
+        file_path = Path(file_path).resolve()
+
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
-            
+
         self.logger.info(f"Parsing file: {file_path}")
-        
+
         with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
-            
+
+        # Resolve .include directives (textual preprocessor)
+        content = self._resolve_includes(content, file_path.parent, {file_path})
+
         return self.parse_string(content)
+
+    # Regex matching metadata directives (.title / .abstract)
+    _METADATA_RE = re.compile(
+        r"^\s*\.(title|abstract)\s+['\"].*?['\"]\s*$", re.MULTILINE
+    )
+
+    def _resolve_includes(
+        self,
+        content: str,
+        base_dir: Path,
+        seen: Set[Path],
+    ) -> str:
+        """Recursively resolve `.include` directives by textual substitution.
+
+        Args:
+            content: Raw CSCSS text (may contain `.include` lines).
+            base_dir: Directory used to resolve relative include paths.
+            seen: Set of already-included absolute paths (cycle detection).
+
+        Returns:
+            The fully-resolved CSCSS text with all includes inlined.
+
+        Raises:
+            FileNotFoundError: If an included file does not exist.
+            ValueError: If a circular include is detected.
+        """
+
+        def _replacer(match: re.Match) -> str:
+            rel_path = match.group(1)
+            abs_path = (base_dir / rel_path).resolve()
+
+            if not abs_path.exists():
+                raise FileNotFoundError(
+                    f"Included file not found: '{rel_path}' "
+                    f"(resolved to {abs_path})"
+                )
+
+            if abs_path in seen:
+                raise ValueError(
+                    f"Circular include detected: '{rel_path}' "
+                    f"(resolved to {abs_path})"
+                )
+
+            seen.add(abs_path)
+            with open(abs_path, 'r', encoding='utf-8') as f:
+                included = f.read()
+
+            # Strip metadata (.title / .abstract) from included files —
+            # the ANTLR grammar only supports metadata at the top of the
+            # stylesheet, not between styling rules.
+            included = self._METADATA_RE.sub('', included)
+
+            # Recurse: the included file may itself contain .include
+            return self._resolve_includes(included, abs_path.parent, seen)
+
+        return self._INCLUDE_RE.sub(_replacer, content)
     
     def parse_file_to_pydantic(self, file_path: Union[str, Path]) -> Style:
         """Parse a CartoSym CSS file and return a Pydantic Style model."""
@@ -229,52 +185,6 @@ class CartoSymParser:
         """No-op: marker.elements[N] overrides are now kept in their own rule as indexed
         Markers and written back as 'marker.elements[N]: Type { ... }' by the CSCSS writer."""
         return
-
-    def _merge_marker_elements_old(self, stylesheet):
-        """(Kept for reference) Old cross-rule merge — replaced by exitStylingRule logic."""
-        import re, sys
-        print(f"[DEBUG] _merge_marker_elements called", file=sys.stderr, flush=True)
-        def collect_marker_elements(rule, pending=None):
-            if pending is None:
-                pending = {}
-            # Collect marker.elements[N] from this rule's property_assignments
-            for assignment in getattr(rule, 'property_assignments', []):
-                print(f"[DEBUG] checking assignment: {assignment.property_name}", file=sys.stderr, flush=True)
-                m = re.match(r'marker\.elements\[(\d+)\]', assignment.property_name)
-                if m:
-                    idx = int(m.group(1))
-                    el_match = re.match(r'(\w+)\s*\{(.*)\}', assignment.value.strip(), re.DOTALL)
-                    if el_match:
-                        class_name = el_match.group(1)
-                        props_str = el_match.group(2)
-                        props = {'type': class_name}
-                        props.update(_parse_element_props(props_str))
-                        pending[idx] = props
-                        print(f"[DEBUG] marker.elements[{idx}] found in AST: {props}", file=sys.stderr, flush=True)
-            # Recurse into nested rules
-            nested = getattr(rule, 'nested_rules', None)
-            if nested:
-                for child in nested:
-                    collect_marker_elements(child, pending)
-            # If this rule has a marker, merge all collected marker.elements[N] into its elements list
-            symbolizer = getattr(rule, 'symbolizer', None)
-            if symbolizer and hasattr(symbolizer, 'marker') and symbolizer.marker is not None:
-                print(f"[DEBUG] rule has marker, pending={pending}", file=sys.stderr, flush=True)
-                if symbolizer.marker.elements is None:
-                    symbolizer.marker.elements = []
-                for idx, el in pending.items():
-                    while len(symbolizer.marker.elements) <= idx:
-                        symbolizer.marker.elements.append(None)
-                    symbolizer.marker.elements[idx] = el
-                    print(f"[DEBUG] marker.elements[{idx}] merged: {el}", file=sys.stderr, flush=True)
-                symbolizer.marker.elements = [e for e in symbolizer.marker.elements if e is not None]
-                print(f"[DEBUG] marker.elements after merge: {symbolizer.marker.elements}", file=sys.stderr, flush=True)
-                # After merging, clear pending so lower ancestors don't get these
-                pending.clear()
-        # Start from top-level rules
-        if hasattr(stylesheet, 'styling_rules') and stylesheet.styling_rules and hasattr(stylesheet.styling_rules, 'rules'):
-            for rule in stylesheet.styling_rules.rules:
-                collect_marker_elements(rule)
 
 
 
@@ -315,7 +225,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             for part in parts:
                 # A part may start with a comment line when the previous ; was
                 # followed by an inline comment and the actual property is on the
-                # next line (same issue as in _parse_element_props).
+                # next line.
                 lines_in_part = part.split('\n')
                 start_idx = None
                 for i, line in enumerate(lines_in_part):
@@ -389,8 +299,13 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         elif prop_name_lower == 'hillshading' or prop_name_lower == 'hill_shading':
             symbolizer.hill_shading = self._parse_hill_shading_object(properties)
         else:
-            # For unknown object properties, just attach the dict
-            setattr(symbolizer, prop_name, properties)
+            # For unknown object properties, try to attach the dict.
+            # Silently skip if the Pydantic model rejects the attribute
+            # (e.g. 'image' from a nested Image{…} class block).
+            try:
+                setattr(symbolizer, prop_name, properties)
+            except Exception:
+                pass
 
     def _handle_marker_element_property(self, element_dict, key, value):
         v = value.strip()
@@ -413,6 +328,155 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         self.rule_stack = []  # Stack for nested rules
         self.current_selectors = []  # Current selectors being processed
         self._in_object_assignment_stack = []
+
+    # -- ANTLR tree traversal helpers for structured extraction --
+
+    @staticmethod
+    def _collect_inferred_assignments(pai_list_ctx):
+        """Flatten a left-recursive PropertyAssignmentInferredListContext into
+        a list of PropertyAssignmentInferredContext nodes (in source order)."""
+        if pai_list_ctx is None:
+            return []
+        items = []
+        node = pai_list_ctx
+        while node is not None:
+            pai = node.propertyAssignmentInferred()
+            if pai:
+                items.append(pai)
+            node = node.propertyAssignmentInferredList()
+        items.reverse()
+        return items
+
+    @staticmethod
+    def _collect_array_elements(array_elements_ctx):
+        """Flatten a left-recursive ArrayElementsContext into a list of
+        ExpressionContext nodes (in source order)."""
+        if array_elements_ctx is None:
+            return []
+        items = []
+        node = array_elements_ctx
+        while node is not None:
+            expr = node.expression()
+            if expr:
+                items.append(expr)
+            node = node.arrayElements()
+        items.reverse()
+        return items
+
+    @staticmethod
+    def _find_exp_instance(expr_ctx):
+        """Find the ExpInstanceContext child of an ExpressionContext."""
+        if expr_ctx is None:
+            return None
+        ei = expr_ctx.expInstance()
+        if ei is not None:
+            return ei
+        # Sometimes the expression wraps another expression (e.g. parenthesised)
+        if hasattr(expr_ctx, 'expression'):
+            sub = expr_ctx.expression()
+            if sub and not isinstance(sub, list):
+                return CartoSymStyleSheetListener._find_exp_instance(sub)
+        return None
+
+    @staticmethod
+    def _expression_source_text(expr_ctx):
+        """Get the original source text for an expression, preserving spaces.
+
+        Surrounding quotes from CSCSS string literals (``'...'`` / ``"..."``)
+        are stripped so that the value contains only the payload.
+        """
+        if expr_ctx is None:
+            return ''
+        start = expr_ctx.start.start
+        stop = expr_ctx.stop.stop
+        input_stream = expr_ctx.start.getInputStream()
+        text = input_stream.getText(start, stop)
+        # Strip CSCSS string-literal quotes (single or double)
+        if len(text) >= 2 and text[0] == text[-1] and text[0] in ("'", '"'):
+            text = text[1:-1]
+        return text
+
+    @classmethod
+    def _extract_element_from_instance(cls, exp_instance_ctx) -> dict:
+        """Extract a single element dict from an ExpInstanceContext like
+        ``Dot { size: 10 px; color: white }``."""
+        ident = exp_instance_ctx.IDENTIFIER()
+        result = {'type': ident.getText()} if ident else {}
+        pai_list = exp_instance_ctx.propertyAssignmentInferredList()
+        if pai_list is None:
+            return result
+        for pai in cls._collect_inferred_assignments(pai_list):
+            pa = pai.propertyAssignment()
+            if pa is None:
+                continue
+            key = pa.lhValue().getText()
+            expr = pa.expression()
+            # Nested object? (e.g. font: { ... } or image: { ... })
+            nested_ei = cls._find_exp_instance(expr) if expr else None
+            if nested_ei is not None and nested_ei.IDENTIFIER() is None:
+                # Anonymous nested object → recurse into its properties
+                inner = {}
+                inner_list = nested_ei.propertyAssignmentInferredList()
+                if inner_list:
+                    for inner_pai in cls._collect_inferred_assignments(inner_list):
+                        inner_pa = inner_pai.propertyAssignment()
+                        if inner_pa:
+                            inner[inner_pa.lhValue().getText()] = cls._expression_source_text(inner_pa.expression())
+                result[key] = inner
+            elif nested_ei is not None and nested_ei.IDENTIFIER() is not None:
+                # Named nested instance (rare) → recurse
+                result[key] = cls._extract_element_from_instance(nested_ei)
+            else:
+                result[key] = cls._expression_source_text(expr)
+        return result
+
+    @classmethod
+    def _extract_elements_from_antlr(cls, expr_ctx) -> list:
+        """Extract marker/label elements from an ANTLR ExpressionContext.
+
+        Handles two patterns:
+        1. ``{ elements: [ Dot{...}, Image{...} ] }`` — anonymous instance with
+           an ``elements`` property containing an array of named instances.
+        2. ``Dot { size: 10 px; color: white }`` — single named instance
+           (used for ``marker.elements[N]: ...`` overrides).
+
+        Returns a list of dicts with ``type`` and property keys.
+        """
+        ei = cls._find_exp_instance(expr_ctx)
+        if ei is None:
+            return []
+
+        ident = ei.IDENTIFIER()
+
+        if ident is not None:
+            # Named instance (e.g. Dot{...}, Text{...}, Image{...})
+            return [cls._extract_element_from_instance(ei)]
+
+        # Anonymous instance { elements: [...] } — find the elements property
+        pai_list = ei.propertyAssignmentInferredList()
+        if pai_list is None:
+            return []
+
+        for pai in cls._collect_inferred_assignments(pai_list):
+            pa = pai.propertyAssignment()
+            if pa is None:
+                continue
+            if pa.lhValue().getText() == 'elements':
+                # Get the array expression
+                arr_expr = pa.expression()
+                if arr_expr is None:
+                    continue
+                exp_arr = arr_expr.expArray()
+                if exp_arr is None:
+                    continue
+                arr_elems = exp_arr.arrayElements()
+                elements = []
+                for elem_expr in cls._collect_array_elements(arr_elems):
+                    elem_ei = cls._find_exp_instance(elem_expr)
+                    if elem_ei is not None:
+                        elements.append(cls._extract_element_from_instance(elem_ei))
+                return elements
+        return []
 
     def enterStyleSheet(self, ctx):
         """Called when entering a stylesheet rule."""
@@ -532,7 +596,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 self._handle_property_assignment_enhanced(
                     assignment.property_name,
                     assignment.value,
-                    symbolizer_obj
+                    symbolizer_obj,
+                    assignment,
                 )
         # Si aucune propriété symbolizer explicite, mais symbolizer a été rempli, on l'affecte
         if not symbolizer_set and (symbolizer_obj.fill or symbolizer_obj.stroke or symbolizer_obj.hill_shading or symbolizer_obj.z_order):
@@ -543,7 +608,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             # Use the first (and typically only) indexed override
             for idx, el_props in sorted(pending.items()):
                 from .models.symbolizers import Marker as PydanticMarker
-                effective_sym.marker = PydanticMarker(elements={'index': idx, 'value': el_props})
+                effective_sym.marker = PydanticMarker(alter=True, elements={'index': idx, 'value': el_props})
                 break
             self._pending_marker_element_assignments = {}
         # Attach symbolizer to rule
@@ -629,43 +694,27 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             input_stream = expr_ctx.start.getInputStream()
             prop_value = input_stream.getText(start, stop)
 
-            is_object = prop_value.strip().startswith('{') and prop_value.strip().endswith('}')
+            # Detect nested object patterns: plain {…}, ClassName{…}, ClassName(…)
+            # This prevents inner properties (e.g. image: inside Image{…}) from
+            # being collected as separate top-level assignments.
+            stripped = prop_value.strip()
+            is_object = (
+                (stripped.startswith('{') and stripped.endswith('}'))
+                or bool(re.match(r'[A-Za-z_]\w*\s*[{(]', stripped))
+            )
             self._in_object_assignment_stack.append(is_object)
 
-            # Store ANTLR context for marker property
-            if prop_name.strip() == 'marker':
-                with open("marker_ctx_debug.txt", "w", encoding="utf-8") as f:
-                    f.write(f"marker property detected: {prop_name}\n")
-                    expr_ctx = ctx.expression()
-                    f.write(f"ctx.expression() type: {type(expr_ctx).__name__}\n")
-                    f.write(f"ctx.expression() repr: {repr(expr_ctx)}\n")
-                    if hasattr(expr_ctx, 'getText'):
-                        try:
-                            text = expr_ctx.getText()
-                            f.write(f"ctx.expression() text: {text}\n")
-                        except Exception:
-                            f.write("ctx.expression() text: <error>\n")
-                self._current_marker_ctx = ctx.expression()
             # Only collect assignment if not inside an object property
             if not any(self._in_object_assignment_stack[:-1]):
                 assignment = AstPropertyAssignment(property_name=prop_name, value=prop_value)
+                # Attach the ANTLR expression context for structured extraction
+                # (used by marker/label handlers instead of regex).
+                assignment._antlr_expr_ctx = ctx.expression()
                 self.current_assignments.append(assignment)
-                if prop_name == 'marker':
-                    import re
-                    # Remove comments and collapse whitespace
-                    text_clean = re.sub(r'//.*', '', prop_value)
-                    text_clean = re.sub(r'\s+', ' ', text_clean)
-                    # Log the cleaned text
-                    with open("marker_ctx_debug.txt", "a", encoding="utf-8") as f:
-                        f.write(f"marker property cleaned value: {text_clean}\n")
 
     def exitPropertyAssignment(self, ctx):
         if hasattr(self, '_in_object_assignment_stack') and self._in_object_assignment_stack:
             self._in_object_assignment_stack.pop()
-        # Clear marker context after leaving property
-        if hasattr(self, '_current_marker_ctx'):
-            self._current_marker_ctx = None
-    
     def _expression_to_string(self, expr: Expression) -> str:
         """Convert expression back to string representation for compatibility."""
         if isinstance(expr, IdentifierExpression):
@@ -698,44 +747,36 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             # Fallback
             return str(expr)
     
-    def _handle_property_assignment_enhanced(self, prop_name: str, prop_value: str, symbolizer):
+    def _handle_property_assignment_enhanced(self, prop_name: str, prop_value: str, symbolizer, assignment=None):
         """Enhanced property assignment handler with expression support."""
+        # Resolve @variable references before processing
+        if isinstance(prop_value, str) and prop_value.startswith('@'):
+            var_name = prop_value[1:]
+            if hasattr(self, 'stylesheet') and self.stylesheet.variables:
+                for v in self.stylesheet.variables:
+                    if v.name == var_name:
+                        prop_value = str(v.value) if not isinstance(v.value, str) else v.value
+                        break
+
+        # Retrieve the ANTLR expression context stored during enterPropertyAssignment
+        expr_ctx = getattr(assignment, '_antlr_expr_ctx', None) if assignment else None
+
         # Special handler for marker property (must be first, not nested)
         if prop_name == 'marker':
-            with open("debug_marker_assignments.txt", "a", encoding="utf-8") as dbg:
-                dbg.write(f"[DEBUG] marker property detected, current _pending_marker_element_assignments: {getattr(self, '_pending_marker_element_assignments', None)}\n")
-            from .ast import Marker
             elements = []
-            import re
-            prop_value_clean = re.sub(r'//.*', '', prop_value)
-            prop_value_clean = re.sub(r'\s+', ' ', prop_value_clean)
-            with open("marker_ctx_debug.txt", "a", encoding="utf-8") as f:
-                f.write(f"marker property cleaned value: {prop_value_clean}\n")
-            m = re.search(r'elements\s*:\s*\[(.*)\]', prop_value_clean, re.DOTALL)
-            if m:
-                elements_str = m.group(1)
-                elements.extend(_extract_class_blocks(elements_str))
-                with open("marker_ctx_debug.txt", "a", encoding="utf-8") as f:
-                    f.write(f"extracted marker elements: {elements}\n")
-            with open("marker_ctx_debug.txt", "a", encoding="utf-8") as f:
-                f.write(f"ASSIGNING marker to symbolizer: {elements}\n")
-            symbolizer.marker = Marker(elements=elements if elements else None)
-            # NOTE: Do NOT merge _pending_marker_element_assignments here.
-            # marker.elements[N] overrides from child rules are handled in exitStylingRule
-            # and emitted as indexed overrides in the child rule's own symbolizer.
+            if expr_ctx is not None:
+                elements = self._extract_elements_from_antlr(expr_ctx)
+            # Use the Pydantic Marker model (not the AST dataclass) so that
+            # assignment to the Pydantic Symbolizer passes validation.
+            symbolizer.marker = ModelMarker(elements=elements if elements else None)
             return
 
         if prop_name == 'label':
-            from .ast import Label as AstLabel
-            import re as _re_label
             elements = []
-            prop_value_clean = _re_label.sub(r'//.*', '', prop_value)
-            prop_value_clean = _re_label.sub(r'\s+', ' ', prop_value_clean)
-            m = _re_label.search(r'elements\s*:\s*\[(.*)\]', prop_value_clean, _re_label.DOTALL)
-            if m:
-                elements_str = m.group(1)
-                elements.extend(_extract_class_blocks(elements_str))
-            symbolizer.label = AstLabel(elements=elements if elements else None)
+            if expr_ctx is not None:
+                elements = self._extract_elements_from_antlr(expr_ctx)
+            # Use the Pydantic Label model so it passes Symbolizer validation.
+            symbolizer.label = ModelLabel(elements=elements if elements else None)
             return
 
         # Handle marker.elements[N]: ... assignments
@@ -743,24 +784,16 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         m = re.match(r'marker\.elements\[(\d+)\]', prop_name)
         if m:
             idx = int(m.group(1))
-            el_match = re.match(r'(\w+)\s*\{(.*)\}', prop_value.strip(), re.DOTALL)
-            if el_match:
-                class_name = el_match.group(1)
-                props_str = el_match.group(2)
-                props = {'type': class_name}
-                props.update(_parse_element_props(props_str))
-                # Attach to the parser's _pending_marker_element_assignments for merging
+            props = None
+            if expr_ctx is not None:
+                extracted = self._extract_elements_from_antlr(expr_ctx)
+                if extracted:
+                    props = extracted[0]  # Single element from marker.elements[N]
+            if props:
                 if not hasattr(self, '_pending_marker_element_assignments') or self._pending_marker_element_assignments is None:
                     self._pending_marker_element_assignments = {}
                 self._pending_marker_element_assignments[idx] = props
-                print(f"[DEBUG] marker.elements[{idx}] collected: {props}", file=sys.stderr, flush=True)
-            # NOTE: Do NOT append to current_assignments here — the assignment is already there
-            # from enterPropertyAssignment. Appending again would cause an infinite loop in
-            # exitStylingRule's "for assignment in self.current_assignments" iterator.
             return
-        # Debug log for all property assignments
-        with open("marker_ctx_debug.txt", "a", encoding="utf-8") as f:
-            f.write(f"_handle_property_assignment_enhanced called: prop_name={prop_name}, prop_value={prop_value}\n")
         # Handle dot notation properties like fill.color, stroke.width
         if '.' in prop_name:
             parts = prop_name.split('.')
@@ -769,6 +802,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 if obj_name.lower() == 'fill':
                     if not symbolizer.fill:
                         symbolizer.fill = ModelFill()
+                    symbolizer.fill.alter = True
                     if attr_name.lower() == 'color':
                         symbolizer.fill.color = prop_value
                     elif attr_name.lower() == 'opacity':
@@ -779,6 +813,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 elif obj_name.lower() == 'stroke':
                     if not symbolizer.stroke:
                         symbolizer.stroke = ModelStroke()
+                    symbolizer.stroke.alter = True
                     if attr_name.lower() == 'color':
                         symbolizer.stroke.color = prop_value
                     elif attr_name.lower() == 'width':
@@ -808,8 +843,6 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                     except ValueError:
                         pass
                 elif prop_name_lower in ('zorder', 'z_order'):
-                    import sys
-                    print(f"[DEBUG] Assigning zOrder: {prop_value} to symbolizer {symbolizer}", file=sys.stderr, flush=True)
                     try:
                         symbolizer.z_order = int(prop_value)
                     except Exception:
@@ -882,102 +915,11 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                             properties[key_stripped] = value.strip()
         
         # Apply properties to symbolizer
-        if prop_name == 'marker':
-            # Clean rewrite using _extract_class_blocks to support both ClassName{} and ClassName() syntax
-            from .ast import Marker
-            elements = []
-            import re
-            prop_value_clean = re.sub(r'//.*', '', prop_value)
-            prop_value_clean = re.sub(r'\s+', ' ', prop_value_clean)
-            m = re.search(r'elements\s*:\s*\[(.*)\]', prop_value_clean, re.DOTALL)
-            if m:
-                elements_str = m.group(1)
-                elements.extend(_extract_class_blocks(elements_str))
-            symbolizer.marker = Marker(elements=elements if elements else None)
-        
         # Coverage/Raster object properties (Phase B Priority 1)
-        elif prop_name in ['hillshading', 'hill_shading']:
+        if prop_name in ['hillshading', 'hill_shading']:
             # Handle hillShading: {factor: 56; sun: {azimuth: 45.0; elevation: 60.0}}
             symbolizer.hill_shading = self._parse_hill_shading_object(properties)
     
-    def _extract_marker_elements_from_ctx(self, ctx):
-        # Always write context details at the start for debug
-        with open("marker_ctx_debug.txt", "a", encoding="utf-8") as f:
-            if ctx is None:
-                f.write("CTX IS NONE\n")
-            else:
-                f.write("==== MARKER ANTLR CONTEXT TREE ====\n")
-                f.write(f"CTX REPR: {repr(ctx)}\n")
-                f.write(f"CTX TYPE: {type(ctx).__name__}\n")
-                if hasattr(ctx, 'getText'):
-                    try:
-                        text = ctx.getText()
-                        f.write(f"CTX TEXT: {text}\n")
-                    except Exception:
-                        f.write("CTX TEXT: <error>\n")
-                if hasattr(ctx, 'children') and ctx.children:
-                    for i, child in enumerate(ctx.children):
-                        f.write(f"CHILD {i} TYPE: {type(child).__name__}\n")
-                        if hasattr(child, 'getText'):
-                            try:
-                                child_text = child.getText()
-                                f.write(f"CHILD {i} TEXT: {child_text}\n")
-                            except Exception:
-                                f.write(f"CHILD {i} TEXT: <error>\n")
-                else:
-                    f.write("NO CHILDREN FOUND\n")
-                f.write("==== END MARKER ANTLR CONTEXT TREE ====\n")
-        # DEBUG: Confirm function is called
-        with open("marker_ctx_debug.txt", "w", encoding="utf-8") as f:
-            f.write("_extract_marker_elements_from_ctx called\n")
-        # TEMP DEBUG: Print the ANTLR context tree for the marker property
-        def print_ctx_tree(ctx, indent=0, lines=None):
-            if lines is None:
-                lines = []
-            pad = '  ' * indent
-            lines.append(f"{pad}{type(ctx).__name__}")
-            if hasattr(ctx, 'getText'):
-                try:
-                    text = ctx.getText()
-                    if text and len(text) < 100:
-                        lines.append(f"{pad}  text: {text}")
-                except Exception:
-                    pass
-            if hasattr(ctx, 'children') and ctx.children:
-                for child in ctx.children:
-                    print_ctx_tree(child, indent+1, lines)
-            return lines
-        lines = ["==== MARKER ANTLR CONTEXT TREE ===="]
-        lines.extend(print_ctx_tree(ctx))
-        lines.append("==== END MARKER ANTLR CONTEXT TREE ====")
-        with open("marker_ctx_debug.txt", "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
-        """
-        Recursively extract marker elements (e.g., Dot blocks) from the ANTLR context tree.
-        ctx: the property assignment context for the marker property (object literal)
-        Returns a list of dicts, one per element (e.g., Dot).
-        """
-        # Always use text-based extraction for marker elements
-        import re
-        elements = []
-        # Always log the function call and ctx.getText()
-        text = ctx.getText() if hasattr(ctx, 'getText') else None
-        with open("marker_ctx_debug.txt", "a", encoding="utf-8") as f:
-            f.write(f"_extract_marker_elements_from_ctx called, ctx.getText(): {text}\n")
-        if text:
-            m = re.search(r'elements\s*:\s*\[(.*?)\]', text, re.DOTALL)
-            if m:
-                elements_str = m.group(1)
-                for dot_match in re.finditer(r'(\w+)\s*\{(.*?)\}', elements_str, re.DOTALL):
-                    class_name = dot_match.group(1)
-                    props_str = dot_match.group(2)
-                    props = {}
-                    for prop in re.finditer(r'(\w+)\s*:\s*([^;]+);?', props_str):
-                        k = prop.group(1)
-                        v = prop.group(2).strip()
-                        props[k] = v
-                    elements.append({'type': class_name, **props})
-        return elements
 
     def _parse_color_map(self, prop_value: str):
         """Parse color map from string format."""

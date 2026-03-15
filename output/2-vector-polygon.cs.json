@@ -6,234 +6,48 @@
   "stylingRules": [
     {
       "name": "Landuse",
+      "selector": {
+        "op": "and",
+        "args": [
+          {
+            "op": "=",
+            "args": [
+              {
+                "sysId": "dataLayer.id"
+              },
+              "Landuse"
+            ]
+          },
+          {
+            "op": "and",
+            "args": [
+              {
+                "op": "=",
+                "args": [
+                  {
+                    "sysId": "dataLayer.type"
+                  },
+                  "vector"
+                ]
+              },
+              {
+                "op": "=",
+                "args": [
+                  {
+                    "sysId": "dataLayer.featuresGeometryDimensions"
+                  },
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "symbolizer": {
+        "visibility": false
+      },
       "nestedRules": [
         {
-          "nestedRules": [
-            {
-              "selector": {
-                "op": "=",
-                "args": [
-                  {
-                    "property": "FunctionCode"
-                  },
-                  "parking"
-                ]
-              },
-              "symbolizer": {
-                "fill": {
-                  "color": "darkGray"
-                },
-                "stroke": {
-                  "color": [
-                    32,
-                    32,
-                    32
-                  ]
-                }
-              }
-            },
-            {
-              "selector": {
-                "op": "=",
-                "args": [
-                  {
-                    "property": "FunctionCode"
-                  },
-                  "park"
-                ]
-              },
-              "symbolizer": {
-                "fill": {
-                  "color": "darkGreen"
-                },
-                "stroke": {
-                  "color": "green"
-                }
-              }
-            },
-            {
-              "selector": {
-                "op": "=",
-                "args": [
-                  {
-                    "property": "FunctionCode"
-                  },
-                  "commercial"
-                ]
-              },
-              "symbolizer": {
-                "fill": {
-                  "color": "lightGray"
-                },
-                "stroke": {
-                  "color": "lightGray"
-                }
-              }
-            },
-            {
-              "nestedRules": [
-                {
-                  "selector": {
-                    "op": "=",
-                    "args": [
-                      {
-                        "property": "FunctionCode"
-                      },
-                      "parking"
-                    ]
-                  },
-                  "symbolizer": {
-                    "marker": {
-                      "elements": {
-                        "index": 1,
-                        "value": {
-                          "type": "Image",
-                          "image": {
-                            "uri": "http://example.com/parkingIcon",
-                            "path": "parkingIcon.png",
-                            "id": "parking",
-                            "type": "image/png",
-                            "ext": "png"
-                          },
-                          "hotSpot": [
-                            {
-                              "pc": 50
-                            },
-                            {
-                              "pc": 50
-                            }
-                          ],
-                          "tint": "white",
-                          "blackTint": "blue",
-                          "alphaThreshold": 0.1
-                        }
-                      }
-                    }
-                  }
-                },
-                {
-                  "selector": {
-                    "op": "=",
-                    "args": [
-                      {
-                        "property": "FunctionCode"
-                      },
-                      "park"
-                    ]
-                  },
-                  "symbolizer": {
-                    "marker": {
-                      "elements": {
-                        "index": 1,
-                        "value": {
-                          "type": "Image",
-                          "image": {
-                            "uri": "http://example.com/park",
-                            "path": "park.png",
-                            "id": "park",
-                            "type": "image/png",
-                            "ext": "png"
-                          },
-                          "hotSpot": [
-                            {
-                              "pc": 50
-                            },
-                            {
-                              "pc": 50
-                            }
-                          ],
-                          "tint": "white",
-                          "blackTint": "blue",
-                          "alphaThreshold": 0.1
-                        }
-                      }
-                    }
-                  }
-                },
-                {
-                  "selector": {
-                    "op": "=",
-                    "args": [
-                      {
-                        "property": "FunctionCode"
-                      },
-                      "commercial"
-                    ]
-                  },
-                  "symbolizer": {
-                    "marker": {
-                      "elements": {
-                        "index": 1,
-                        "value": {
-                          "type": "Image",
-                          "image": {
-                            "uri": "http://example.com/commercial",
-                            "path": "commercial.png",
-                            "id": "commercial",
-                            "type": "image/png",
-                            "ext": "png"
-                          },
-                          "hotSpot": [
-                            {
-                              "pc": 50
-                            },
-                            {
-                              "pc": 50
-                            }
-                          ],
-                          "tint": "white",
-                          "blackTint": "blue",
-                          "alphaThreshold": 0.1
-                        }
-                      }
-                    }
-                  }
-                }
-              ],
-              "selector": {
-                "op": "<",
-                "args": [
-                  {
-                    "sysId": "viz.sd"
-                  },
-                  10000
-                ]
-              },
-              "symbolizer": {
-                "stroke": {
-                  "width": {
-                    "px": 4.0
-                  }
-                },
-                "marker": {
-                  "elements": [
-                    {
-                      "type": "Text",
-                      "position": {
-                        "x": 20.0,
-                        "y": 0.0
-                      },
-                      "text": {
-                        "property": "FunctionTitle"
-                      },
-                      "alignment": [
-                        "left",
-                        "top"
-                      ],
-                      "font": {
-                        "face": "Arial",
-                        "size": 14,
-                        "bold": true,
-                        "italic": true,
-                        "opacity": 1.0,
-                        "color": "black"
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ],
           "selector": {
             "op": "and",
             "args": [
@@ -290,49 +104,245 @@
                 "px": 2.0
               }
             }
-          }
-        }
-      ],
-      "selector": {
-        "op": "and",
-        "args": [
-          {
-            "op": "=",
-            "args": [
-              {
-                "sysId": "dataLayer.id"
-              },
-              "Landuse"
-            ]
           },
-          {
-            "op": "and",
-            "args": [
-              {
+          "nestedRules": [
+            {
+              "selector": {
                 "op": "=",
                 "args": [
                   {
-                    "sysId": "dataLayer.type"
+                    "property": "FunctionCode"
                   },
-                  "vector"
+                  "parking"
                 ]
               },
-              {
+              "symbolizer": {
+                "fill": {
+                  "alter": true,
+                  "color": "darkGray"
+                },
+                "stroke": {
+                  "alter": true,
+                  "color": [
+                    32,
+                    32,
+                    32
+                  ]
+                }
+              }
+            },
+            {
+              "selector": {
                 "op": "=",
                 "args": [
                   {
-                    "sysId": "dataLayer.featuresGeometryDimensions"
+                    "property": "FunctionCode"
                   },
-                  2
+                  "park"
                 ]
+              },
+              "symbolizer": {
+                "fill": {
+                  "alter": true,
+                  "color": "darkGreen"
+                },
+                "stroke": {
+                  "alter": true,
+                  "color": "green"
+                }
               }
-            ]
-          }
-        ]
-      },
-      "symbolizer": {
-        "visibility": false
-      }
+            },
+            {
+              "selector": {
+                "op": "=",
+                "args": [
+                  {
+                    "property": "FunctionCode"
+                  },
+                  "commercial"
+                ]
+              },
+              "symbolizer": {
+                "fill": {
+                  "alter": true,
+                  "color": "lightGray"
+                },
+                "stroke": {
+                  "alter": true,
+                  "color": "lightGray"
+                }
+              }
+            },
+            {
+              "selector": {
+                "op": "<",
+                "args": [
+                  {
+                    "sysId": "viz.sd"
+                  },
+                  10000
+                ]
+              },
+              "symbolizer": {
+                "stroke": {
+                  "alter": true,
+                  "width": {
+                    "px": 4.0
+                  }
+                },
+                "marker": {
+                  "elements": [
+                    {
+                      "type": "Text",
+                      "position": {
+                        "x": 20.0,
+                        "y": 0.0
+                      },
+                      "text": {
+                        "property": "FunctionTitle"
+                      },
+                      "alignment": [
+                        "left",
+                        "top"
+                      ],
+                      "font": {
+                        "face": "Arial",
+                        "size": 14,
+                        "bold": true,
+                        "italic": true,
+                        "opacity": 1.0,
+                        "color": "black"
+                      }
+                    }
+                  ]
+                }
+              },
+              "nestedRules": [
+                {
+                  "selector": {
+                    "op": "=",
+                    "args": [
+                      {
+                        "property": "FunctionCode"
+                      },
+                      "parking"
+                    ]
+                  },
+                  "symbolizer": {
+                    "marker": {
+                      "alter": true,
+                      "elements": {
+                        "index": 1,
+                        "value": {
+                          "type": "Image",
+                          "image": {
+                            "uri": "http://example.com/parkingIcon",
+                            "path": "parkingIcon.png",
+                            "id": "parking",
+                            "type": "image/png",
+                            "ext": "png"
+                          },
+                          "hotSpot": [
+                            {
+                              "pc": 50
+                            },
+                            {
+                              "pc": 50
+                            }
+                          ],
+                          "tint": "white",
+                          "blackTint": "blue",
+                          "alphaThreshold": 0.1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "selector": {
+                    "op": "=",
+                    "args": [
+                      {
+                        "property": "FunctionCode"
+                      },
+                      "park"
+                    ]
+                  },
+                  "symbolizer": {
+                    "marker": {
+                      "alter": true,
+                      "elements": {
+                        "index": 1,
+                        "value": {
+                          "type": "Image",
+                          "image": {
+                            "uri": "http://example.com/park",
+                            "path": "park.png",
+                            "id": "park",
+                            "type": "image/png",
+                            "ext": "png"
+                          },
+                          "hotSpot": [
+                            {
+                              "pc": 50
+                            },
+                            {
+                              "pc": 50
+                            }
+                          ],
+                          "tint": "white",
+                          "blackTint": "blue",
+                          "alphaThreshold": 0.1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "selector": {
+                    "op": "=",
+                    "args": [
+                      {
+                        "property": "FunctionCode"
+                      },
+                      "commercial"
+                    ]
+                  },
+                  "symbolizer": {
+                    "marker": {
+                      "alter": true,
+                      "elements": {
+                        "index": 1,
+                        "value": {
+                          "type": "Image",
+                          "image": {
+                            "uri": "http://example.com/commercial",
+                            "path": "commercial.png",
+                            "id": "commercial",
+                            "type": "image/png",
+                            "ext": "png"
+                          },
+                          "hotSpot": [
+                            {
+                              "pc": 50
+                            },
+                            {
+                              "pc": 50
+                            }
+                          ],
+                          "tint": "white",
+                          "blackTint": "blue",
+                          "alphaThreshold": 0.1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }
