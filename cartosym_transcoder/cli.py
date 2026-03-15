@@ -106,12 +106,12 @@ def _create_convert_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         '--from-format',
-        choices=['cscss', 'csjson'],
+        choices=['cscss', 'csjson', 'sld', 'maplibre'],
         help='Source format (auto-detected from file extension if omitted)'
     )
     parser.add_argument(
         '--to-format',
-        choices=['cscss', 'csjson'],
+        choices=['cscss', 'csjson', 'sld', 'maplibre'],
         help='Target format (auto-detected from file extension if omitted)'
     )
     return parser
@@ -173,11 +173,16 @@ def parse_command(args) -> int:
 
 
 def detect_format(path: Path) -> Optional[str]:
-    ext = path.suffix.lower()
-    if ext == '.cscss':
+    """Detect the format of a file from its extension."""
+    name = path.name.lower()
+    if name.endswith('.cscss'):
         return 'cscss'
-    if ext == '.json' and path.name.endswith('.cs.json'):
+    if name.endswith('.cs.json'):
         return 'csjson'
+    if name.endswith('.sld') or name.endswith('.se'):
+        return 'sld'
+    if name.endswith('.maplibre.json'):
+        return 'maplibre'
     return None
 
 
@@ -250,8 +255,29 @@ def convert_command(args) -> int:
                 with open(args.output, 'w', encoding='utf-8') as f:
                     json.dump(result, f, indent=2, ensure_ascii=False)
         else:
-            print(f"Conversion from {from_format} to {to_format} not supported yet", file=sys.stderr)
-            return 1
+            # Try codec-based routing for new/future formats
+            from .codecs import get_codec
+            src_codec = get_codec(from_format)
+            dst_codec = get_codec(to_format)
+            if src_codec and dst_codec and src_codec.reader and dst_codec.writer:
+                try:
+                    style = src_codec.read(args.input_file)
+                    result = dst_codec.write(style)
+                    if isinstance(result, dict):
+                        output_str = json.dumps(result, indent=2, ensure_ascii=False)
+                    else:
+                        output_str = str(result)
+                    if args.print:
+                        print(output_str)
+                    if args.output:
+                        with open(args.output, 'w', encoding='utf-8') as f:
+                            f.write(output_str)
+                except NotImplementedError as nie:
+                    print(f"Error: {nie}", file=sys.stderr)
+                    return 1
+            else:
+                print(f"Conversion from {from_format} to {to_format} not supported yet", file=sys.stderr)
+                return 1
         print(f"Successfully converted {args.input_file} to {args.output}")
         return 0
     except FileNotFoundError:

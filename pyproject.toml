@@ -61,7 +61,18 @@ Issues = "https://github.com/maxcollombin/CartoSymTranscoder/issues"
 cartosym = "cartosym_transcoder.cli:main"
 
 [tool.setuptools]
-packages = ["cartosym_transcoder"]
+packages = [
+    "cartosym_transcoder",
+    "cartosym_transcoder.models",
+    "cartosym_transcoder.grammar",
+    "cartosym_transcoder.grammar.generated",
+    "cartosym_transcoder.codecs",
+    "cartosym_transcoder.codecs.cscss",
+    "cartosym_transcoder.codecs.csjson",
+    "cartosym_transcoder.codecs.sld_se",
+    "cartosym_transcoder.codecs.maplibre",
+    "cartosym_transcoder.expressions",
+]
 include-package-data = true
 
 [tool.setuptools.package-data]
