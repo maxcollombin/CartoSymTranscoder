@@ -270,25 +270,25 @@ class BinaryComparisonPredicate(ComparisonPredicate):
 class IsNullPredicate(ComparisonPredicate):
     """Null check: {"op": "isNull", "args": [...]}"""
     op: Literal["isNull"] = "isNull"
-    args: List['ScalarExpression'] = Field(min_length=1, max_length=1)
+    args: List[Expression] = Field(min_length=1, max_length=1)
 
 
 class IsInListPredicate(ComparisonPredicate):
     """In list check: {"op": "in", "args": [...]}"""
     op: Literal["in"] = "in"
-    args: List[Union['ScalarExpression', List['ScalarExpression']]] = Field(min_length=2)
+    args: List[Union[Expression, List[Expression]]] = Field(min_length=2)
 
 
 class IsBetweenPredicate(ComparisonPredicate):
     """Between check: {"op": "between", "args": [...]}"""
     op: Literal["between"] = "between"
-    args: List['ScalarExpression'] = Field(min_length=3, max_length=3)  # [value, min, max]
+    args: List[Expression] = Field(min_length=3, max_length=3)  # [value, min, max]
 
 
 class IsLikePredicate(ComparisonPredicate):
     """Pattern matching: {"op": "like|ilike", "args": [...]}"""
     op: Literal["like", "ilike"]
-    args: List['ScalarExpression'] = Field(min_length=2, max_length=3)  # [value, pattern, escape?]
+    args: List[Expression] = Field(min_length=2, max_length=3)  # [value, pattern, escape?]
 
 
 # Property and System References
@@ -387,16 +387,66 @@ class TemporalOperands(Expression):
 
 
 class TemporalPredicate(BoolExpression):
-    """Temporal predicate for time-based comparisons."""
-    op: Literal["before", "after", "during", "meets", "overlaps"]
-    args: List[TemporalExpression]
+    """Temporal predicate for time-based comparisons.
+
+    OGC CQL2-JSON format: {"op": "t_before", "args": [instantA, instantB]}
+    Reference: ecere/libCartoSym CQL2Expressions.ec (DATE/TIMESTAMP/INTERVAL handling).
+    """
+    op: Literal[
+        "t_before", "t_after", "t_meets", "t_metby",
+        "t_overlaps", "t_overlappedby", "t_begins", "t_begunby",
+        "t_during", "t_contains", "t_ends", "t_endedby",
+        "t_equals", "t_intersects", "t_disjoint",
+        # Legacy bare names
+        "before", "after", "during", "meets", "overlaps",
+    ]
+    args: List[Expression]
+
+    def normalised_op(self) -> str:
+        """Return the CQL2-standard t_ prefixed operator name."""
+        if self.op.startswith("t_"):
+            return self.op
+        return f"t_{self.op}"
 
 
 # Spatial Expressions (for geometry)
 class SpatialPredicate(BoolExpression):
-    """Spatial predicate for geometry-based comparisons (Phase B Priority 3)."""
-    op: Literal["intersects", "contains", "within", "touches", "crosses", "disjoint", "overlaps", "equals"]
-    args: List['GeometryExpression']
+    """Spatial predicate for geometry-based comparisons.
+
+    OGC CQL2-JSON format: {"op": "s_intersects", "args": [geomA, geomB]}
+    Inspired by CQL2ExpCall in ecere/libCartoSym CQL2Expressions.ec.
+    """
+    op: Literal[
+        "s_intersects", "s_contains", "s_within", "s_touches",
+        "s_crosses", "s_disjoint", "s_overlaps", "s_equals",
+        # Legacy bare names (accepted on input, normalised to s_ prefix on output)
+        "intersects", "contains", "within", "touches",
+        "crosses", "disjoint", "overlaps", "equals",
+    ]
+    args: List[Expression]
+
+    def normalised_op(self) -> str:
+        """Return the CQL2-standard s_ prefixed operator name."""
+        if self.op.startswith("s_"):
+            return self.op
+        return f"s_{self.op}"
+
+
+class SpatialRelatePredicate(BoolExpression):
+    """DE-9IM relate predicate: {"op": "s_relate", "args": [geomA, geomB, pattern]}
+
+    The pattern is a 9-character DE-9IM matrix string (e.g. "T*F**FFF*").
+    See models/de9im.py for predicate↔pattern mapping and README for
+    a description of the DE-9IM model.
+    """
+    op: Literal["s_relate"] = "s_relate"
+    args: List[Expression] = Field(min_length=2, max_length=2)
+    pattern: str = Field(
+        ...,
+        min_length=9, max_length=9,
+        pattern=r'^[012TFtf\*]{9}$',
+        description="DE-9IM intersection matrix pattern"
+    )
 
 
 class GeometryExpression(Expression):
@@ -427,6 +477,90 @@ class SpatialInstance(GeometryExpression):
     geometry_type: Literal["Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon"]
     coordinates: List[Any]  # Coordinate arrays, structure depends on geometry type
     crs: Optional[str] = Field(None, description="Coordinate Reference System")
+
+
+class GeometryLiteral(GeometryExpression):
+    """Inline geometry literal (WKT / GeoJSON).
+
+    In CQL2-Text this is written as WKT: POINT(1 2), POLYGON((...)), etc.
+    In CQL2-JSON this is serialised as a GeoJSON geometry object:
+      {"type": "Point", "coordinates": [1, 2]}
+
+    Inspired by CQL2ExpCall::readGeometryFromCQL2() and toCQL2JSON() in
+    ecere/libCartoSym CQL2Expressions.ec.
+    """
+    geom_type: Literal[
+        "Point", "LineString", "Polygon",
+        "MultiPoint", "MultiLineString", "MultiPolygon",
+        "GeometryCollection",
+    ]
+    coordinates: Optional[List[Any]] = None
+    geometries: Optional[List['GeometryLiteral']] = None  # For GeometryCollection
+    crs: Optional[str] = None
+
+    def to_geojson(self) -> Dict[str, Any]:
+        """Serialise as a GeoJSON geometry dict (for CQL2-JSON output)."""
+        result: Dict[str, Any] = {"type": self.geom_type}
+        if self.geom_type == "GeometryCollection" and self.geometries:
+            result["geometries"] = [g.to_geojson() for g in self.geometries]
+        elif self.coordinates is not None:
+            result["coordinates"] = self.coordinates
+        return result
+
+    @classmethod
+    def from_geojson(cls, data: Dict[str, Any]) -> 'GeometryLiteral':
+        """Deserialise from a GeoJSON geometry dict."""
+        geom_type = data["type"]
+        if geom_type == "GeometryCollection":
+            return cls(
+                geom_type=geom_type,
+                geometries=[cls.from_geojson(g) for g in data.get("geometries", [])],
+            )
+        return cls(geom_type=geom_type, coordinates=data.get("coordinates"))
+
+
+class BboxLiteral(GeometryExpression):
+    """Bounding box literal.
+
+    CQL2-Text:  BBOX(geom, x1, y1, x2, y2)
+    CQL2-JSON:  {"bbox": [x1, y1, x2, y2]}  (4 or 6 values)
+    """
+    bbox: List[float] = Field(min_length=4, max_length=6)
+
+    def to_cql2_json(self) -> Dict[str, Any]:
+        return {"bbox": self.bbox}
+
+
+class TemporalLiteral(TemporalExpression):
+    """Temporal literal for DATE / TIMESTAMP / INTERVAL.
+
+    CQL2-JSON format (from ecere/libCartoSym CQL2Expressions.ec toCQL2JSON):
+      DATE       → {"date": "2020-01-01"}
+      TIMESTAMP  → {"timestamp": "2020-01-01T00:00:00Z"}
+      INTERVAL   → {"interval": ["2020-01-01", "2020-12-31"]}
+    """
+    temporal_type: Literal["date", "timestamp", "interval"]
+    value: Optional[str] = None           # For date / timestamp
+    interval: Optional[List[str]] = None  # For interval (2 values: start, end)
+
+    def to_cql2_json(self) -> Dict[str, Any]:
+        """Serialise as CQL2-JSON temporal literal."""
+        if self.temporal_type == "interval" and self.interval:
+            return {"interval": self.interval}
+        elif self.value:
+            return {self.temporal_type: self.value}
+        return {}
+
+    @classmethod
+    def from_cql2_json(cls, data: Dict[str, Any]) -> 'TemporalLiteral':
+        """Deserialise from a CQL2-JSON temporal literal."""
+        if "date" in data:
+            return cls(temporal_type="date", value=data["date"])
+        elif "timestamp" in data:
+            return cls(temporal_type="timestamp", value=data["timestamp"])
+        elif "interval" in data:
+            return cls(temporal_type="interval", interval=data["interval"])
+        raise ValueError(f"Unknown temporal literal format: {data}")
 
 
 class AzimuthElevation(Expression):
@@ -511,8 +645,15 @@ class Dot(Expression):
 
 # Array Expressions
 class ArrayPredicate(BoolExpression):
-    """Array-based predicates."""
-    op: str
+    """Array-based predicates.
+
+    OGC CQL2-JSON format: {"op": "a_contains", "args": [arrayA, arrayB]}
+    """
+    op: Literal[
+        "a_equals", "a_contains", "a_containedby", "a_overlaps",
+        # Legacy bare names
+        "aequals", "acontains", "acontainedby", "aoverlaps",
+    ]
     args: List[Expression]
 
 
@@ -592,6 +733,14 @@ IsBetweenPredicate.model_rebuild()
 IsLikePredicate.model_rebuild()
 TemporalPredicate.model_rebuild()
 SpatialPredicate.model_rebuild()
+SpatialRelatePredicate.model_rebuild()
+GeometryLiteral.model_rebuild()
+BboxLiteral.model_rebuild()
+TemporalLiteral.model_rebuild()
+# Re-rebuild models with Expression operands now that all subtypes are defined
+UnaryOperationExpression.model_rebuild()
+BinaryOperationExpression.model_rebuild()
+ConditionalExpression.model_rebuild()
 
 
 __all__ = [
@@ -615,12 +764,15 @@ __all__ = [
     'FormatExpression', 'SubstituteExpression', 'LowerUpperCaseExpression',
     'PatternExpression', 'TextOpPredicate',
     
-    # Spatial expressions (Phase B Priority 3)
-    'SpatialPredicate', 'GeometryExpression', 'GeometryBuffer', 'GeometryManipulationUnary',
+    # Spatial expressions
+    'SpatialPredicate', 'SpatialRelatePredicate',
+    'GeometryExpression', 'GeometryLiteral', 'BboxLiteral',
+    'GeometryBuffer', 'GeometryManipulationUnary',
     'GeometryManipulationBinary', 'SpatialInstance', 'AzimuthElevation',
     
-    # Temporal expressions (Phase B Priority 4)
-    'TemporalExpression', 'TemporalPredicate', 'DateInstant', 'TimestampInstant',
+    # Temporal expressions
+    'TemporalExpression', 'TemporalPredicate', 'TemporalLiteral',
+    'DateInstant', 'TimestampInstant',
     'DateString', 'TimestampString', 'InstantInstance', 'IntervalInstance', 'IntervalArray',
     'TemporalInstantExpression', 'TemporalOperands',
     
@@ -760,10 +912,14 @@ AnyExpressionType = Union[
     
     # Spatial expressions
     SpatialPredicate,
+    SpatialRelatePredicate,
     GeometryExpression,
+    GeometryLiteral,
+    BboxLiteral,
     
     # Temporal expressions
     TemporalExpression,
+    TemporalLiteral,
     DateInstant,
     
     # Color expressions

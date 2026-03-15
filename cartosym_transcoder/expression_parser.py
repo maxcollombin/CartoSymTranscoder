@@ -1,7 +1,11 @@
 """
 Enhanced AST to Pydantic converter with Phase A expression support.
+
+Extended with CQL2 parsing for spatial, temporal, array predicates,
+BETWEEN / IN / LIKE / IS NULL operators, and WKT / temporal literals.
 """
 
+import re
 from typing import List, Optional, Dict, Union, Any
 from .models.expressions import *
 from .models.base import BaseCartoSymModel
@@ -11,6 +15,34 @@ from .ast import (
     StyleSheet, StylingRuleList, StylingRule, Symbolizer,
     Fill, Stroke, Metadata as AstMetadata
 )
+
+# ---------------------------------------------------------------------------
+# CQL2 function-name sets (case-insensitive matching)
+# ---------------------------------------------------------------------------
+_SPATIAL_PREDICATES = {
+    's_intersects', 's_contains', 's_within', 's_touches',
+    's_crosses', 's_disjoint', 's_overlaps', 's_equals',
+}
+_SPATIAL_RELATE = 's_relate'
+_TEMPORAL_PREDICATES = {
+    't_before', 't_after', 't_meets', 't_metby',
+    't_overlaps', 't_overlappedby', 't_begins', 't_begunby',
+    't_during', 't_contains', 't_ends', 't_endedby',
+    't_equals', 't_intersects', 't_disjoint',
+}
+_ARRAY_PREDICATES = {
+    'a_equals', 'a_contains', 'a_containedby', 'a_overlaps',
+}
+_WKT_TYPES = {
+    'point', 'linestring', 'polygon',
+    'multipoint', 'multilinestring', 'multipolygon',
+    'geometrycollection',
+}
+_WKT_TO_GEOJSON = {
+    'point': 'Point', 'linestring': 'LineString', 'polygon': 'Polygon',
+    'multipoint': 'MultiPoint', 'multilinestring': 'MultiLineString',
+    'multipolygon': 'MultiPolygon', 'geometrycollection': 'GeometryCollection',
+}
 
 # Import ANTLR generated classes - will be used when needed
 # These are loaded dynamically by the main parser
@@ -41,7 +73,14 @@ class ExpressionParser:
         # Check for logical operations with proper spacing (case-insensitive)
         text_lower = original_text.lower()
         if ' and ' in text_lower or ' or ' in text_lower:
-            return ExpressionParser._parse_logical_expression(original_text)
+            # But not if ' and ' only appears inside a BETWEEN expression
+            if not ExpressionParser._only_between_and(original_text):
+                return ExpressionParser._parse_logical_expression(original_text)
+
+        # --- CQL2 postfix operators (before relational so they take priority) ---
+        cql2 = ExpressionParser._try_parse_cql2_operator(original_text)
+        if cql2 is not None:
+            return cql2
 
         # Check for relational operations with proper spacing
         for op in ['>=', '<=', '!=', '=', '>', '<']:
@@ -69,8 +108,11 @@ class ExpressionParser:
         if original_text.lower() in ['true', 'false']:
             return ConstantExpression(value=original_text.lower() == 'true')
 
-        # Handle function calls (Text(...), DATE(...))
+        # Handle function calls — dispatch CQL2 predicates / literals first
         if '(' in original_text and ')' in original_text:
+            cql2_func = ExpressionParser._try_parse_cql2_function(original_text)
+            if cql2_func is not None:
+                return cql2_func
             return ExpressionParser._parse_function_call_from_text(original_text)
 
         # Handle object literals {color: red; opacity: 0.5}
@@ -250,8 +292,15 @@ class ExpressionParser:
         # Check for logical operations (case-insensitive)
         text_lower = text.lower()
         if ' and ' in text_lower or ' or ' in text_lower:
-            return ExpressionParser._parse_logical_expression(text)
-        
+            # But not if ' and ' only appears inside a BETWEEN expression
+            if not ExpressionParser._only_between_and(text):
+                return ExpressionParser._parse_logical_expression(text)
+
+        # --- CQL2 postfix operators (BETWEEN, IN, LIKE, IS NULL) ---
+        cql2 = ExpressionParser._try_parse_cql2_operator(text)
+        if cql2 is not None:
+            return cql2
+
         # Check for relational operations  
         for op in ['>=', '<=', '!=', '=', '>', '<']:
             if f' {op} ' in text:
@@ -262,8 +311,11 @@ class ExpressionParser:
            (text.startswith("'") and text.endswith("'")):
             return StringExpression(value=text[1:-1])
         
-        # Handle function calls
+        # Handle function calls — CQL2 predicates / literals first
         if '(' in text and text.endswith(')'):
+            cql2_func = ExpressionParser._try_parse_cql2_function(text)
+            if cql2_func is not None:
+                return cql2_func
             return ExpressionParser._parse_function_call_from_text(text)
         
         # Handle numbers
@@ -509,6 +561,11 @@ class ExpressionParser:
                 # Parentheses wrap the whole expression, remove them
                 text = text[1:-1].strip()
 
+        # --- CQL2 postfix operators ---
+        cql2 = ExpressionParser._try_parse_cql2_operator(text)
+        if cql2 is not None:
+            return cql2
+
         # Check for relational operations  
         for op in ['>=', '<=', '!=', '=', '>', '<']:
             if f' {op} ' in text:
@@ -521,8 +578,11 @@ class ExpressionParser:
             result = StringExpression(value=text[1:-1])
             return result
 
-        # Handle function calls
+        # Handle function calls — CQL2 functions first
         if '(' in text and text.endswith(')'):
+            cql2_func = ExpressionParser._try_parse_cql2_function(text)
+            if cql2_func is not None:
+                return cql2_func
             result = ExpressionParser._parse_function_call_from_text(text)
             return result
 
@@ -549,3 +609,341 @@ class ExpressionParser:
         # Default: identifier
         result = IdentifierExpression(name=text)
         return result
+
+    # =================================================================
+    # CQL2 operator parsing helpers
+    # =================================================================
+
+    @staticmethod
+    def _only_between_and(text: str) -> bool:
+        """Return True if the only ' and ' in *text* is part of a BETWEEN."""
+        tl = text.lower()
+        m = re.search(r'\bbetween\b', tl)
+        if not m:
+            return False
+        # Find the ' and ' after 'between'
+        and_pos = tl.find(' and ', m.end())
+        if and_pos == -1:
+            return False
+        # Check there's no other ' and ' or ' or ' outside the between
+        rest = tl[and_pos + 5:]
+        return ' and ' not in rest and ' or ' not in rest
+
+    @staticmethod
+    def _try_parse_cql2_operator(text: str) -> Optional[Expression]:
+        """Try to parse CQL2 postfix operators: BETWEEN, IN, LIKE, IS NULL.
+
+        Returns the parsed Expression or None if no CQL2 operator was found.
+        """
+        tl = text.lower().strip()
+
+        # --- IS NULL / IS NOT NULL (must precede other checks) ---
+        m = re.match(r'^(.+?)\s+is\s+not\s+null\s*$', tl)
+        if m:
+            operand = ExpressionParser._parse_single_expression(text[:m.end(1)])
+            return NotExpression(args=[IsNullPredicate(args=[operand])])
+        m = re.match(r'^(.+?)\s+is\s+null\s*$', tl)
+        if m:
+            operand = ExpressionParser._parse_single_expression(text[:m.end(1)])
+            return IsNullPredicate(args=[operand])
+
+        # --- NOT BETWEEN x AND y ---
+        m = re.match(r'^(.+?)\s+not\s+between\s+(.+?)\s+and\s+(.+)$', tl)
+        if m:
+            val = ExpressionParser._parse_single_expression(
+                text[:m.end(1)])
+            lo = ExpressionParser._parse_single_expression(
+                text[m.start(2):m.end(2)])
+            hi = ExpressionParser._parse_single_expression(
+                text[m.start(3):])
+            return NotExpression(
+                args=[IsBetweenPredicate(args=[val, lo, hi])],
+            )
+
+        # --- BETWEEN x AND y ---
+        m = re.match(r'^(.+?)\s+between\s+(.+?)\s+and\s+(.+)$', tl)
+        if m:
+            val = ExpressionParser._parse_single_expression(
+                text[:m.end(1)])
+            lo = ExpressionParser._parse_single_expression(
+                text[m.start(2):m.end(2)])
+            hi = ExpressionParser._parse_single_expression(
+                text[m.start(3):])
+            return IsBetweenPredicate(args=[val, lo, hi])
+
+        # --- NOT IN (...) ---
+        m = re.match(r'^(.+?)\s+not\s+in\s*\((.*)\)\s*$', tl)
+        if m:
+            val = ExpressionParser._parse_single_expression(
+                text[:m.end(1)])
+            items = ExpressionParser._split_args(
+                text[m.start(2):m.end(2)])
+            list_exprs = [ExpressionParser._parse_single_expression(i) for i in items]
+            return NotExpression(
+                args=[IsInListPredicate(args=[val, list_exprs])],
+            )
+
+        # --- IN (...) ---
+        m = re.match(r'^(.+?)\s+in\s*\((.*)\)\s*$', tl)
+        if m:
+            val = ExpressionParser._parse_single_expression(
+                text[:m.end(1)])
+            items = ExpressionParser._split_args(
+                text[m.start(2):m.end(2)])
+            list_exprs = [ExpressionParser._parse_single_expression(i) for i in items]
+            return IsInListPredicate(args=[val, list_exprs])
+
+        # --- NOT LIKE 'pattern' ---
+        m = re.match(r'^(.+?)\s+not\s+like\s+(.+)$', tl)
+        if m:
+            val = ExpressionParser._parse_single_expression(
+                text[:m.end(1)])
+            pat = ExpressionParser._parse_single_expression(
+                text[m.start(2):])
+            return NotExpression(
+                args=[IsLikePredicate(op='like', args=[val, pat])],
+            )
+
+        # --- LIKE 'pattern' ---
+        m = re.match(r'^(.+?)\s+like\s+(.+)$', tl)
+        if m:
+            val = ExpressionParser._parse_single_expression(
+                text[:m.end(1)])
+            pat = ExpressionParser._parse_single_expression(
+                text[m.start(2):])
+            return IsLikePredicate(op='like', args=[val, pat])
+
+        # --- ILIKE 'pattern' ---
+        m = re.match(r'^(.+?)\s+ilike\s+(.+)$', tl)
+        if m:
+            val = ExpressionParser._parse_single_expression(
+                text[:m.end(1)])
+            pat = ExpressionParser._parse_single_expression(
+                text[m.start(2):])
+            return IsLikePredicate(op='ilike', args=[val, pat])
+
+        return None
+
+    @staticmethod
+    def _try_parse_cql2_function(text: str) -> Optional[Expression]:
+        """Try to parse CQL2 function-style expressions.
+
+        Handles: spatial predicates, temporal predicates, array predicates,
+        WKT geometry literals, BBOX, DATE, TIMESTAMP, INTERVAL.
+
+        Returns the parsed Expression or None if not a CQL2 function.
+        """
+        paren_pos = text.index('(')
+        func_name = text[:paren_pos].strip()
+        func_lower = func_name.lower()
+
+        # Extract the arguments substring (inside outermost parens)
+        args_str = text[paren_pos + 1:text.rfind(')')]
+
+        # ── Spatial predicates: S_INTERSECTS(a, b) ──
+        if func_lower in _SPATIAL_PREDICATES:
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            return SpatialPredicate(op=func_lower, args=parsed_args)
+
+        # ── S_RELATE(a, b, pattern) ──
+        if func_lower == _SPATIAL_RELATE:
+            args = ExpressionParser._split_args(args_str)
+            if len(args) >= 3:
+                parsed_a = ExpressionParser._parse_single_expression(args[0])
+                parsed_b = ExpressionParser._parse_single_expression(args[1])
+                pattern = args[2].strip().strip("'").strip('"')
+                return SpatialRelatePredicate(
+                    args=[parsed_a, parsed_b], pattern=pattern,
+                )
+
+        # ── Temporal predicates: T_BEFORE(a, b) ──
+        if func_lower in _TEMPORAL_PREDICATES:
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            return TemporalPredicate(op=func_lower, args=parsed_args)
+
+        # ── Array predicates: A_CONTAINS(a, b) ──
+        if func_lower in _ARRAY_PREDICATES:
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            return ArrayPredicate(op=func_lower, args=parsed_args)
+
+        # ── DATE('...') ──
+        if func_lower == 'date':
+            value = args_str.strip().strip("'").strip('"')
+            return TemporalLiteral(temporal_type='date', value=value)
+
+        # ── TIMESTAMP('...') ──
+        if func_lower == 'timestamp':
+            value = args_str.strip().strip("'").strip('"')
+            return TemporalLiteral(temporal_type='timestamp', value=value)
+
+        # ── INTERVAL('start', 'end') ──
+        if func_lower == 'interval':
+            parts = ExpressionParser._split_args(args_str)
+            interval = [p.strip().strip("'").strip('"') for p in parts]
+            return TemporalLiteral(temporal_type='interval', interval=interval)
+
+        # ── BBOX(x1, y1, x2, y2[, x3, y3]) ──
+        if func_lower == 'bbox':
+            parts = ExpressionParser._split_args(args_str)
+            bbox_vals = [float(p.strip()) for p in parts]
+            return BboxLiteral(bbox=bbox_vals)
+
+        # ── WKT geometry literals: POINT(x y), POLYGON((...)), etc. ──
+        if func_lower in _WKT_TYPES:
+            geom_type = _WKT_TO_GEOJSON[func_lower]
+            coords = ExpressionParser._parse_wkt_coordinates(func_lower, args_str)
+            if geom_type == 'GeometryCollection':
+                # GeometryCollection contains sub-geometries
+                return GeometryLiteral(geom_type=geom_type, geometries=coords)
+            return GeometryLiteral(geom_type=geom_type, coordinates=coords)
+
+        return None
+
+    # =================================================================
+    # WKT coordinate parsing
+    # =================================================================
+
+    @staticmethod
+    def _parse_wkt_coordinates(geom_lower: str, args_str: str):
+        """Parse WKT coordinate content into GeoJSON-style coordinate arrays."""
+        args_str = args_str.strip()
+
+        if geom_lower == 'point':
+            # POINT(x y) or POINT(x y z)
+            nums = args_str.split()
+            return [float(n) for n in nums]
+
+        if geom_lower == 'linestring':
+            # LINESTRING(x1 y1, x2 y2, ...)
+            return ExpressionParser._parse_coord_list(args_str)
+
+        if geom_lower == 'polygon':
+            # POLYGON((x1 y1, x2 y2, ...), (hole x1 y1, ...))
+            return ExpressionParser._parse_ring_list(args_str)
+
+        if geom_lower == 'multipoint':
+            # MULTIPOINT((x1 y1), (x2 y2)) or MULTIPOINT(x1 y1, x2 y2)
+            if '(' in args_str:
+                rings = ExpressionParser._extract_parens_groups(args_str)
+                return [ExpressionParser._parse_coord_list(r)[0] for r in rings]
+            return ExpressionParser._parse_coord_list(args_str)
+
+        if geom_lower == 'multilinestring':
+            # MULTILINESTRING((x1 y1, x2 y2), (x3 y3, x4 y4))
+            rings = ExpressionParser._extract_parens_groups(args_str)
+            return [ExpressionParser._parse_coord_list(r) for r in rings]
+
+        if geom_lower == 'multipolygon':
+            # MULTIPOLYGON(((x1 y1, ...)), ((x1 y1, ...)))
+            # Each element is a polygon (list of rings)
+            outer = ExpressionParser._extract_parens_groups(args_str)
+            return [ExpressionParser._parse_ring_list(o) for o in outer]
+
+        if geom_lower == 'geometrycollection':
+            # GEOMETRYCOLLECTION(POINT(...), LINESTRING(...))
+            # Return list of GeometryLiteral sub-geometries
+            sub_geoms = []
+            # Use a simple state machine to split top-level sub-geometries
+            depth = 0
+            current = []
+            for ch in args_str:
+                if ch == '(':
+                    depth += 1
+                    current.append(ch)
+                elif ch == ')':
+                    depth -= 1
+                    current.append(ch)
+                elif ch == ',' and depth == 0:
+                    sub_text = ''.join(current).strip()
+                    if sub_text:
+                        parsed = ExpressionParser._try_parse_cql2_function(sub_text + ')'[0:0] if False else sub_text)
+                        # Re-parse as full expression — it's a WKT sub-geometry
+                        parsed = ExpressionParser._try_parse_cql2_function(sub_text)
+                        if parsed and isinstance(parsed, GeometryLiteral):
+                            sub_geoms.append(parsed)
+                    current = []
+                else:
+                    current.append(ch)
+            last = ''.join(current).strip()
+            if last:
+                parsed = ExpressionParser._try_parse_cql2_function(last)
+                if parsed and isinstance(parsed, GeometryLiteral):
+                    sub_geoms.append(parsed)
+            return sub_geoms
+
+        return []
+
+    @staticmethod
+    def _parse_coord_list(text: str) -> list:
+        """Parse 'x1 y1, x2 y2, ...' into [[x1,y1], [x2,y2], ...]."""
+        coords = []
+        for pair in text.split(','):
+            nums = pair.strip().split()
+            if nums:
+                coords.append([float(n) for n in nums])
+        return coords
+
+    @staticmethod
+    def _parse_ring_list(text: str) -> list:
+        """Parse '(x1 y1, x2 y2), (x3 y3, ...)' into rings."""
+        groups = ExpressionParser._extract_parens_groups(text)
+        return [ExpressionParser._parse_coord_list(g) for g in groups]
+
+    @staticmethod
+    def _extract_parens_groups(text: str) -> list:
+        """Extract content of each top-level (...) group."""
+        groups = []
+        depth = 0
+        current = []
+        for ch in text:
+            if ch == '(':
+                if depth > 0:
+                    current.append(ch)
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+                if depth == 0:
+                    groups.append(''.join(current))
+                    current = []
+                elif depth > 0:
+                    current.append(ch)
+            elif depth > 0:
+                current.append(ch)
+        return groups
+
+    @staticmethod
+    def _split_args(text: str) -> list:
+        """Split comma-separated arguments respecting parentheses and quotes."""
+        args = []
+        depth = 0
+        in_single = False
+        in_double = False
+        current = []
+        for ch in text:
+            if ch == "'" and not in_double:
+                in_single = not in_single
+                current.append(ch)
+            elif ch == '"' and not in_single:
+                in_double = not in_double
+                current.append(ch)
+            elif not in_single and not in_double:
+                if ch == '(':
+                    depth += 1
+                    current.append(ch)
+                elif ch == ')':
+                    depth -= 1
+                    current.append(ch)
+                elif ch == ',' and depth == 0:
+                    args.append(''.join(current).strip())
+                    current = []
+                else:
+                    current.append(ch)
+            else:
+                current.append(ch)
+        last = ''.join(current).strip()
+        if last:
+            args.append(last)
+        return args

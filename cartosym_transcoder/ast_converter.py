@@ -676,6 +676,37 @@ class AstToPydanticConverter:
             else:
                 return {"property": full_property}
         
+        # Handle CQL2 TemporalLiteral (DATE/TIMESTAMP/INTERVAL from expression parser)
+        if hasattr(expression, 'temporal_type'):
+            if expression.temporal_type == 'date':
+                return {"date": expression.value}
+            elif expression.temporal_type == 'timestamp':
+                return {"timestamp": expression.value}
+            elif expression.temporal_type == 'interval':
+                return {"interval": expression.interval}
+
+        # Handle CQL2 BboxLiteral
+        if hasattr(expression, 'bbox') and isinstance(getattr(expression, 'bbox', None), list):
+            return {"bbox": expression.bbox}
+
+        # Handle CQL2 GeometryLiteral
+        if hasattr(expression, 'geom_type') and hasattr(expression, 'coordinates'):
+            result = {"type": expression.geom_type}
+            if expression.coordinates is not None:
+                result["coordinates"] = expression.coordinates
+            if hasattr(expression, 'geometries') and expression.geometries:
+                result["geometries"] = [
+                    self._convert_expression_to_json_selector(g) for g in expression.geometries
+                ]
+            return result
+
+        # Handle CQL2 spatial/temporal/array predicates
+        if hasattr(expression, 'op') and hasattr(expression, 'args') and not hasattr(expression, 'function_name'):
+            return {
+                "op": expression.op,
+                "args": [self._convert_expression_to_json_selector(arg) for arg in expression.args]
+            }
+
         # Handle FunctionCallExpression
         if hasattr(expression, 'function_name') and hasattr(expression, 'arguments'):
             func_name = expression.function_name

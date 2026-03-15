@@ -293,6 +293,21 @@ class Converter:
         # Handle date literal (e.g., {"date": "2020-01-01"} → DATE('2020-01-01'))
         if 'date' in expr and len(expr) == 1:
             return f"DATE('{expr['date']}')"
+        # Handle timestamp literal
+        if 'timestamp' in expr and len(expr) == 1:
+            return f"TIMESTAMP('{expr['timestamp']}')"
+        # Handle interval literal
+        if 'interval' in expr and len(expr) == 1:
+            parts = expr['interval']
+            args = ", ".join(f"'{p}'" for p in parts)
+            return f"INTERVAL({args})"
+        # Handle BBOX literal
+        if 'bbox' in expr and len(expr) == 1:
+            vals = ", ".join(str(v) for v in expr['bbox'])
+            return f"BBOX({vals})"
+        # Handle GeoJSON geometry literal (has "type" + "coordinates" or "geometries")
+        if 'type' in expr and ('coordinates' in expr or 'geometries' in expr):
+            return self._geojson_to_wkt(expr)
         # Function call formatting (legacy "function" key or "op" key for non-operator functions)
         if 'function' in expr and 'args' in expr:
             func_name = expr['function']
@@ -312,9 +327,80 @@ class Converter:
         op = expr.get('op')
         args = expr.get('args', [])
         if op and isinstance(args, list):
-            # Standard operators
-            _OPERATORS = {'and', 'or', '=', '!=', '<', '>', '<=', '>=', 'not',
-                          'like', 'between', 'in', 'isNull', 'is null', '+', '-', '*', '/'}
+            # Standard infix operators
+            _INFIX_OPERATORS = {'and', 'or', '=', '!=', '<', '>', '<=', '>=',
+                                '+', '-', '*', '/'}
+
+            # --- CQL2 predicate function-call ops (S_INTERSECTS, T_BEFORE, etc.) ---
+            op_lower = op.lower() if isinstance(op, str) else ''
+            if op_lower.startswith('s_') or op_lower.startswith('t_') or op_lower.startswith('a_'):
+                # Spatial/temporal/array predicates → FUNC(args)
+                cql2_name = op.upper()
+                def fmt_cql2_arg(a):
+                    return self._format_selector_expr(a)
+                if op_lower == 's_relate':
+                    # S_RELATE has a pattern as extra field
+                    pattern = expr.get('pattern', '')
+                    geom_args = ", ".join(fmt_cql2_arg(a) for a in args)
+                    return f"{cql2_name}({geom_args}, '{pattern}')"
+                args_str = ", ".join(fmt_cql2_arg(a) for a in args)
+                return f"{cql2_name}({args_str})"
+
+            # --- BETWEEN: {"op": "between", "args": [val, lo, hi]} ---
+            if op_lower == 'between' and len(args) == 3:
+                val = self._format_selector_expr(args[0])
+                lo = self._format_selector_expr(args[1])
+                hi = self._format_selector_expr(args[2])
+                return f"{val} BETWEEN {lo} AND {hi}"
+
+            # --- IN: {"op": "in", "args": [val, [item1, item2, ...]]} ---
+            if op_lower == 'in' and len(args) >= 2:
+                val = self._format_selector_expr(args[0])
+                if isinstance(args[1], list):
+                    items = ", ".join(self._format_selector_expr(i) for i in args[1])
+                else:
+                    items = ", ".join(self._format_selector_expr(a) for a in args[1:])
+                return f"{val} IN ({items})"
+
+            # --- LIKE / ILIKE: {"op": "like", "args": [val, pattern]} ---
+            if op_lower in ('like', 'ilike') and len(args) >= 2:
+                val = self._format_selector_expr(args[0])
+                pat = self._format_selector_expr(args[1])
+                return f"{val} {op.upper()} {pat}"
+
+            # --- IS NULL: {"op": "isNull", "args": [val]} ---
+            if op_lower == 'isnull' and len(args) == 1:
+                val = self._format_selector_expr(args[0])
+                return f"{val} IS NULL"
+
+            # --- NOT: {"op": "not", "args": [inner]} ---
+            if op_lower == 'not' and len(args) == 1:
+                inner = args[0]
+                # Detect NOT BETWEEN, NOT IN, NOT LIKE, IS NOT NULL
+                if isinstance(inner, dict):
+                    inner_op = (inner.get('op') or '').lower()
+                    inner_args = inner.get('args', [])
+                    if inner_op == 'between' and len(inner_args) == 3:
+                        val = self._format_selector_expr(inner_args[0])
+                        lo = self._format_selector_expr(inner_args[1])
+                        hi = self._format_selector_expr(inner_args[2])
+                        return f"{val} NOT BETWEEN {lo} AND {hi}"
+                    if inner_op == 'in' and len(inner_args) >= 2:
+                        val = self._format_selector_expr(inner_args[0])
+                        if isinstance(inner_args[1], list):
+                            items = ", ".join(self._format_selector_expr(i) for i in inner_args[1])
+                        else:
+                            items = ", ".join(self._format_selector_expr(a) for a in inner_args[1:])
+                        return f"{val} NOT IN ({items})"
+                    if inner_op in ('like', 'ilike') and len(inner_args) >= 2:
+                        val = self._format_selector_expr(inner_args[0])
+                        pat = self._format_selector_expr(inner_args[1])
+                        return f"{val} NOT {inner_op.upper()} {pat}"
+                    if inner_op == 'isnull' and len(inner_args) == 1:
+                        val = self._format_selector_expr(inner_args[0])
+                        return f"{val} IS NOT NULL"
+                return f"NOT {self._format_selector_expr(inner)}"
+
             # Format n-ary ops (like 'and', 'or')
             if op in ('and', 'or'):
                 def needs_parens(arg):
@@ -325,7 +411,7 @@ class Converter:
                 )
                 return joined
             # Non-operator "op" values are function calls (e.g. {"op": "Text", "args": [...]})
-            if op not in _OPERATORS:
+            if op not in _INFIX_OPERATORS:
                 def format_func_arg(a):
                     if isinstance(a, str):
                         if (a.startswith("'") and a.endswith("'")) or (a.startswith('"') and a.endswith('"')):
@@ -352,6 +438,46 @@ class Converter:
         if 'property' in expr:
             return expr['property']
         return str(expr)
+
+    def _geojson_to_wkt(self, geojson: dict) -> str:
+        """Convert a GeoJSON geometry dict to WKT text."""
+        gtype = geojson.get('type', '')
+        coords = geojson.get('coordinates')
+
+        if gtype == 'Point' and coords:
+            return f"POINT({' '.join(str(c) for c in coords)})"
+        if gtype == 'LineString' and coords:
+            pts = ', '.join(' '.join(str(c) for c in pt) for pt in coords)
+            return f"LINESTRING({pts})"
+        if gtype == 'Polygon' and coords:
+            rings = ', '.join(
+                '(' + ', '.join(' '.join(str(c) for c in pt) for pt in ring) + ')'
+                for ring in coords
+            )
+            return f"POLYGON({rings})"
+        if gtype == 'MultiPoint' and coords:
+            pts = ', '.join('(' + ' '.join(str(c) for c in pt) + ')' for pt in coords)
+            return f"MULTIPOINT({pts})"
+        if gtype == 'MultiLineString' and coords:
+            lines = ', '.join(
+                '(' + ', '.join(' '.join(str(c) for c in pt) for pt in line) + ')'
+                for line in coords
+            )
+            return f"MULTILINESTRING({lines})"
+        if gtype == 'MultiPolygon' and coords:
+            polys = ', '.join(
+                '(' + ', '.join(
+                    '(' + ', '.join(' '.join(str(c) for c in pt) for pt in ring) + ')'
+                    for ring in poly
+                ) + ')'
+                for poly in coords
+            )
+            return f"MULTIPOLYGON({polys})"
+        if gtype == 'GeometryCollection':
+            geoms = geojson.get('geometries', [])
+            parts = ', '.join(self._geojson_to_wkt(g) for g in geoms)
+            return f"GEOMETRYCOLLECTION({parts})"
+        return str(geojson)
     
     def _symbolizer_to_css(self, symbolizer, indent=1) -> list:
         """Convert Symbolizer model to CSS property lines."""
