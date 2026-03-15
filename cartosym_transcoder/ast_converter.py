@@ -586,8 +586,18 @@ class AstToPydanticConverter:
         
         # Handle FunctionCallExpression
         if hasattr(expression, 'function_name') and hasattr(expression, 'arguments'):
+            func_name = expression.function_name
+            # DATE('...') → { "date": "..." } (OGC scalar-data-types)
+            if func_name.upper() == 'DATE' and len(expression.arguments) == 1:
+                arg = expression.arguments[0]
+                date_val = arg.value if hasattr(arg, 'value') else str(arg)
+                # Strip surrounding quotes if present
+                if isinstance(date_val, str):
+                    date_val = date_val.strip("'\"")
+                return {"date": date_val}
+            # Other function calls use "op" (not "function")
             return {
-                "function": expression.function_name,
+                "op": func_name,
                 "args": [self._convert_expression_to_json_selector(arg) for arg in expression.arguments]
             }
 

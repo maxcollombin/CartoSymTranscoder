@@ -268,7 +268,10 @@ class Converter:
         # Handle bare property reference (e.g., {"property": "viz.date"})
         if 'property' in expr and len(expr) == 1:
             return expr['property']
-        # Function call formatting
+        # Handle date literal (e.g., {"date": "2020-01-01"} → DATE('2020-01-01'))
+        if 'date' in expr and len(expr) == 1:
+            return f"DATE('{expr['date']}')"
+        # Function call formatting (legacy "function" key or "op" key for non-operator functions)
         if 'function' in expr and 'args' in expr:
             func_name = expr['function']
             args = expr['args']
@@ -287,6 +290,9 @@ class Converter:
         op = expr.get('op')
         args = expr.get('args', [])
         if op and isinstance(args, list):
+            # Standard operators
+            _OPERATORS = {'and', 'or', '=', '!=', '<', '>', '<=', '>=', 'not',
+                          'like', 'between', 'in', 'isNull', 'is null', '+', '-', '*', '/'}
             # Format n-ary ops (like 'and', 'or')
             if op in ('and', 'or'):
                 def needs_parens(arg):
@@ -296,6 +302,20 @@ class Converter:
                     for a in args
                 )
                 return joined
+            # Non-operator "op" values are function calls (e.g. {"op": "Text", "args": [...]})
+            if op not in _OPERATORS:
+                def format_func_arg(a):
+                    if isinstance(a, str):
+                        if (a.startswith("'") and a.endswith("'")) or (a.startswith('"') and a.endswith('"')):
+                            return a
+                        try:
+                            float(a)
+                            return a
+                        except Exception:
+                            return f"'{a}'"
+                    return self._format_selector_expr(a)
+                args_str = ", ".join(format_func_arg(a) for a in args)
+                return f"{op}({args_str})"
             # Format binary comparison ops
             if len(args) == 2:
                 left_arg, right_arg = args[0], args[1]

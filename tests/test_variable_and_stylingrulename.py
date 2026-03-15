@@ -1,6 +1,7 @@
 import pytest
+import json
 from cartosym_transcoder.parser import CartoSymParser
-from cartosym_transcoder.models.styles import Style
+from cartosym_transcoder.models.styles import Style, StylingRule
 
 
 def test_variable_parsing():
@@ -72,3 +73,76 @@ def test_variable_and_stylingrulename_combined():
 
     # Symbolizer with stroke
     assert rule.symbolizer is not None
+
+
+def test_name_absent_when_not_in_source():
+    """1.2 — If the cscss has no .name, the CS-JSON must NOT contain 'stylingRuleName'."""
+    cscss = '''
+    Roads[type = 'highway']
+    {
+       fill: { color: red };
+    }
+    '''
+    parser = CartoSymParser()
+    style: Style = parser.parse_string_to_pydantic(cscss)
+    rule = style.styling_rules[0]
+
+    # model attribute should be None
+    assert rule.styling_rule_name is None
+
+    # serialized dict must not contain the key
+    d = rule.to_dict()
+    assert 'stylingRuleName' not in d, (
+        f"'stylingRuleName' should not appear in JSON when absent from source, got: {d}"
+    )
+
+
+def test_name_present_when_in_source():
+    """1.2 — If the cscss has .name 'X', the CS-JSON must contain 'stylingRuleName': 'X'."""
+    cscss = '''
+    Roads[type = 'highway']
+    {
+       .name 'MyRoads'
+       fill: { color: red };
+    }
+    '''
+    parser = CartoSymParser()
+    style: Style = parser.parse_string_to_pydantic(cscss)
+    rule = style.styling_rules[0]
+
+    d = rule.to_dict()
+    assert d.get('stylingRuleName') == 'MyRoads', (
+        f"Expected stylingRuleName='MyRoads' in serialized dict, got: {d}"
+    )
+
+
+def test_field_order_in_serialized_json():
+    """1.1 — Verify the JSON key order: name → stylingRuleName → selector → symbolizer → nestedRules."""
+    cscss = '''
+    Landuse[type = 'forest']
+    {
+       .name 'Forests'
+       fill: { color: green };
+
+       Deep[level > 5]
+       {
+          fill: { color: darkgreen };
+       }
+    }
+    '''
+    parser = CartoSymParser()
+    style: Style = parser.parse_string_to_pydantic(cscss)
+    rule = style.styling_rules[0]
+
+    d = rule.to_dict()
+    keys = list(d.keys())
+
+    # nestedRules must come after selector and symbolizer
+    if 'nestedRules' in keys and 'selector' in keys:
+        assert keys.index('selector') < keys.index('nestedRules'), (
+            f"'selector' should appear before 'nestedRules', got order: {keys}"
+        )
+    if 'nestedRules' in keys and 'symbolizer' in keys:
+        assert keys.index('symbolizer') < keys.index('nestedRules'), (
+            f"'symbolizer' should appear before 'nestedRules', got order: {keys}"
+        )

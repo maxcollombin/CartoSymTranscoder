@@ -583,7 +583,10 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         
         # Handle simple name selector
         if ctx.IDENTIFIER():
-            selector.name = ctx.IDENTIFIER().getText()
+            raw_name = ctx.IDENTIFIER().getText()
+            # Strip surrounding quotes (double or single) from quoted identifiers
+            # e.g. "sentinel2-l2a" → sentinel2-l2a
+            selector.name = raw_name.strip('"\'')
         
         # Handle conditional selector [expression] 
         # This can be either in the same context or separate
