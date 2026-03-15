@@ -1,14 +1,52 @@
 # Python virtual environment
 CartoSym/
+.venv/
+venv/
 
 # Python cache files
+__pycache__/
 *.pyc
+*.pyo
+*.pyd
 
 # ANTLR generated files
 cartosym_transcoder/grammar/
 
 # Build and distribution
 *.egg-info/
+dist/
+build/
+*.egg
 
-# Output files
+# Output files (regenerated)
 output/*
+!output/.gitkeep
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Debug artifacts (should not be committed)
+marker_ctx_debug.txt
+debug_marker_assignments.txt
+
+# Backup files
+*.bak
+
+# AI assistant / project docs (local only)
+CLAUDE.md
+ROADMAP.md
+compare_csjson.py
