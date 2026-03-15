@@ -10,14 +10,25 @@ from enum import Enum
 
 
 @dataclass
+class Variable:
+    """Variable definition in CartoSym CSS AST."""
+    name: str
+    value: Any
+    type: Optional[str] = None
+
+
+@dataclass
 class StyleSheet:
     """Root node of a CartoSym CSS stylesheet."""
     metadata: List['Metadata'] = None
     styling_rules: Optional['StylingRuleList'] = None
+    variables: Optional[List['Variable']] = None
     
     def __post_init__(self):
         if self.metadata is None:
             self.metadata = []
+        if self.variables is None:
+            self.variables = []
 
 
 @dataclass
@@ -41,6 +52,7 @@ class StylingRuleList:
 class StylingRule:
     """Individual styling rule with selector and properties."""
     name: Optional[str] = None
+    styling_rule_name: Optional[str] = None  # New: explicit stylingRuleName from grammar
     selector: Optional['Selector'] = None
     selectors: Optional[list] = None  # <-- Add this line to store all selectors (for nested rules)
     symbolizer: Optional['Symbolizer'] = None

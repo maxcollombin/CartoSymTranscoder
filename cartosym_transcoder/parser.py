@@ -6,6 +6,7 @@ This module provides the main parsing functionality for CartoSym CSS files.
 
 from __future__ import annotations
 
+from cartosym_transcoder.models.symbolizers import Symbolizer as ModelSymbolizer, Fill as ModelFill, Stroke as ModelStroke
 import logging
 import argparse
 import functools
@@ -18,7 +19,7 @@ from .grammar.generated import (
     CartoSymCSSGrammar,
     CartoSymCSSGrammarListener
 )
-from .ast import StyleSheet, Metadata, StylingRule, StylingRuleList, Symbolizer, PropertyAssignment as AstPropertyAssignment, Fill, Stroke
+from .ast import StyleSheet, Metadata, StylingRule, StylingRuleList, PropertyAssignment as AstPropertyAssignment, Stroke
 from .ast_converter import convert_ast_to_pydantic
 from .models import Style
 from .expression_parser import ExpressionParser
@@ -275,8 +276,9 @@ class CartoSymParser:
             for rule in stylesheet.styling_rules.rules:
                 collect_marker_elements(rule)
 
+
+
 class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
-    """Enhanced listener to build AST from parse tree with expression support."""
 
     def _handle_object_property(self, prop_name: str, prop_value: str, symbolizer):
         """Handle object literal property assignments (e.g., fill: {color: gray; opacity: 0.5})."""
@@ -357,8 +359,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         prop_name_lower = prop_name.lower()
         if prop_name_lower == 'fill':
             if not symbolizer.fill:
-                from .ast import Fill
-                symbolizer.fill = Fill()
+                symbolizer.fill = ModelFill()
             for k, v in properties.items():
                 if k == 'color':
                     symbolizer.fill.color = v
@@ -369,8 +370,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                         pass
         elif prop_name_lower == 'stroke':
             if not symbolizer.stroke:
-                from .ast import Stroke
-                symbolizer.stroke = Stroke()
+                symbolizer.stroke = ModelStroke()
             for k, v in properties.items():
                 if k == 'color':
                     symbolizer.stroke.color = v
@@ -438,6 +438,38 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 self.stylesheet.metadata = []
             self.stylesheet.metadata.append(metadata)
     
+    def enterVariableDef(self, ctx):
+        """Called when entering a variable definition (@var = expr;)."""
+        from .ast import Variable as AstVariable
+        name = None
+        value = None
+        var_ctx = ctx.variable()
+        if var_ctx and var_ctx.IDENTIFIER():
+            name = var_ctx.IDENTIFIER().getText()
+        expr_ctx = ctx.expression()
+        if expr_ctx:
+            text = expr_ctx.getText()
+            if text.startswith("'") and text.endswith("'"):
+                value = text.strip("'")
+            else:
+                try:
+                    value = int(text)
+                except ValueError:
+                    try:
+                        value = float(text)
+                    except ValueError:
+                        value = text
+        var = AstVariable(name=name, value=value)
+        if self.stylesheet.variables is None:
+            self.stylesheet.variables = []
+        self.stylesheet.variables.append(var)
+
+    def enterStylingRuleName(self, ctx):
+        """Called when entering a stylingRuleName (.name 'value').
+        This fires AFTER enterStylingRule, so self.current_rule already exists."""
+        if ctx.CHARACTER_LITERAL() and self.current_rule:
+            self.current_rule.styling_rule_name = ctx.CHARACTER_LITERAL().getText().strip("'\"")
+
     def enterStylingRule(self, ctx):
         """Called when entering a styling rule."""
         if self.current_rule:
@@ -459,32 +491,63 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
     
     def exitStylingRule(self, ctx):
         # Always create a new symbolizer for each rule, even if nested
-        symbolizer = Symbolizer()
+        symbolizer_obj = ModelSymbolizer()
+        explicit_symbolizer = None
         # Always collect all property assignments for this rule (for post-processing)
         if self.current_assignments:
             self.current_rule.property_assignments.extend(self.current_assignments)
         # Continue with normal property assignment handling for this rule
+        # (import supprimé, on utilise les alias globaux)
+        symbolizer_set = False
         if self.current_assignments:
             for assignment in self.current_assignments:
+                # Traitement spécial pour symbolizer: Fill { ... }
+                if assignment.property_name.strip().lower() == 'symbolizer':
+                    value = assignment.value.strip()
+                    if value.lower().startswith('fill'):
+                        # Extraction du bloc Fill { ... }
+                        import re
+                        m = re.match(r'Fill\s*\{(.*)\}', value, re.DOTALL)
+                        if m:
+                            props_str = m.group(1)
+                            # Parse les propriétés du bloc
+                            props = {}
+                            for part in props_str.split(';'):
+                                if ':' in part:
+                                    k, v = part.split(':', 1)
+                                    props[k.strip()] = v.strip()
+                            fill = ModelFill()
+                            if 'color' in props:
+                                fill.color = props['color']
+                            if 'opacity' in props:
+                                try:
+                                    fill.opacity = float(props['opacity'])
+                                except Exception:
+                                    pass
+                            explicit_symbolizer = ModelSymbolizer(fill=fill)
+                            self.current_rule.symbolizer = explicit_symbolizer
+                            symbolizer_set = True
+                            continue
+                    # Autres types de symbolizer à ajouter ici si besoin
                 self._handle_property_assignment_enhanced(
                     assignment.property_name,
                     assignment.value,
-                    symbolizer
+                    symbolizer_obj
                 )
-        # If marker.elements[N] overrides were collected for this rule but no marker
-        # property was defined here, create an indexed-override Marker so the override
-        # is stored in the correct (child) rule rather than merged into an ancestor.
+        # Si aucune propriété symbolizer explicite, mais symbolizer a été rempli, on l'affecte
+        if not symbolizer_set and (symbolizer_obj.fill or symbolizer_obj.stroke or symbolizer_obj.hill_shading or symbolizer_obj.z_order):
+            self.current_rule.symbolizer = symbolizer_obj
         pending = getattr(self, '_pending_marker_element_assignments', {})
-        if pending and symbolizer.marker is None:
-            from .ast import Marker as AstMarker
+        effective_sym = explicit_symbolizer if explicit_symbolizer is not None else symbolizer_obj
+        if pending and effective_sym.marker is None:
             # Use the first (and typically only) indexed override
             for idx, el_props in sorted(pending.items()):
                 from .models.symbolizers import Marker as PydanticMarker
-                symbolizer.marker = PydanticMarker(elements={'index': idx, 'value': el_props})
+                effective_sym.marker = PydanticMarker(elements={'index': idx, 'value': el_props})
                 break
             self._pending_marker_element_assignments = {}
         # Attach symbolizer to rule
-        self.current_rule.symbolizer = symbolizer
+        self.current_rule.symbolizer = effective_sym
         # Always set selectors, even if only one selector or only conditions
         if self.current_selectors:
             self.current_rule.selectors = self.current_selectors.copy()
@@ -634,8 +697,6 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
     
     def _handle_property_assignment_enhanced(self, prop_name: str, prop_value: str, symbolizer):
         """Enhanced property assignment handler with expression support."""
-        import sys
-        print(f"[DEBUG] _handle_property_assignment_enhanced: prop_name={prop_name}", file=sys.stderr, flush=True)
         # Special handler for marker property (must be first, not nested)
         if prop_name == 'marker':
             with open("debug_marker_assignments.txt", "a", encoding="utf-8") as dbg:
@@ -704,7 +765,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 obj_name, attr_name = parts
                 if obj_name.lower() == 'fill':
                     if not symbolizer.fill:
-                        symbolizer.fill = Fill()
+                        symbolizer.fill = ModelFill()
                     if attr_name.lower() == 'color':
                         symbolizer.fill.color = prop_value
                     elif attr_name.lower() == 'opacity':
@@ -714,7 +775,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                             pass
                 elif obj_name.lower() == 'stroke':
                     if not symbolizer.stroke:
-                        symbolizer.stroke = Stroke()
+                        symbolizer.stroke = ModelStroke()
                     if attr_name.lower() == 'color':
                         symbolizer.stroke.color = prop_value
                     elif attr_name.lower() == 'width':

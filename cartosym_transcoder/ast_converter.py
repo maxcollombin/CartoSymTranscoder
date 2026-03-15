@@ -257,16 +257,13 @@ class AstToPydanticConverter:
             metadata = None
             if ast_stylesheet.metadata:
                 metadata_dict = {}
-                # Fields that the Metadata model stores as List[str]
                 _list_fields = {'keywords', 'authors', 'geoDataClasses'}
-                # Fields that may appear multiple times and should be concatenated
                 _multiline_fields = {'abstract', 'description', 'title'}
                 for meta in ast_stylesheet.metadata:
                     if not (hasattr(meta, 'key') and hasattr(meta, 'value')):
                         continue
                     key, value = meta.key, meta.value
                     if key in _list_fields:
-                        # A single quoted string like 'A, B, C' → ['A', 'B', 'C']
                         if isinstance(value, str):
                             items = [v.strip() for v in value.split(',') if v.strip()]
                         elif isinstance(value, list):
@@ -276,12 +273,17 @@ class AstToPydanticConverter:
                         existing = metadata_dict.get(key, [])
                         metadata_dict[key] = existing + items
                     elif key in _multiline_fields and key in metadata_dict:
-                        # Repeated metadata entry for the same key → concatenate
                         metadata_dict[key] = metadata_dict[key] + '\n' + value
                     else:
                         metadata_dict[key] = value
                 if metadata_dict:
                     metadata = Metadata(**metadata_dict)
+
+            # Convert variables (if present)
+            variables = None
+            if hasattr(ast_stylesheet, 'variables') and ast_stylesheet.variables:
+                from .models.styles import Variable
+                variables = [Variable(name=v.name, value=v.value, type=getattr(v, 'type', None)) for v in ast_stylesheet.variables]
 
             # Convert only top-level styling rules (do not flatten nested rules)
             styling_rules = []
@@ -293,7 +295,8 @@ class AstToPydanticConverter:
 
             return Style(
                 metadata=metadata,
-                styling_rules=styling_rules
+                styling_rules=styling_rules,
+                variables=variables
             )
         except Exception as e:
             raise ValueError(f"Failed to convert AST stylesheet: {e}") from e
@@ -814,13 +817,16 @@ class AstToPydanticConverter:
         return value
 
     def _convert_styling_rule(self, ast_rule: AstStylingRule) -> Optional[StylingRule]:
-        """Convert AST StylingRule to Pydantic StylingRule, including nested selectors."""
+        """Convert AST StylingRule to Pydantic StylingRule, including nested selectors and stylingRuleName."""
         try:
             selector = None
             rule_name = None
+            styling_rule_name = None
+            # Support explicit stylingRuleName if present
+            if hasattr(ast_rule, 'styling_rule_name') and ast_rule.styling_rule_name:
+                styling_rule_name = ast_rule.styling_rule_name
             # Always process selectors for any rule (top-level or nested)
             if hasattr(ast_rule, 'selectors') and ast_rule.selectors:
-                # If we have multiple selectors, create an AND operation
                 if len(ast_rule.selectors) > 1:
                     selector_args = []
                     for sel in ast_rule.selectors:
@@ -887,6 +893,7 @@ class AstToPydanticConverter:
 
             return StylingRule(
                 name=rule_name,
+                styling_rule_name=styling_rule_name,
                 selector=selector,
                 symbolizer=symbolizer,
                 nested_rules=nested_rules

@@ -30,20 +30,31 @@ class Metadata(BaseCartoSymModel, CommentMixin):
     )
 
 
+class Variable(BaseCartoSymModel):
+    """
+    Represents a variable definition in CartoSym CSS.
+    """
+    name: str = Field(..., description="Variable name")
+    value: Any = Field(..., description="Variable value")
+    type: Optional[str] = Field(None, description="Variable type (optional)")
+
+
 class StylingRule(BaseCartoSymModel, CommentMixin):
     """
     Individual styling rule with optional selector and symbolizer.
-    
-    Based on the 'stylingRule' definition in the JSON schema.
+    Now supports explicit stylingRuleName.
     """
-    name: Optional[str] = Field(None, description="Rule name")
+    name: Optional[str] = Field(None, description="Rule name (legacy or fallback)")
+    styling_rule_name: Optional[str] = Field(
+        None,
+        alias="stylingRuleName",
+        description="Explicit styling rule name (from grammar)"
+    )
     nested_rules: Optional[List['StylingRule']] = Field(
         None,
         alias="nestedRules", 
         description="Nested rules within this rule"
     )
-    
-    # Real types now implemented - but flexible for different input formats
     selector: Optional[Union[Dict[str, Any], List[str], str]] = Field(
         None, 
         description="Selector expression (flexible - can be dict, list, or string)"
@@ -68,11 +79,11 @@ class StylingRule(BaseCartoSymModel, CommentMixin):
         return self
 
 
+
 class Style(BaseCartoSymModel, CommentMixin):
     """
     Root CartoSym style definition.
-    
-    Based on the 'style' definition in the JSON schema.
+    Now supports explicit variable objects.
     """
     include: Optional[Union[str, List[str]]] = Field(
         None,
@@ -85,10 +96,10 @@ class Style(BaseCartoSymModel, CommentMixin):
         alias="stylingRules",
         description="List of styling rules"
     )
-    variables: Optional[Dict[str, Any]] = Field(
+    variables: Optional[List[Variable]] = Field(
         None,
         alias="$variables",
-        description="Style variables"
+        description="Style variables (as objects)"
     )
 
 
