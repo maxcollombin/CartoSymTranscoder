@@ -43,6 +43,7 @@ _WKT_TO_GEOJSON = {
     'multipoint': 'MultiPoint', 'multilinestring': 'MultiLineString',
     'multipolygon': 'MultiPolygon', 'geometrycollection': 'GeometryCollection',
 }
+_TEMPORAL_LITERAL_NAMES = {'date', 'timestamp', 'interval'}
 
 # Import ANTLR generated classes - will be used when needed
 # These are loaded dynamically by the main parser
@@ -115,6 +116,11 @@ class ExpressionParser:
                 return cql2_func
             return ExpressionParser._parse_function_call_from_text(original_text)
 
+        # Handle curly-brace temporal literals: DATE{...}, TIMESTAMP{...}, INTERVAL{...}
+        temporal_brace = ExpressionParser._try_parse_temporal_braces(original_text)
+        if temporal_brace is not None:
+            return temporal_brace
+
         # Handle object literals {color: red; opacity: 0.5}
         if original_text.startswith('{') and original_text.endswith('}'):
             return ExpressionParser._parse_instance_from_text(original_text)
@@ -125,14 +131,14 @@ class ExpressionParser:
     @staticmethod
     def _parse_logical_expression(text: str) -> BinaryOperationExpression:
         """Parse logical expressions like 'a and b' or 'x or y'."""
-        # Always split at the top-level logical operator (lowest precedence), respecting parentheses
+        # Always split at the top-level logical operator (lowest precedence), respecting parentheses and braces
         text_lower = text.lower()
-        paren_depth = 0
+        depth = 0
         # Find top-level ' or '
         for i in range(len(text)):
-            if text[i] == '(': paren_depth += 1
-            elif text[i] == ')': paren_depth -= 1
-            elif paren_depth == 0 and text_lower[i:i+4] == ' or ':
+            if text[i] in ('(', '{'): depth += 1
+            elif text[i] in (')', '}'): depth -= 1
+            elif depth == 0 and text_lower[i:i+4] == ' or ':
                 left = text[:i].strip()
                 right = text[i+4:].strip()
                 return BinaryOperationExpression(
@@ -141,11 +147,11 @@ class ExpressionParser:
                     right=ExpressionParser.parse_expression(right)
                 )
         # Find top-level ' and '
-        paren_depth = 0
+        depth = 0
         for i in range(len(text)):
-            if text[i] == '(': paren_depth += 1
-            elif text[i] == ')': paren_depth -= 1
-            elif paren_depth == 0 and text_lower[i:i+5] == ' and ':
+            if text[i] in ('(', '{'): depth += 1
+            elif text[i] in (')', '}'): depth -= 1
+            elif depth == 0 and text_lower[i:i+5] == ' and ':
                 left = text[:i].strip()
                 right = text[i+5:].strip()
                 return BinaryOperationExpression(
@@ -161,37 +167,45 @@ class ExpressionParser:
         """Parse relational expressions like 'a = b' or 'x < 5'."""
         # Always check for logical operators at the same level first
         text_lower = text.lower()
-        paren_depth = 0
+        depth = 0
         for i in range(len(text) - 4, -1, -1):  # -4 for ' or '
             if text[i] == ')':
-                paren_depth += 1
-            elif text[i] == '(': 
-                paren_depth -= 1
-            elif paren_depth == 0 and text_lower[i:i+4] == ' or ':
+                depth += 1
+            elif text[i] == '(':
+                depth -= 1
+            elif text[i] == '}':
+                depth += 1
+            elif text[i] == '{':
+                depth -= 1
+            elif depth == 0 and text_lower[i:i+4] == ' or ':
                 left = text[:i].strip()
                 right = text[i+4:].strip()
                 return ExpressionParser._parse_logical_expression(text)
-        paren_depth = 0
+        depth = 0
         for i in range(len(text) - 5, -1, -1):  # -5 for ' and '
             if text[i] == ')':
-                paren_depth += 1
-            elif text[i] == '(': 
-                paren_depth -= 1
-            elif paren_depth == 0 and text_lower[i:i+5] == ' and ':
+                depth += 1
+            elif text[i] == '(':
+                depth -= 1
+            elif text[i] == '}':
+                depth += 1
+            elif text[i] == '{':
+                depth -= 1
+            elif depth == 0 and text_lower[i:i+5] == ' and ':
                 left = text[:i].strip()
                 right = text[i+5:].strip()
                 return ExpressionParser._parse_logical_expression(text)
 
         # No logical op at this level, parse as relational
         op_pos = -1
-        paren_depth = 0
+        depth = 0
         op_pattern = f' {operator_str} '
         for i in range(len(text) - len(op_pattern) + 1):
-            if text[i] == '(': 
-                paren_depth += 1
-            elif text[i] == ')':
-                paren_depth -= 1
-            elif paren_depth == 0 and text[i:i+len(op_pattern)] == op_pattern:
+            if text[i] in ('(', '{'):
+                depth += 1
+            elif text[i] in (')', '}'):
+                depth -= 1
+            elif depth == 0 and text[i:i+len(op_pattern)] == op_pattern:
                 op_pos = i
                 break
         if op_pos != -1:
@@ -317,7 +331,12 @@ class ExpressionParser:
             if cql2_func is not None:
                 return cql2_func
             return ExpressionParser._parse_function_call_from_text(text)
-        
+
+        # Handle curly-brace temporal literals: DATE{...}, TIMESTAMP{...}, INTERVAL{...}
+        temporal_brace = ExpressionParser._try_parse_temporal_braces(text)
+        if temporal_brace is not None:
+            return temporal_brace
+
         # Handle numbers
         try:
             if '.' in text:
@@ -585,6 +604,11 @@ class ExpressionParser:
                 return cql2_func
             result = ExpressionParser._parse_function_call_from_text(text)
             return result
+
+        # Handle curly-brace temporal literals: DATE{...}, TIMESTAMP{...}, INTERVAL{...}
+        temporal_brace = ExpressionParser._try_parse_temporal_braces(text)
+        if temporal_brace is not None:
+            return temporal_brace
 
         # Handle numbers
         try:
@@ -916,7 +940,7 @@ class ExpressionParser:
 
     @staticmethod
     def _split_args(text: str) -> list:
-        """Split comma-separated arguments respecting parentheses and quotes."""
+        """Split comma-separated arguments respecting parentheses, braces and quotes."""
         args = []
         depth = 0
         in_single = False
@@ -930,10 +954,10 @@ class ExpressionParser:
                 in_double = not in_double
                 current.append(ch)
             elif not in_single and not in_double:
-                if ch == '(':
+                if ch in ('(', '{'):
                     depth += 1
                     current.append(ch)
-                elif ch == ')':
+                elif ch in (')', '}'):
                     depth -= 1
                     current.append(ch)
                 elif ch == ',' and depth == 0:
@@ -947,3 +971,30 @@ class ExpressionParser:
         if last:
             args.append(last)
         return args
+
+    @staticmethod
+    def _try_parse_temporal_braces(text: str) -> Optional[Expression]:
+        """Try to parse curly-brace temporal literals: DATE{...}, TIMESTAMP{...}, INTERVAL{...}.
+
+        Returns the parsed TemporalLiteral or None if the text is not a temporal literal.
+        """
+        text = text.strip()
+        brace_pos = text.find('{')
+        if brace_pos == -1 or not text.endswith('}'):
+            return None
+        func_name = text[:brace_pos].strip()
+        func_lower = func_name.lower()
+        if func_lower not in _TEMPORAL_LITERAL_NAMES:
+            return None
+        inner = text[brace_pos + 1:-1]  # content inside { }
+        if func_lower == 'date':
+            value = inner.strip().strip("'").strip('"')
+            return TemporalLiteral(temporal_type='date', value=value)
+        elif func_lower == 'timestamp':
+            value = inner.strip().strip("'").strip('"')
+            return TemporalLiteral(temporal_type='timestamp', value=value)
+        elif func_lower == 'interval':
+            parts = ExpressionParser._split_args(inner)
+            interval = [p.strip().strip("'").strip('"') for p in parts]
+            return TemporalLiteral(temporal_type='interval', interval=interval)
+        return None

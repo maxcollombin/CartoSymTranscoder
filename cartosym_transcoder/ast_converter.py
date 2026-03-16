@@ -531,6 +531,16 @@ class AstToPydanticConverter:
                             }
             elif "property" in selector:
                 prop = selector["property"]
+                # Check if property is actually an unparsed CQL2 expression (e.g. T_DURING(...))
+                if ('(' in prop and prop.endswith(')')) or ('{' in prop and prop.endswith('}')):
+                    try:
+                        from .expression_parser import ExpressionParser
+                        parsed = ExpressionParser._parse_single_expression(prop)
+                        converted = self._convert_expression_to_json_selector(parsed)
+                        if converted and converted != prop and converted != {"property": prop}:
+                            return self._post_process_selector(converted)
+                    except Exception:
+                        pass
                 # Check if property contains an embedded expression
                 for op in ['>=', '<=', '!=', '=', '>', '<']:
                     if op in prop and not (prop.startswith('"') or prop.startswith("'")):
