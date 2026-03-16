@@ -1,22 +1,13 @@
 #!/bin/sh
 set -eu
 
+# Sauvegarder le répertoire de travail (chemin absolu)
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$PROJECT_DIR"
+
+GRAMMAR_REPO="https://github.com/maxcollombin/cartosymcss-grammar.git"
+
 echo " Configuration de CartoSymTranscoder..."
-
-# Vérifier et ajouter le submodule grammar si absent
-if [ ! -d "grammar" ]; then
-    echo "Ajout du submodule grammar..."
-    git submodule add https://github.com/maxcollombin/cartosymcss-grammar.git grammar || true
-fi
-
-echo "Initialisation et mise à jour des submodules..."
-git submodule update --init --recursive
-
-# Vérifier que le submodule a été correctement récupéré
-if [ ! -d "grammar" ] || [ ! -f "grammar/CartoSymCSSLexer.g4" ] || [ ! -f "grammar/CartoSymCSSGrammar.g4" ]; then
-    echo " Erreur: Submodule grammar non initialisé ou fichiers .g4 manquants"
-    exit 1
-fi
 
 # Création de l'environnement virtuel si nécessaire
 if [ ! -d "CartoSym" ]; then
@@ -43,53 +34,30 @@ pip install -q jsonschema
 # Installation de pytest pour les tests unitaires
 pip install -q pytest
 
-# Génération du code à partir des grammaires du submodule
+# Génération du code à partir des grammaires
 echo " Génération des fichiers ANTLR..."
-outdir="cartosym_transcoder/grammar/generated"
+outdir="$PROJECT_DIR/cartosym_transcoder/grammar/generated"
 mkdir -p "$outdir"
 rm -rf "$outdir"/*
 
-# Créer un répertoire temporaire pour la génération
+# Créer un répertoire temporaire et cloner la grammaire dedans
 temp_dir=$(mktemp -d)
-echo "  Répertoire temporaire: $temp_dir"
+trap 'rm -rf "$temp_dir"' EXIT
+echo "  Clonage de la grammaire..."
+git clone --quiet --depth 1 "$GRAMMAR_REPO" "$temp_dir/grammar"
+cp "$temp_dir/grammar/"*.g4 "$temp_dir/"
 
-# Copier les fichiers .g4 dans le répertoire temporaire
-cp grammar/CartoSymCSSLexer.g4 "$temp_dir/"
-cp grammar/CartoSymCSSGrammar.g4 "$temp_dir/"
-
-# Aller dans le répertoire temporaire pour la génération
-cd "$temp_dir"
-
-# Rappel explicite pour activer le venv dans le shell courant
-echo "\nPour activer l'environnement virtuel dans votre terminal, exécutez :"
-echo "source CartoSym/bin/activate"
-
-# Générer d'abord le lexer, puis le parser
+# Générer d'abord le lexer, puis le parser (sans changer de répertoire)
 echo "  Génération du lexer..."
-antlr4 -Dlanguage=Python3 CartoSymCSSLexer.g4
+antlr4 -Dlanguage=Python3 -o "$temp_dir" "$temp_dir/CartoSymCSSLexer.g4"
 echo "  Génération du parser..."
-antlr4 -Dlanguage=Python3 CartoSymCSSGrammar.g4
-
-# Retourner dans le répertoire principal
-cd - > /dev/null
+antlr4 -Dlanguage=Python3 -o "$temp_dir" "$temp_dir/CartoSymCSSGrammar.g4"
 
 # Copier les fichiers générés
 echo "  Copie des fichiers générés..."
 cp "$temp_dir"/*.py "$outdir/"
 cp "$temp_dir"/*.tokens "$outdir/"
 cp "$temp_dir"/*.interp "$outdir/"
-
-# Nettoyer le répertoire temporaire
-rm -rf "$temp_dir"
-
-# Désinitialiser et supprimer proprement le submodule grammar
-if [ -d "grammar" ]; then
-    echo "Suppression propre du submodule grammar..."
-    git submodule deinit -f grammar || true
-    git rm --cached grammar || true
-    rm -rf .git/modules/grammar
-    rm -rf grammar
-fi
 
 # Création de __init__.py
 cat > "$outdir/__init__.py" << 'EOF'
@@ -108,7 +76,6 @@ pip uninstall -y antlr4-tools
 echo " Setup terminé avec succès!"
 echo " Environnement virtuel: CartoSym"
 echo " Pour l'activer: source CartoSym/bin/activate"
-echo " Note: Le submodule grammar est conservé pour les générations futures."
 echo ""
 echo " Test rapide de l'installation..."
 python -c "import cartosym_transcoder; print(' Import réussi!')" || echo " Problème d'import"
