@@ -48,5 +48,6 @@ debug_marker_assignments.txt
 
 # AI assistant / project docs (local only)
 CLAUDE.md
+INTERNALS.md
 ROADMAP.md
 compare_csjson.py
