@@ -9,9 +9,6 @@ __pycache__/
 *.pyo
 *.pyd
 
-# ANTLR generated files
-cartosym_transcoder/grammar/
-
 # Build and distribution
 *.egg-info/
 dist/
@@ -45,9 +42,3 @@ debug_marker_assignments.txt
 
 # Backup files
 *.bak
-
-# AI assistant / project docs (local only)
-CLAUDE.md
-INTERNALS.md
-ROADMAP.md
-compare_csjson.py

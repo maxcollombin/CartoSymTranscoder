@@ -1,0 +1,3 @@
+[submodule "vendor/cartosymcss-grammar"]
+	path = vendor/cartosymcss-grammar
+	url = https://github.com/maxcollombin/cartosymcss-grammar.git
