@@ -13,15 +13,14 @@ pip install cartosym-transcoder
 ### From Source
 
 ```bash
-git clone --recursive https://github.com/maxcollombin/CartoSymTranscoder.git
+git clone https://github.com/maxcollombin/CartoSymTranscoder.git
 cd CartoSymTranscoder
-./setup.sh
+uv sync
 ```
 
-`setup.sh` initializes the `vendor/cartosymcss-grammar` submodule and runs
-`uv sync` (the ANTLR-generated lexer/parser are already committed under
+The generated ANTLR lexer/parser are already committed under
 `cartosym_transcoder/grammar/generated/`, so no separate grammar build
-step is needed). Prefix commands with `uv run`, or activate the
+step is needed. Prefix commands with `uv run`, or activate the
 project's `.venv` with `source .venv/bin/activate`.
 
 ## Usage
@@ -68,10 +67,8 @@ cartosym --version
 ## Development
 
 ```bash
-./setup.sh
-source CartoSym/bin/activate
-pip install -e ".[dev]"
-pytest tests/
+uv sync --all-extras
+uv run pytest
 ```
 
 ## License
