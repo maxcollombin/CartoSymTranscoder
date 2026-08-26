@@ -19,7 +19,7 @@ uv sync
 ```
 
 The generated ANTLR lexer/parser are already committed under
-`cartosym_transcoder/grammar/generated/`, so no separate grammar build
+`src/cartosym_transcoder/grammar/generated/`, so no separate grammar build
 step is needed. Prefix commands with `uv run`, or activate the
 project's `.venv` with `source .venv/bin/activate`.
 
