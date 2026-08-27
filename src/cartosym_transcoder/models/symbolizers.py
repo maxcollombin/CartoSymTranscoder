@@ -5,7 +5,7 @@ Based on the JSON Schema definitions for symbolizer, fill, stroke, marker, label
 """
 
 from typing import Optional, Union, List, Any, Dict
-from pydantic import Field, field_validator, ConfigDict
+from pydantic import Field, field_validator, model_validator, ConfigDict
 from .base import BaseCartoSymModel, CommentMixin, AlterMixin
 from .types import FlexibleColor, FlexibleOpacity, FlexibleAngle, UnitValue
 from .expressions import BoolExpression, NumericExpression
@@ -16,6 +16,17 @@ def parse_flexible_unit_value(v):
         unit, value = next(iter(v.items()))
         return UnitValue(value=value, unit=unit)
     return v
+
+
+def _coerce_numeric_str(v: str):
+    """Convert a numeric string to int/float, leaving it as-is if it isn't one."""
+    try:
+        return int(v)
+    except ValueError:
+        try:
+            return float(v)
+        except ValueError:
+            return v
 
 class Fill(BaseCartoSymModel, AlterMixin):
     """
@@ -176,37 +187,22 @@ class Label(BaseCartoSymModel):
 
 # Graphic system classes
 class UnitPoint(BaseCartoSymModel):
-    """Point with unit values: [x, y] or {x: value, y: value}"""
+    """Point with unit values: [x, y], {x: value, y: value}, or "x y"."""
     x: Union[UnitValue, str, float]
     y: Union[UnitValue, str, float]
 
+    @model_validator(mode='before')
     @classmethod
-    def from_string(cls, v):
-        # Accept string like '0 0' or '20 0'
+    def parse_unit_point(cls, v):
+        # Accept a bare "x y" string (as written by the CSCSS writer, e.g.
+        # for `position`) or a [x, y] list, in addition to the normal
+        # {x: ..., y: ...} dict form.
         if isinstance(v, str):
             parts = v.strip().split()
             if len(parts) == 2:
-                try:
-                    x = float(parts[0]) if '.' in parts[0] else int(parts[0])
-                    y = float(parts[1]) if '.' in parts[1] else int(parts[1])
-                    return cls(x=x, y=y)
-                except Exception:
-                    pass
-        return v
-
-    @field_validator('x', 'y', mode='before')
-    def parse_unit_point(cls, v, info):
-        # Accept list like [x, y]
-        if isinstance(v, list) and len(v) == 2:
-            return v[info.field_index]
-        # Accept string like '0 0' for position
-        if isinstance(v, str):
-            parts = v.strip().split()
-            if len(parts) == 2:
-                try:
-                    return float(parts[info.field_index]) if '.' in parts[info.field_index] else int(parts[info.field_index])
-                except Exception:
-                    return v
+                return {'x': _coerce_numeric_str(parts[0]), 'y': _coerce_numeric_str(parts[1])}
+        elif isinstance(v, (list, tuple)) and len(v) == 2:
+            return {'x': v[0], 'y': v[1]}
         return v
 
 

@@ -355,21 +355,3 @@ FlexibleAngle = Union[Angle, str, float]
 
 FlexibleOpacity = Union[ZeroToOne, str]
 """Opacity that accepts 0-1 float or string expressions."""
-
-# UnitPoint validator
-class UnitPoint(BaseModel):
-    x: FlexibleUnitValue
-    y: FlexibleUnitValue
-
-    @field_validator('x', 'y', mode='before')
-    def parse_unit_point(cls, v, info):
-        # Accept list like [x, y]
-        if isinstance(v, list) and len(v) == 2:
-            return v[info.field_index]
-        return v
-
-    @classmethod
-    def from_list(cls, v):
-        if isinstance(v, list) and len(v) == 2:
-            return cls(x=v[0], y=v[1])
-        return v
