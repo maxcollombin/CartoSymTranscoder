@@ -212,6 +212,40 @@ def _normalize_graphic_element(el: dict) -> None:
         except ValueError:
             pass
 
+    # Convert size string to int/float for any element type (e.g. a Dot's
+    # `size: 10` — shapes don't get the font/outline-specific coercion below).
+    if 'size' in el and isinstance(el['size'], str):
+        v = el['size'].strip()
+        try:
+            el['size'] = int(v)
+        except ValueError:
+            try:
+                el['size'] = float(v)
+            except ValueError:
+                pass
+
+    # position2D / position_2d (CSCSS syntax) → the schema's `position`
+    # field (a UnitPoint): "{ 10, -4 }" → {x: 10, y: -4}
+    for pos_key in ('position2D', 'position_2d'):
+        if pos_key in el and isinstance(el[pos_key], str):
+            raw = el.pop(pos_key).strip()
+            if raw.startswith('{') and raw.endswith('}'):
+                raw = raw[1:-1]
+            parts = [p.strip() for p in raw.split(',') if p.strip()]
+            if len(parts) == 2:
+                coords = []
+                for p in parts:
+                    try:
+                        coords.append(int(p))
+                    except ValueError:
+                        try:
+                            coords.append(float(p))
+                        except ValueError:
+                            coords.append(p)
+                el['position'] = {'x': coords[0], 'y': coords[1]}
+        else:
+            el.pop(pos_key, None)
+
     el_type = el.get('type', '')
 
     if el_type == 'Text':
@@ -276,9 +310,8 @@ def _normalize_graphic_element(el: dict) -> None:
 
     # Strip empty dicts that carry no information (parser artifact for
     # brace-enclosed comma-separated values it cannot fully parse)
-    for key in ('alignment', 'position2D', 'position_2d'):
-        if key in el and isinstance(el[key], dict) and len(el[key]) == 0:
-            del el[key]
+    if isinstance(el.get('alignment'), dict) and len(el['alignment']) == 0:
+        del el['alignment']
 
 
 class AstToPydanticConverter:
@@ -1191,13 +1224,12 @@ class AstToPydanticConverter:
                         el_dict = dict(val)
                     else:
                         el_dict = val
-                    if isinstance(el_dict, dict) and 'position' in el_dict:
-                        pos = el_dict['position']
-                        if isinstance(pos, str):
-                            from .models.symbolizers import UnitPoint as ModelUnitPoint
-                            el_dict['position'] = ModelUnitPoint.from_string(pos)
-                        elif isinstance(pos, dict) and 'x' in pos and 'y' in pos:
-                            el_dict['position'] = pos
+                    # Marker.elements is typed Any (see models/symbolizers.py),
+                    # so Pydantic never auto-validates `position` here — convert
+                    # it to a real UnitPoint explicitly.
+                    if isinstance(el_dict, dict) and isinstance(el_dict.get('position'), (str, dict)):
+                        from .models.symbolizers import UnitPoint as ModelUnitPoint
+                        el_dict['position'] = ModelUnitPoint.model_validate(el_dict['position'])
                     _normalize_graphic_element(el_dict)
                     marker_data['elements'] = {'index': elements['index'], 'value': el_dict}
                 else:
@@ -1213,14 +1245,12 @@ class AstToPydanticConverter:
                         # Ensure type is present (default to Dot if missing)
                         if isinstance(el_dict, dict) and 'type' not in el_dict:
                             el_dict['type'] = 'Dot'
-                        # Convert position if present and as string or dict
-                        if isinstance(el_dict, dict) and 'position' in el_dict:
-                            pos = el_dict['position']
-                            if isinstance(pos, str):
-                                from .models.symbolizers import UnitPoint as ModelUnitPoint
-                                el_dict['position'] = ModelUnitPoint.from_string(pos)
-                            elif isinstance(pos, dict) and 'x' in pos and 'y' in pos:
-                                el_dict['position'] = pos
+                        # Marker.elements is typed Any (see models/symbolizers.py),
+                        # so Pydantic never auto-validates `position` here —
+                        # convert it to a real UnitPoint explicitly.
+                        if isinstance(el_dict, dict) and isinstance(el_dict.get('position'), (str, dict)):
+                            from .models.symbolizers import UnitPoint as ModelUnitPoint
+                            el_dict['position'] = ModelUnitPoint.model_validate(el_dict['position'])
                         _normalize_graphic_element(el_dict)
                         converted_elements.append(el_dict)
                     marker_data['elements'] = converted_elements
@@ -1393,13 +1423,8 @@ class AstToPydanticConverter:
                         el_dict = el
                     if isinstance(el_dict, dict) and 'type' not in el_dict:
                         el_dict['type'] = 'Dot'
-                    if isinstance(el_dict, dict) and 'position' in el_dict:
-                        pos = el_dict['position']
-                        if isinstance(pos, str):
-                            from .models.symbolizers import UnitPoint as ModelUnitPoint
-                            el_dict['position'] = ModelUnitPoint.from_string(pos)
-                        elif isinstance(pos, dict) and 'x' in pos and 'y' in pos:
-                            el_dict['position'] = pos
+                    # `position` (bare "x y" string or {x,y} dict) is
+                    # accepted as-is — UnitPoint's own validator parses both.
                     _normalize_graphic_element(el_dict)
                     converted_elements.append(el_dict)
                 label_data['elements'] = converted_elements

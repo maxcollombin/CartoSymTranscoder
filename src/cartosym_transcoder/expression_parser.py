@@ -130,35 +130,47 @@ class ExpressionParser:
     
     @staticmethod
     def _parse_logical_expression(text: str) -> BinaryOperationExpression:
-        """Parse logical expressions like 'a and b' or 'x or y'."""
-        # Always split at the top-level logical operator (lowest precedence), respecting parentheses and braces
+        """Parse logical expressions like 'a and b' or 'x or y'.
+
+        Splits at the *last* top-level occurrence of the operator, not the
+        first, so chains like 'a and b and c' parse left-associatively —
+        matching the ANTLR grammar's own left-recursive `expression` rule
+        (vendor/cartosymcss-grammar/CartoSymCSSGrammar.g4). Splitting at the
+        first occurrence would instead build a right-associative tree.
+        """
         text_lower = text.lower()
+        # Find the last top-level ' or ' (lowest precedence, so tried first)
         depth = 0
-        # Find top-level ' or '
+        last_or = -1
         for i in range(len(text)):
             if text[i] in ('(', '{'): depth += 1
             elif text[i] in (')', '}'): depth -= 1
             elif depth == 0 and text_lower[i:i+4] == ' or ':
-                left = text[:i].strip()
-                right = text[i+4:].strip()
-                return BinaryOperationExpression(
-                    left=ExpressionParser.parse_expression(left),
-                    operator=BinaryOperator.OR,
-                    right=ExpressionParser.parse_expression(right)
-                )
-        # Find top-level ' and '
+                last_or = i
+        if last_or != -1:
+            left = text[:last_or].strip()
+            right = text[last_or+4:].strip()
+            return BinaryOperationExpression(
+                left=ExpressionParser.parse_expression(left),
+                operator=BinaryOperator.OR,
+                right=ExpressionParser.parse_expression(right)
+            )
+        # Find the last top-level ' and '
         depth = 0
+        last_and = -1
         for i in range(len(text)):
             if text[i] in ('(', '{'): depth += 1
             elif text[i] in (')', '}'): depth -= 1
             elif depth == 0 and text_lower[i:i+5] == ' and ':
-                left = text[:i].strip()
-                right = text[i+5:].strip()
-                return BinaryOperationExpression(
-                    left=ExpressionParser.parse_expression(left),
-                    operator=BinaryOperator.AND,
-                    right=ExpressionParser.parse_expression(right)
-                )
+                last_and = i
+        if last_and != -1:
+            left = text[:last_and].strip()
+            right = text[last_and+5:].strip()
+            return BinaryOperationExpression(
+                left=ExpressionParser.parse_expression(left),
+                operator=BinaryOperator.AND,
+                right=ExpressionParser.parse_expression(right)
+            )
         # No logical op at top level, parse as relational or single
         return ExpressionParser._parse_single_expression(text)
     
