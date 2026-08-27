@@ -7,9 +7,9 @@ Delegates to the existing :class:`~cartosym_transcoder.parser.CartoSymParser`.
 from pathlib import Path
 from typing import Union
 
-from ..base import CodecReader
 from ...models.styles import Style
 from ...parser import CartoSymParser
+from ..base import CodecReader
 
 
 class CscssReader(CodecReader):

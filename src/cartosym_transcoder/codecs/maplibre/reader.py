@@ -8,8 +8,8 @@ MapLibre / MapBox GL Style reader — parse MapLibre style JSON into Style model
 from pathlib import Path
 from typing import Union
 
-from ..base import CodecReader
 from ...models.styles import Style
+from ..base import CodecReader
 
 
 class MaplibreReader(CodecReader):

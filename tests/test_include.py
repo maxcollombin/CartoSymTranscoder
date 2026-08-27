@@ -1,7 +1,8 @@
 """Tests for the .include directive preprocessing."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from cartosym_transcoder.parser import CartoSymParser
 
@@ -14,11 +15,11 @@ def _rule_selector_name(rule) -> str | None:
     In the AST, a simple ``[Landuse]`` selector is stored as
     ``rule.selectors[0].conditions[0].name`` (IdentifierExpression).
     """
-    if getattr(rule, 'selectors', None):
+    if getattr(rule, "selectors", None):
         sel = rule.selectors[0]
-        if getattr(sel, 'conditions', None):
+        if getattr(sel, "conditions", None):
             cond = sel.conditions[0]
-            if hasattr(cond, 'name'):
+            if hasattr(cond, "name"):
                 return cond.name
     return rule.name
 
@@ -51,8 +52,7 @@ class TestIncludeDirective:
 
         parent = tmp_path / "parent.cscss"
         parent.write_text(
-            ".include 'child.cscss'\n\n"
-            "[Layer2]\n{\n   opacity: 0.5;\n}\n"
+            ".include 'child.cscss'\n\n" "[Layer2]\n{\n   opacity: 0.5;\n}\n"
         )
 
         result = self.parser.parse_file(parent)
@@ -70,10 +70,7 @@ class TestIncludeDirective:
         b.write_text("[LayerB]\n{\n   visibility: false;\n}\n")
 
         main = tmp_path / "main.cscss"
-        main.write_text(
-            ".include 'a.cscss'\n"
-            ".include 'b.cscss'\n"
-        )
+        main.write_text(".include 'a.cscss'\n" ".include 'b.cscss'\n")
 
         result = self.parser.parse_file(main)
         assert result.styling_rules is not None
@@ -162,9 +159,7 @@ class TestIncludeDirective:
         same textual shape as a metadata directive but must NOT be
         stripped — it only looks like metadata before the first `{`."""
         child = tmp_path / "child.cscss"
-        child.write_text(
-            "[Layer]\n{\n   .name 'CustomName'\n   visibility: true;\n}\n"
-        )
+        child.write_text("[Layer]\n{\n   .name 'CustomName'\n   visibility: true;\n}\n")
 
         parent = tmp_path / "parent.cscss"
         parent.write_text(".include 'child.cscss'\n")

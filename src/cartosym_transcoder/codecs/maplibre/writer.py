@@ -6,8 +6,8 @@ style JSON.
    This is a **stub**. Implementation is tracked in ROADMAP §3.4.
 """
 
-from ..base import CodecWriter
 from ...models.styles import Style
+from ..base import CodecWriter
 
 
 class MaplibreWriter(CodecWriter):

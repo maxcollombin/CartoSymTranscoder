@@ -13,8 +13,8 @@ Usage::
     from cartosym_transcoder.expressions.cql2_json import to_cql2_json, from_cql2_json
 """
 
-from .cql2_text import to_cql2_text, selector_to_cscss
-from .cql2_json import to_cql2_json, from_cql2_json
+from .cql2_json import from_cql2_json, to_cql2_json
+from .cql2_text import selector_to_cscss, to_cql2_text
 
 __all__ = [
     "to_cql2_text",

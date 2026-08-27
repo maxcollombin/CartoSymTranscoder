@@ -59,16 +59,17 @@ def list_codecs() -> list:
 # ---------------------------------------------------------------------------
 # Auto-register built-in codecs on import
 # ---------------------------------------------------------------------------
-from .cscss import codec as _cscss_codec   # noqa: E402, F401
+from .cscss import codec as _cscss_codec  # noqa: E402, F401
 from .csjson import codec as _csjson_codec  # noqa: E402, F401
 
 register(_cscss_codec)
 register(_csjson_codec)
 
+from .maplibre import codec as _maplibre_codec  # noqa: E402, F401
+
 # SLD/SE and MapLibre are registered only if their modules are importable
 # (they may raise NotImplementedError but the codec objects exist).
-from .sld_se import codec as _sld_se_codec    # noqa: E402, F401
-from .maplibre import codec as _maplibre_codec  # noqa: E402, F401
+from .sld_se import codec as _sld_se_codec  # noqa: E402, F401
 
 register(_sld_se_codec)
 register(_maplibre_codec)

@@ -5,19 +5,19 @@ import pytest
 from pydantic import ValidationError
 
 from cartosym_transcoder.models.expressions import (
+    ArrayPredicate,
+    BboxLiteral,
+    GeometryExpression,
+    GeometryLiteral,
     SpatialPredicate,
     SpatialRelatePredicate,
-    TemporalPredicate,
-    ArrayPredicate,
-    GeometryLiteral,
-    BboxLiteral,
-    TemporalLiteral,
-    GeometryExpression,
     TemporalExpression,
+    TemporalLiteral,
+    TemporalPredicate,
 )
 
-
 # ── SpatialPredicate ──────────────────────────────────────────────────────
+
 
 class TestSpatialPredicate:
 
@@ -39,8 +39,14 @@ class TestSpatialPredicate:
 
     def test_all_cql2_ops_accepted(self):
         ops = [
-            "s_intersects", "s_contains", "s_within", "s_touches",
-            "s_crosses", "s_disjoint", "s_overlaps", "s_equals",
+            "s_intersects",
+            "s_contains",
+            "s_within",
+            "s_touches",
+            "s_crosses",
+            "s_disjoint",
+            "s_overlaps",
+            "s_equals",
         ]
         for op in ops:
             sp = SpatialPredicate(op=op, args=[])
@@ -48,6 +54,7 @@ class TestSpatialPredicate:
 
 
 # ── SpatialRelatePredicate ────────────────────────────────────────────────
+
 
 class TestSpatialRelatePredicate:
 
@@ -79,6 +86,7 @@ class TestSpatialRelatePredicate:
 
 # ── TemporalPredicate ────────────────────────────────────────────────────
 
+
 class TestTemporalPredicate:
 
     def test_cql2_op(self):
@@ -91,10 +99,21 @@ class TestTemporalPredicate:
 
     def test_all_15_cql2_temporal_ops(self):
         ops = [
-            "t_before", "t_after", "t_meets", "t_metby",
-            "t_overlaps", "t_overlappedby", "t_begins", "t_begunby",
-            "t_during", "t_contains", "t_ends", "t_endedby",
-            "t_equals", "t_intersects", "t_disjoint",
+            "t_before",
+            "t_after",
+            "t_meets",
+            "t_metby",
+            "t_overlaps",
+            "t_overlappedby",
+            "t_begins",
+            "t_begunby",
+            "t_during",
+            "t_contains",
+            "t_ends",
+            "t_endedby",
+            "t_equals",
+            "t_intersects",
+            "t_disjoint",
         ]
         for op in ops:
             tp = TemporalPredicate(op=op, args=[])
@@ -102,6 +121,7 @@ class TestTemporalPredicate:
 
 
 # ── ArrayPredicate ────────────────────────────────────────────────────────
+
 
 class TestArrayPredicate:
 
@@ -115,6 +135,7 @@ class TestArrayPredicate:
 
 
 # ── GeometryLiteral ──────────────────────────────────────────────────────
+
 
 class TestGeometryLiteral:
 
@@ -166,9 +187,7 @@ class TestGeometryLiteral:
         assert gl.to_geojson() == original
 
     def test_crs_optional(self):
-        gl = GeometryLiteral(
-            geom_type="Point", coordinates=[0, 0], crs="EPSG:4326"
-        )
+        gl = GeometryLiteral(geom_type="Point", coordinates=[0, 0], crs="EPSG:4326")
         assert gl.crs == "EPSG:4326"
 
     def test_invalid_geom_type(self):
@@ -177,6 +196,7 @@ class TestGeometryLiteral:
 
 
 # ── BboxLiteral ───────────────────────────────────────────────────────────
+
 
 class TestBboxLiteral:
 
@@ -198,6 +218,7 @@ class TestBboxLiteral:
 
 
 # ── TemporalLiteral ──────────────────────────────────────────────────────
+
 
 class TestTemporalLiteral:
 

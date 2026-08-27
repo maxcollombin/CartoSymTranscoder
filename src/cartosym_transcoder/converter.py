@@ -5,20 +5,21 @@ This module provides conversion capabilities between CartoSym CSS and other form
 using Pydantic models for robust validation and serialization.
 """
 
-from typing import Union, Dict, Any
-from pathlib import Path
-import os
 import json
+import os
+from pathlib import Path
+from typing import Any, Dict, Union
+
 from .models import Style
 from .parser import CartoSymParser
 
 
 class Converter:
     """Main converter class for format transformations using Pydantic models."""
-    
+
     def __init__(self):
         self.parser = CartoSymParser()
-    
+
     def _resolve_path(self, path: Union[str, Path]) -> Path:
         """
         Résout le chemin relatif par rapport à la racine du projet (là où se trouve pyproject.toml).
@@ -37,10 +38,10 @@ class Converter:
     def cscss_to_csjson(self, cscss_input: Union[str, Path, Style]) -> Dict[str, Any]:
         """
         Convert CartoSym CSS (CSCSS) to CartoSym JSON (CSJSON) format.
-        
+
         Args:
             cscss_input: CSCSS string, file path, or Style model
-            
+
         Returns:
             Dictionary representation suitable for CSJSON serialization
         """
@@ -52,7 +53,12 @@ class Converter:
             if isinstance(cscss_input, Path):
                 resolved = self._resolve_path(cscss_input)
                 style = self.parser.parse_file_to_pydantic(resolved)
-            elif isinstance(cscss_input, str) and len(cscss_input) < 500 and '\n' not in cscss_input and Path(cscss_input).exists():
+            elif (
+                isinstance(cscss_input, str)
+                and len(cscss_input) < 500
+                and "\n" not in cscss_input
+                and Path(cscss_input).exists()
+            ):
                 resolved = self._resolve_path(cscss_input)
                 style = self.parser.parse_file_to_pydantic(resolved)
             else:
@@ -60,7 +66,7 @@ class Converter:
                 style = self.parser.parse_string_to_pydantic(cscss_input)
         else:
             raise ValueError("Invalid input type - expected str, Path, or Style model")
-        
+
         result = style.to_dict()
         # Fix invalid selectors that are just property references
         self._fix_invalid_selectors(result)
@@ -69,24 +75,28 @@ class Converter:
         # Fix system identifier expressions that contain operators
         self._fix_sysid_expressions(result)
         return result
-    
+
     def _fix_invalid_selectors(self, data):
         """Fix invalid selectors in the data structure."""
         if isinstance(data, dict):
-            if 'selector' in data:
-                selector = data['selector']
-                if isinstance(selector, dict) and 'property' in selector and len(selector) == 1:
+            if "selector" in data:
+                selector = data["selector"]
+                if (
+                    isinstance(selector, dict)
+                    and "property" in selector
+                    and len(selector) == 1
+                ):
                     # Invalid standalone property selector - this is likely a parsing error
                     # where a member access like 'viz.timeInterval.start.date' was incorrectly split
-                    prop_name = selector['property']
+                    prop_name = selector["property"]
                     # Remove the invalid selector entirely
-                    del data['selector']
-                elif isinstance(selector, dict) and 'property' in selector:
+                    del data["selector"]
+                elif isinstance(selector, dict) and "property" in selector:
                     # If it's a property reference that's part of a larger expression, ensure it has the right structure
                     # Property references in selectors should be propertyRef objects
-                    if 'op' not in selector and 'args' not in selector:
+                    if "op" not in selector and "args" not in selector:
                         # This is a bare property reference, which is invalid in selector context
-                        del data['selector']
+                        del data["selector"]
             # Recursively fix nested structures
             for value in data.values():
                 if isinstance(value, (dict, list)):
@@ -94,22 +104,24 @@ class Converter:
         elif isinstance(data, list):
             for item in data:
                 self._fix_invalid_selectors(item)
-    
+
     def csjson_to_style(self, csjson_input: Union[str, Dict[str, Any], Path]) -> Style:
         """
         Convert CSJSON to CartoSym Style model.
-        
+
         Args:
             csjson_input: CSJSON string, dictionary, or file path
-            
+
         Returns:
             Validated Style model
         """
         if isinstance(csjson_input, Style):
             return csjson_input
-        elif isinstance(csjson_input, Path) or (isinstance(csjson_input, str) and Path(csjson_input).exists()):
+        elif isinstance(csjson_input, Path) or (
+            isinstance(csjson_input, str) and Path(csjson_input).exists()
+        ):
             file_path = self._resolve_path(csjson_input)
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
             return Style.from_json(content)
         elif isinstance(csjson_input, str):
@@ -119,24 +131,26 @@ class Converter:
             # Parse dictionary
             return Style.from_dict(csjson_input)
         else:
-            raise ValueError("Invalid input type - expected str, dict, Path, or Style model")
-    
+            raise ValueError(
+                "Invalid input type - expected str, dict, Path, or Style model"
+            )
+
     def csjson_to_cscss(self, csjson_input: Union[str, Dict[str, Any], Path]) -> str:
         """
         Convert CSJSON to CartoSym CSS (CSCSS) format.
-        
+
         Args:
             csjson_input: CSJSON string, dictionary, or file path
-            
+
         Returns:
             CSCSS string representation
         """
         # First convert to Style model for validation
         style = self.csjson_to_style(csjson_input)
-        
+
         # Then convert Style to CSS
         return self.style_to_cscss(style)
-    
+
     def style_to_cscss(self, style: Style) -> str:
         """
         Convert Style model to CSCSS string with pretty-print indentation.
@@ -144,22 +158,22 @@ class Converter:
         lines = []
         # Add metadata as CSCSS directives
         if style.metadata:
-            if getattr(style.metadata, 'title', None):
+            if getattr(style.metadata, "title", None):
                 lines.append(f".title '{style.metadata.title}'")
-            if getattr(style.metadata, 'abstract', None):
+            if getattr(style.metadata, "abstract", None):
                 lines.append(f".abstract '{style.metadata.abstract}'")
-            if getattr(style.metadata, 'description', None):
+            if getattr(style.metadata, "description", None):
                 lines.append(f".description '{style.metadata.description}'")
-            if getattr(style.metadata, 'authors', None):
+            if getattr(style.metadata, "authors", None):
                 for author in style.metadata.authors:
                     lines.append(f'.author "{author}"')
-            if getattr(style.metadata, 'keywords', None):
+            if getattr(style.metadata, "keywords", None):
                 kw = style.metadata.keywords
-                kw_str = ', '.join(kw) if isinstance(kw, list) else kw
+                kw_str = ", ".join(kw) if isinstance(kw, list) else kw
                 lines.append(f".keywords '{kw_str}'")
-            if getattr(style.metadata, 'geoDataClasses', None):
+            if getattr(style.metadata, "geoDataClasses", None):
                 gc = style.metadata.geoDataClasses
-                gc_str = ', '.join(gc) if isinstance(gc, list) else gc
+                gc_str = ", ".join(gc) if isinstance(gc, list) else gc
                 lines.append(f".geoDataClasses '{gc_str}'")
             lines.append("")  # Empty line after metadata
 
@@ -168,12 +182,12 @@ class Converter:
             lines.extend(self._rule_to_css(rule, emit_nested=True, indent=0))
             lines.append("")  # Empty line between rules
 
-        return '\n'.join(lines).strip()
-    
+        return "\n".join(lines).strip()
+
     def _rule_to_css(self, rule, emit_nested=True, indent=0) -> list:
         """Convert StylingRule model to CSS lines with pretty-print indentation."""
         lines = []
-        pad = '    ' * indent
+        pad = "    " * indent
         # Add rule comment if present
         if rule.comment:
             lines.append(f"{pad}/* {rule.comment} */")
@@ -184,15 +198,17 @@ class Converter:
         # Add symbolizer
         lines.append(f"{pad}{{")
         # Emit .name directive only when stylingRuleName is explicitly set
-        if getattr(rule, 'styling_rule_name', None):
+        if getattr(rule, "styling_rule_name", None):
             lines.append(f"{pad}    .name '{rule.styling_rule_name}'")
         if rule.symbolizer:
-            for l in self._symbolizer_to_css(rule.symbolizer, indent=indent+1):
+            for l in self._symbolizer_to_css(rule.symbolizer, indent=indent + 1):
                 lines.append(f"{pad}    {l.lstrip()}")
         # Emit nested rules only within this block
-        if emit_nested and getattr(rule, 'nested_rules', None):
+        if emit_nested and getattr(rule, "nested_rules", None):
             for nested_rule in rule.nested_rules:
-                lines.extend(self._rule_to_css(nested_rule, emit_nested=True, indent=indent+1))
+                lines.extend(
+                    self._rule_to_css(nested_rule, emit_nested=True, indent=indent + 1)
+                )
         lines.append(f"{pad}}}")
         return lines
 
@@ -216,46 +232,52 @@ class Converter:
         if isinstance(selector, dict):
             # Special case: simple dataLayer.id = value → emit bare identifier
             if (
-                selector.get('op') == '='
-                and isinstance(selector.get('args'), list)
-                and len(selector['args']) == 2
-                and isinstance(selector['args'][0], dict)
-                and selector['args'][0].get('sysId') == 'dataLayer.id'
+                selector.get("op") == "="
+                and isinstance(selector.get("args"), list)
+                and len(selector["args"]) == 2
+                and isinstance(selector["args"][0], dict)
+                and selector["args"][0].get("sysId") == "dataLayer.id"
             ):
-                id_val = selector['args'][1]
-                if isinstance(id_val, dict) and 'property' in id_val:
-                    id_val = id_val['property']
+                id_val = selector["args"][1]
+                if isinstance(id_val, dict) and "property" in id_val:
+                    id_val = id_val["property"]
                 id_str = str(id_val)
-                if not id_str.replace('_', '').replace('.', '').isalnum():
+                if not id_str.replace("_", "").replace(".", "").isalnum():
                     id_str = f'"{id_str}"'
                 return id_str
             # Special case: Landuse[filter] form (and-combined with dataLayer.id)
-            if selector.get('op') == 'and' and isinstance(selector.get('args'), list):
-                args = selector['args']
+            if selector.get("op") == "and" and isinstance(selector.get("args"), list):
+                args = selector["args"]
                 id_arg = None
                 other_args = []
                 for arg in args:
                     if (
                         isinstance(arg, dict)
-                        and arg.get('op') == '='
-                        and isinstance(arg.get('args'), list)
-                        and len(arg['args']) == 2
-                        and isinstance(arg['args'][0], dict)
-                        and arg['args'][0].get('sysId') == 'dataLayer.id'
+                        and arg.get("op") == "="
+                        and isinstance(arg.get("args"), list)
+                        and len(arg["args"]) == 2
+                        and isinstance(arg["args"][0], dict)
+                        and arg["args"][0].get("sysId") == "dataLayer.id"
                     ):
-                        landuse_val = arg['args'][1]
-                        if isinstance(landuse_val, dict) and 'property' in landuse_val:
-                            landuse_val = landuse_val['property']
+                        landuse_val = arg["args"][1]
+                        if isinstance(landuse_val, dict) and "property" in landuse_val:
+                            landuse_val = landuse_val["property"]
                         id_arg = landuse_val
                     else:
                         other_args.append(arg)
                 if id_arg is not None:
                     # Quote the id if it contains special characters (e.g. hyphens)
                     id_str = str(id_arg)
-                    if not id_str.replace('_', '').replace('.', '').isalnum():
+                    if not id_str.replace("_", "").replace(".", "").isalnum():
                         id_str = f'"{id_str}"'
                     if other_args:
-                        filter_str = self._format_selector_expr(other_args[0]) if len(other_args) == 1 else self._format_selector_expr({'op': 'and', 'args': other_args})
+                        filter_str = (
+                            self._format_selector_expr(other_args[0])
+                            if len(other_args) == 1
+                            else self._format_selector_expr(
+                                {"op": "and", "args": other_args}
+                            )
+                        )
                         return f"{id_str}[{filter_str}]"
                     else:
                         return id_str
@@ -283,38 +305,41 @@ class Converter:
                 return s  # numeric literal – no quotes
             except ValueError:
                 pass
-            if s.lower() in ('true', 'false', 'null'):
+            if s.lower() in ("true", "false", "null"):
                 return s
             # Plain string value → single-quote it
             return f"'{s}'"
         # Handle bare property reference (e.g., {"property": "viz.date"})
-        if 'property' in expr and len(expr) == 1:
-            return expr['property']
+        if "property" in expr and len(expr) == 1:
+            return expr["property"]
         # Handle date literal (e.g., {"date": "2020-01-01"} → DATE('2020-01-01'))
-        if 'date' in expr and len(expr) == 1:
+        if "date" in expr and len(expr) == 1:
             return f"DATE('{expr['date']}')"
         # Handle timestamp literal
-        if 'timestamp' in expr and len(expr) == 1:
+        if "timestamp" in expr and len(expr) == 1:
             return f"TIMESTAMP('{expr['timestamp']}')"
         # Handle interval literal
-        if 'interval' in expr and len(expr) == 1:
-            parts = expr['interval']
+        if "interval" in expr and len(expr) == 1:
+            parts = expr["interval"]
             args = ", ".join(f"'{p}'" for p in parts)
             return f"INTERVAL({args})"
         # Handle BBOX literal
-        if 'bbox' in expr and len(expr) == 1:
-            vals = ", ".join(str(v) for v in expr['bbox'])
+        if "bbox" in expr and len(expr) == 1:
+            vals = ", ".join(str(v) for v in expr["bbox"])
             return f"BBOX({vals})"
         # Handle GeoJSON geometry literal (has "type" + "coordinates" or "geometries")
-        if 'type' in expr and ('coordinates' in expr or 'geometries' in expr):
+        if "type" in expr and ("coordinates" in expr or "geometries" in expr):
             return self._geojson_to_wkt(expr)
         # Function call formatting (legacy "function" key or "op" key for non-operator functions)
-        if 'function' in expr and 'args' in expr:
-            func_name = expr['function']
-            args = expr['args']
+        if "function" in expr and "args" in expr:
+            func_name = expr["function"]
+            args = expr["args"]
+
             def format_arg(a):
                 if isinstance(a, str):
-                    if (a.startswith("'") and a.endswith("'")) or (a.startswith('"') and a.endswith('"')):
+                    if (a.startswith("'") and a.endswith("'")) or (
+                        a.startswith('"') and a.endswith('"')
+                    ):
                         return a
                     try:
                         float(a)
@@ -322,35 +347,55 @@ class Converter:
                     except Exception:
                         return f"'{a}'"
                 return self._format_selector_expr(a)
+
             args_str = ", ".join(format_arg(a) for a in args)
             return f"{func_name}({args_str})"
-        op = expr.get('op')
-        args = expr.get('args', [])
+        op = expr.get("op")
+        args = expr.get("args", [])
         if op and isinstance(args, list):
             # Standard infix operators
-            _INFIX_OPERATORS = {'and', 'or', '=', '!=', '<', '>', '<=', '>=',
-                                '+', '-', '*', '/'}
+            _INFIX_OPERATORS = {
+                "and",
+                "or",
+                "=",
+                "!=",
+                "<",
+                ">",
+                "<=",
+                ">=",
+                "+",
+                "-",
+                "*",
+                "/",
+            }
 
             # --- CQL2 predicate function-call ops (S_INTERSECTS, T_BEFORE, etc.) ---
-            op_lower = op.lower() if isinstance(op, str) else ''
-            if op_lower.startswith('s_') or op_lower.startswith('t_') or op_lower.startswith('a_'):
+            op_lower = op.lower() if isinstance(op, str) else ""
+            if (
+                op_lower.startswith("s_")
+                or op_lower.startswith("t_")
+                or op_lower.startswith("a_")
+            ):
                 # Spatial/temporal/array predicates → FUNC(args)
                 cql2_name = op.upper()
+
                 def fmt_cql2_arg(a):
                     return self._format_selector_expr(a)
-                if op_lower == 's_relate':
+
+                if op_lower == "s_relate":
                     # S_RELATE has a pattern as extra field
-                    pattern = expr.get('pattern', '')
+                    pattern = expr.get("pattern", "")
                     geom_args = ", ".join(fmt_cql2_arg(a) for a in args)
                     return f"{cql2_name}({geom_args}, '{pattern}')"
                 args_str = ", ".join(fmt_cql2_arg(a) for a in args)
                 return f"{cql2_name}({args_str})"
 
             # --- Text operation predicates: contains, startsWith, endsWith ---
-            if op_lower in ('contains', 'startswith', 'endswith'):
+            if op_lower in ("contains", "startswith", "endswith"):
                 _text_op_to_cql = {
-                    'contains': 'CONTAINS', 'startswith': 'STARTSWITH',
-                    'endswith': 'ENDSWITH',
+                    "contains": "CONTAINS",
+                    "startswith": "STARTSWITH",
+                    "endswith": "ENDSWITH",
                 }
                 cql_name = _text_op_to_cql[op_lower]
                 args_str = ", ".join(self._format_selector_expr(a) for a in args)
@@ -359,8 +404,13 @@ class Converter:
             # --- Character expression functions: casei, accenti, lowerCase, upperCase,
             #     concatenate, substitute, format ---
             _char_func_ops = {
-                'casei', 'accenti', 'lowercase', 'uppercase',
-                'concatenate', 'substitute', 'format',
+                "casei",
+                "accenti",
+                "lowercase",
+                "uppercase",
+                "concatenate",
+                "substitute",
+                "format",
             }
             if op_lower in _char_func_ops:
                 cql_name = op.upper()
@@ -368,14 +418,14 @@ class Converter:
                 return f"{cql_name}({args_str})"
 
             # --- BETWEEN: {"op": "between", "args": [val, lo, hi]} ---
-            if op_lower == 'between' and len(args) == 3:
+            if op_lower == "between" and len(args) == 3:
                 val = self._format_selector_expr(args[0])
                 lo = self._format_selector_expr(args[1])
                 hi = self._format_selector_expr(args[2])
                 return f"{val} BETWEEN {lo} AND {hi}"
 
             # --- IN: {"op": "in", "args": [val, [item1, item2, ...]]} ---
-            if op_lower == 'in' and len(args) >= 2:
+            if op_lower == "in" and len(args) >= 2:
                 val = self._format_selector_expr(args[0])
                 if isinstance(args[1], list):
                     items = ", ".join(self._format_selector_expr(i) for i in args[1])
@@ -384,58 +434,75 @@ class Converter:
                 return f"{val} IN ({items})"
 
             # --- LIKE / ILIKE: {"op": "like", "args": [val, pattern]} ---
-            if op_lower in ('like', 'ilike') and len(args) >= 2:
+            if op_lower in ("like", "ilike") and len(args) >= 2:
                 val = self._format_selector_expr(args[0])
                 pat = self._format_selector_expr(args[1])
                 return f"{val} {op.upper()} {pat}"
 
             # --- IS NULL: {"op": "isNull", "args": [val]} ---
-            if op_lower == 'isnull' and len(args) == 1:
+            if op_lower == "isnull" and len(args) == 1:
                 val = self._format_selector_expr(args[0])
                 return f"{val} IS NULL"
 
             # --- NOT: {"op": "not", "args": [inner]} ---
-            if op_lower == 'not' and len(args) == 1:
+            if op_lower == "not" and len(args) == 1:
                 inner = args[0]
                 # Detect NOT BETWEEN, NOT IN, NOT LIKE, IS NOT NULL
                 if isinstance(inner, dict):
-                    inner_op = (inner.get('op') or '').lower()
-                    inner_args = inner.get('args', [])
-                    if inner_op == 'between' and len(inner_args) == 3:
+                    inner_op = (inner.get("op") or "").lower()
+                    inner_args = inner.get("args", [])
+                    if inner_op == "between" and len(inner_args) == 3:
                         val = self._format_selector_expr(inner_args[0])
                         lo = self._format_selector_expr(inner_args[1])
                         hi = self._format_selector_expr(inner_args[2])
                         return f"{val} NOT BETWEEN {lo} AND {hi}"
-                    if inner_op == 'in' and len(inner_args) >= 2:
+                    if inner_op == "in" and len(inner_args) >= 2:
                         val = self._format_selector_expr(inner_args[0])
                         if isinstance(inner_args[1], list):
-                            items = ", ".join(self._format_selector_expr(i) for i in inner_args[1])
+                            items = ", ".join(
+                                self._format_selector_expr(i) for i in inner_args[1]
+                            )
                         else:
-                            items = ", ".join(self._format_selector_expr(a) for a in inner_args[1:])
+                            items = ", ".join(
+                                self._format_selector_expr(a) for a in inner_args[1:]
+                            )
                         return f"{val} NOT IN ({items})"
-                    if inner_op in ('like', 'ilike') and len(inner_args) >= 2:
+                    if inner_op in ("like", "ilike") and len(inner_args) >= 2:
                         val = self._format_selector_expr(inner_args[0])
                         pat = self._format_selector_expr(inner_args[1])
                         return f"{val} NOT {inner_op.upper()} {pat}"
-                    if inner_op == 'isnull' and len(inner_args) == 1:
+                    if inner_op == "isnull" and len(inner_args) == 1:
                         val = self._format_selector_expr(inner_args[0])
                         return f"{val} IS NOT NULL"
                 return f"NOT {self._format_selector_expr(inner)}"
 
             # Format n-ary ops (like 'and', 'or')
-            if op in ('and', 'or'):
+            if op in ("and", "or"):
+
                 def needs_parens(arg):
-                    return isinstance(arg, dict) and arg.get('op') in ('and', 'or') and arg.get('op') != op
+                    return (
+                        isinstance(arg, dict)
+                        and arg.get("op") in ("and", "or")
+                        and arg.get("op") != op
+                    )
+
                 joined = f" {op} ".join(
-                    f"({self._format_selector_expr(a)})" if needs_parens(a) else self._format_selector_expr(a)
+                    (
+                        f"({self._format_selector_expr(a)})"
+                        if needs_parens(a)
+                        else self._format_selector_expr(a)
+                    )
                     for a in args
                 )
                 return joined
             # Non-operator "op" values are function calls (e.g. {"op": "Text", "args": [...]})
             if op not in _INFIX_OPERATORS:
+
                 def format_func_arg(a):
                     if isinstance(a, str):
-                        if (a.startswith("'") and a.endswith("'")) or (a.startswith('"') and a.endswith('"')):
+                        if (a.startswith("'") and a.endswith("'")) or (
+                            a.startswith('"') and a.endswith('"')
+                        ):
                             return a
                         try:
                             float(a)
@@ -443,6 +510,7 @@ class Converter:
                         except Exception:
                             return f"'{a}'"
                     return self._format_selector_expr(a)
+
                 args_str = ", ".join(format_func_arg(a) for a in args)
                 return f"{op}({args_str})"
             # Format binary comparison ops
@@ -450,109 +518,113 @@ class Converter:
                 left_arg, right_arg = args[0], args[1]
                 left = self._format_selector_expr(left_arg)
                 # If left side is a sysId, right side is an identifier/enum — don't quote
-                right_quote = not (isinstance(left_arg, dict) and 'sysId' in left_arg)
-                right = self._format_selector_expr(right_arg, _quote_bare_strings=right_quote)
+                right_quote = not (isinstance(left_arg, dict) and "sysId" in left_arg)
+                right = self._format_selector_expr(
+                    right_arg, _quote_bare_strings=right_quote
+                )
                 return f"{left} {op} {right}"
         # Handle sysId
-        if 'sysId' in expr:
-            return expr['sysId']
-        if 'property' in expr:
-            return expr['property']
+        if "sysId" in expr:
+            return expr["sysId"]
+        if "property" in expr:
+            return expr["property"]
         return str(expr)
 
     def _geojson_to_wkt(self, geojson: dict) -> str:
         """Convert a GeoJSON geometry dict to WKT text."""
-        gtype = geojson.get('type', '')
-        coords = geojson.get('coordinates')
+        gtype = geojson.get("type", "")
+        coords = geojson.get("coordinates")
 
-        if gtype == 'Point' and coords:
+        if gtype == "Point" and coords:
             return f"POINT({' '.join(str(c) for c in coords)})"
-        if gtype == 'LineString' and coords:
-            pts = ', '.join(' '.join(str(c) for c in pt) for pt in coords)
+        if gtype == "LineString" and coords:
+            pts = ", ".join(" ".join(str(c) for c in pt) for pt in coords)
             return f"LINESTRING({pts})"
-        if gtype == 'Polygon' and coords:
-            rings = ', '.join(
-                '(' + ', '.join(' '.join(str(c) for c in pt) for pt in ring) + ')'
+        if gtype == "Polygon" and coords:
+            rings = ", ".join(
+                "(" + ", ".join(" ".join(str(c) for c in pt) for pt in ring) + ")"
                 for ring in coords
             )
             return f"POLYGON({rings})"
-        if gtype == 'MultiPoint' and coords:
-            pts = ', '.join('(' + ' '.join(str(c) for c in pt) + ')' for pt in coords)
+        if gtype == "MultiPoint" and coords:
+            pts = ", ".join("(" + " ".join(str(c) for c in pt) + ")" for pt in coords)
             return f"MULTIPOINT({pts})"
-        if gtype == 'MultiLineString' and coords:
-            lines = ', '.join(
-                '(' + ', '.join(' '.join(str(c) for c in pt) for pt in line) + ')'
+        if gtype == "MultiLineString" and coords:
+            lines = ", ".join(
+                "(" + ", ".join(" ".join(str(c) for c in pt) for pt in line) + ")"
                 for line in coords
             )
             return f"MULTILINESTRING({lines})"
-        if gtype == 'MultiPolygon' and coords:
-            polys = ', '.join(
-                '(' + ', '.join(
-                    '(' + ', '.join(' '.join(str(c) for c in pt) for pt in ring) + ')'
+        if gtype == "MultiPolygon" and coords:
+            polys = ", ".join(
+                "("
+                + ", ".join(
+                    "(" + ", ".join(" ".join(str(c) for c in pt) for pt in ring) + ")"
                     for ring in poly
-                ) + ')'
+                )
+                + ")"
                 for poly in coords
             )
             return f"MULTIPOLYGON({polys})"
-        if gtype == 'GeometryCollection':
-            geoms = geojson.get('geometries', [])
-            parts = ', '.join(self._geojson_to_wkt(g) for g in geoms)
+        if gtype == "GeometryCollection":
+            geoms = geojson.get("geometries", [])
+            parts = ", ".join(self._geojson_to_wkt(g) for g in geoms)
             return f"GEOMETRYCOLLECTION({parts})"
         return str(geojson)
-    
+
     def _symbolizer_to_css(self, symbolizer, indent=1) -> list:
         """Convert Symbolizer model to CSS property lines."""
         lines = []
         # Core symbolizer properties
-        if getattr(symbolizer, 'visibility', None) is not None:
+        if getattr(symbolizer, "visibility", None) is not None:
             lines.append(f"  visibility: {str(symbolizer.visibility).lower()};")
-        if getattr(symbolizer, 'opacity', None) is not None:
+        if getattr(symbolizer, "opacity", None) is not None:
             lines.append(f"  opacity: {symbolizer.opacity};")
         # Support both z_order and zOrder
-        zorder_val = getattr(symbolizer, 'zOrder', None)
+        zorder_val = getattr(symbolizer, "zOrder", None)
         if zorder_val is None:
-            zorder_val = getattr(symbolizer, 'z_order', None)
+            zorder_val = getattr(symbolizer, "z_order", None)
         if zorder_val is not None:
             lines.append(f"  zOrder: {zorder_val};")
         # Vector symbolizers
-        if getattr(symbolizer, 'fill', None):
+        if getattr(symbolizer, "fill", None):
             lines.extend(self._fill_to_css(symbolizer.fill))
-        if getattr(symbolizer, 'stroke', None):
+        if getattr(symbolizer, "stroke", None):
             lines.extend(self._stroke_to_css(symbolizer.stroke))
-        if getattr(symbolizer, 'marker', None):
+        if getattr(symbolizer, "marker", None):
             lines.extend(self._marker_to_css(symbolizer.marker))
-        if getattr(symbolizer, 'label', None):
+        if getattr(symbolizer, "label", None):
             lines.extend(self._label_to_css(symbolizer.label))
         # Coverage / raster symbolizer properties
         # Use explicit None-check (not `or`) to correctly handle 0 / 0.0 / False
-        sc = getattr(symbolizer, 'single_channel', None)
+        sc = getattr(symbolizer, "single_channel", None)
         if sc is None:
-            sc = getattr(symbolizer, 'singleChannel', None)
+            sc = getattr(symbolizer, "singleChannel", None)
         if sc is not None:
             lines.append(f"  singleChannel: {self._channel_expr_to_css(sc)};")
-        cc = getattr(symbolizer, 'color_channels', None)
+        cc = getattr(symbolizer, "color_channels", None)
         if cc is None:
-            cc = getattr(symbolizer, 'colorChannels', None)
+            cc = getattr(symbolizer, "colorChannels", None)
         if cc is not None:
             lines.append(f"  colorChannels: {self._channels_to_css(cc)};")
-        ac = getattr(symbolizer, 'alpha_channel', None)
+        ac = getattr(symbolizer, "alpha_channel", None)
         if ac is None:
-            ac = getattr(symbolizer, 'alphaChannel', None)
+            ac = getattr(symbolizer, "alphaChannel", None)
         if ac is not None:
             lines.append(f"  alphaChannel: {self._channel_expr_to_css(ac)};")
-        cm = getattr(symbolizer, 'color_map', None)
+        cm = getattr(symbolizer, "color_map", None)
         if cm is None:
-            cm = getattr(symbolizer, 'colorMap', None)
+            cm = getattr(symbolizer, "colorMap", None)
         if cm is not None:
             lines.append(f"  colorMap: {self._color_map_to_css(cm)};")
-        om = getattr(symbolizer, 'opacity_map', None)
+        om = getattr(symbolizer, "opacity_map", None)
         if om is None:
-            om = getattr(symbolizer, 'opacityMap', None)
+            om = getattr(symbolizer, "opacityMap", None)
         if om is not None:
             lines.append(f"  opacityMap: {self._opacity_map_to_css(om)};")
-        hs = getattr(symbolizer, 'hill_shading', None)
+        hs = getattr(symbolizer, "hill_shading", None)
         if hs is None:
-            hs = getattr(symbolizer, 'hillShading', None)
+            hs = getattr(symbolizer, "hillShading", None)
         if hs is not None:
             lines.extend(self._hill_shading_to_css(hs, sym_indent=indent))
         return lines
@@ -560,25 +632,25 @@ class Converter:
     def _channel_expr_to_css(self, expr) -> str:
         """Format a channel expression (property-ref, arithmetic expr, or string) to CSCSS."""
         if isinstance(expr, dict):
-            if 'property' in expr:
-                return expr['property']
-            if 'op' in expr:
+            if "property" in expr:
+                return expr["property"]
+            if "op" in expr:
                 return self._arith_expr_to_css(expr)
         return str(expr)
 
     def _arith_expr_to_css(self, expr) -> str:
         """Recursively convert an arithmetic expression dict back to CSCSS string."""
         if isinstance(expr, dict):
-            if 'property' in expr:
-                return expr['property']
-            if 'op' in expr and 'args' in expr:
-                op = expr['op']
-                args = [self._arith_expr_to_css(a) for a in expr['args']]
-                if op in ('*', '/', '+', '-'):
+            if "property" in expr:
+                return expr["property"]
+            if "op" in expr and "args" in expr:
+                op = expr["op"]
+                args = [self._arith_expr_to_css(a) for a in expr["args"]]
+                if op in ("*", "/", "+", "-"):
                     left, right = args[0], args[1]
                     # Wrap sub-expressions in parens when needed to preserve precedence
                     return f"({left} {op} {right})"
-                return ' '.join([op] + args)
+                return " ".join([op] + args)
         if isinstance(expr, (int, float)):
             return str(expr)
         return str(expr)
@@ -586,7 +658,7 @@ class Converter:
     def _channels_to_css(self, channels) -> str:
         """Format colorChannels (list of property-refs or single expr) to CSCSS."""
         if isinstance(channels, list):
-            return ' '.join(self._channel_expr_to_css(c) for c in channels)
+            return " ".join(self._channel_expr_to_css(c) for c in channels)
         return self._channel_expr_to_css(channels)
 
     def _color_entry_to_css(self, entry) -> str:
@@ -595,9 +667,13 @@ class Converter:
             threshold = entry[0]
             color = entry[1]
             if isinstance(color, (list, tuple)) and len(color) == 3:
-                color_str = '{} {} {}'.format(int(color[0]), int(color[1]), int(color[2]))
-            elif isinstance(color, dict) and 'r' in color:
-                color_str = '{} {} {}'.format(int(color['r']), int(color['g']), int(color['b']))
+                color_str = "{} {} {}".format(
+                    int(color[0]), int(color[1]), int(color[2])
+                )
+            elif isinstance(color, dict) and "r" in color:
+                color_str = "{} {} {}".format(
+                    int(color["r"]), int(color["g"]), int(color["b"])
+                )
             else:
                 color_str = self._format_color(color)
             return f"{threshold} {color_str}"
@@ -606,7 +682,7 @@ class Converter:
     def _color_map_to_css(self, color_map) -> str:
         """Format colorMap to CSCSS array syntax: [v1 r g b, v2 name, ...]."""
         if isinstance(color_map, list):
-            entries = ', '.join(self._color_entry_to_css(e) for e in color_map)
+            entries = ", ".join(self._color_entry_to_css(e) for e in color_map)
             return f"[{entries}]"
         return str(color_map)
 
@@ -619,7 +695,7 @@ class Converter:
                     entries.append(f"{e[0]} {e[1]}")
                 else:
                     entries.append(str(e))
-            return '[' + ', '.join(entries) + ']'
+            return "[" + ", ".join(entries) + "]"
         return str(opacity_map)
 
     def _hill_shading_to_css(self, hill_shading, sym_indent=1) -> list:
@@ -627,17 +703,17 @@ class Converter:
         if not isinstance(hill_shading, dict):
             return []
         parts = []
-        factor = hill_shading.get('factor')
+        factor = hill_shading.get("factor")
         if factor is not None:
             parts.append(f"factor: {factor}")
-        sun = hill_shading.get('sun')
+        sun = hill_shading.get("sun")
         if sun and isinstance(sun, dict):
-            sun_parts = '; '.join(f"{k}: {v}" for k, v in sun.items())
+            sun_parts = "; ".join(f"{k}: {v}" for k, v in sun.items())
             parts.append(f"sun: {{{sun_parts}}}")
-        cm = hill_shading.get('colorMap')
+        cm = hill_shading.get("colorMap")
         if cm is not None:
             parts.append(f"colorMap: {self._color_map_to_css(cm)}")
-        om = hill_shading.get('opacityMap')
+        om = hill_shading.get("opacityMap")
         if om is not None:
             parts.append(f"opacityMap: {self._opacity_map_to_css(om)}")
         if not parts:
@@ -646,12 +722,11 @@ class Converter:
         # first line (caller does lstrip + re-indent). Continuation lines carry
         # absolute indentation: sym_indent levels for the closing }, and
         # sym_indent+1 levels for the inner properties.
-        inner_pad = '    ' * (sym_indent + 1)
-        close_pad = '    ' * sym_indent
-        sep = ';\n' + inner_pad
+        inner_pad = "    " * (sym_indent + 1)
+        close_pad = "    " * sym_indent
+        sep = ";\n" + inner_pad
         inner = sep.join(parts)
         return [f"hillShading: {{\n{inner_pad}{inner};\n{close_pad}}};"]
-
 
     def _marker_to_css(self, marker) -> list:
         """Convert Marker model to CSS lines.
@@ -661,14 +736,14 @@ class Converter:
         * Indexed override → ``marker.elements[N]: Type { ... };``
         """
         lines = []
-        elements = getattr(marker, 'elements', None)
+        elements = getattr(marker, "elements", None)
         if not elements:
             return lines
 
         # ── Indexed override: marker.elements[N]: Type { ... } ────────────────
-        if isinstance(elements, dict) and 'index' in elements and 'value' in elements:
-            idx = elements['index']
-            el = elements['value']
+        if isinstance(elements, dict) and "index" in elements and "value" in elements:
+            idx = elements["index"]
+            el = elements["value"]
             lines.append(f"  marker.elements[{idx}]:")
             lines.append(f"     {self._graphic_element_to_css_block(el, indent=15)};")
             return lines
@@ -677,44 +752,53 @@ class Converter:
         element_strs = []
         for el in (elements if isinstance(elements, list) else [elements]):
             element_strs.append(self._graphic_element_to_css_block(el, indent=15))
-        elements_block = '[\n                ' + ',\n                '.join(element_strs) + '\n             ]'
+        elements_block = (
+            "[\n                "
+            + ",\n                ".join(element_strs)
+            + "\n             ]"
+        )
         lines.append(f"  marker: {{elements: {elements_block}}};")
         return lines
 
     def _label_to_css(self, label) -> list:
         """Convert Label model to CSS lines."""
         lines = []
-        elements = getattr(label, 'elements', None)
+        elements = getattr(label, "elements", None)
         if not elements:
             return lines
         element_strs = []
         for el in (elements if isinstance(elements, list) else [elements]):
             element_strs.append(self._graphic_element_to_css_block(el, indent=15))
-        elements_block = '[\n                ' + ',\n                '.join(element_strs) + '\n             ]'
+        elements_block = (
+            "[\n                "
+            + ",\n                ".join(element_strs)
+            + "\n             ]"
+        )
         lines.append(f"  label: {{elements: {elements_block}}};")
         return lines
 
     def _graphic_element_to_css_block(self, el, indent: int = 0) -> str:
         """Render a single graphic element as a CSS block, e.g. ``Dot { ... }``."""
+
         def _get(o, k):
             return o.get(k) if isinstance(o, dict) else getattr(o, k, None)
 
-        el_type = _get(el, 'type') or 'Graphic'
-        pad = ' ' * indent
-        inner_pad = ' ' * (indent + 3)
+        el_type = _get(el, "type") or "Graphic"
+        pad = " " * indent
+        inner_pad = " " * (indent + 3)
 
         prop_lines = []
 
         # position
-        pos = _get(el, 'position')
+        pos = _get(el, "position")
         if pos is not None:
-            if hasattr(pos, 'x') and hasattr(pos, 'y'):
+            if hasattr(pos, "x") and hasattr(pos, "y"):
                 prop_lines.append(f"position: {pos.x} {pos.y}")
-            elif isinstance(pos, dict) and 'x' in pos and 'y' in pos:
+            elif isinstance(pos, dict) and "x" in pos and "y" in pos:
                 prop_lines.append(f"position: {pos['x']} {pos['y']}")
 
         # size
-        size = _get(el, 'size')
+        size = _get(el, "size")
         if size is not None:
             if isinstance(size, dict) and len(size) == 1:
                 unit, val = next(iter(size.items()))
@@ -723,14 +807,14 @@ class Converter:
                 prop_lines.append(f"size: {size}")
 
         # color
-        color = _get(el, 'color')
+        color = _get(el, "color")
         if color is not None:
             prop_lines.append(f"color: {self._format_color(color)}")
 
         # text — property ref → bare identifier; plain string → quoted
-        text = _get(el, 'text')
+        text = _get(el, "text")
         if text is not None:
-            if isinstance(text, dict) and 'property' in text:
+            if isinstance(text, dict) and "property" in text:
                 prop_lines.append(f"text: {text['property']}")
             elif isinstance(text, str):
                 prop_lines.append(f"text: '{text}'")
@@ -738,7 +822,7 @@ class Converter:
                 prop_lines.append(f"text: {text}")
 
         # alignment
-        alignment = _get(el, 'alignment')
+        alignment = _get(el, "alignment")
         if alignment is not None:
             if isinstance(alignment, list) and len(alignment) == 2:
                 prop_lines.append(f"alignment: {alignment[0]} {alignment[1]}")
@@ -748,7 +832,7 @@ class Converter:
             # empty dict — emit nothing (no information to preserve)
 
         # position2D
-        pos2d = _get(el, 'position2D') or _get(el, 'position_2d')
+        pos2d = _get(el, "position2D") or _get(el, "position_2d")
         if pos2d is not None:
             if isinstance(pos2d, dict) and pos2d:
                 vals = list(pos2d.values())
@@ -758,42 +842,44 @@ class Converter:
             # empty dict — emit nothing (no information to preserve)
 
         # font
-        font = _get(el, 'font')
+        font = _get(el, "font")
         if font is not None:
             if isinstance(font, dict):
                 fp = []
                 for k, v in font.items():
-                    if k == 'face' and isinstance(v, str):
+                    if k == "face" and isinstance(v, str):
                         fv = f"'{v}'"
-                    elif k == 'color':
+                    elif k == "color":
                         fv = self._format_color(v)
-                    elif k == 'outline' and isinstance(v, dict):
+                    elif k == "outline" and isinstance(v, dict):
                         # Serialize outline as CSCSS inline object: {key: val; ...}
                         out_parts = []
                         for ok, ov in v.items():
-                            if ok == 'color':
+                            if ok == "color":
                                 ovf = self._format_color(ov)
                             elif isinstance(ov, bool):
                                 ovf = str(ov).lower()
                             else:
                                 ovf = ov
                             out_parts.append(f"{ok}: {ovf}")
-                        fv = '{' + '; '.join(out_parts) + '}'
+                        fv = "{" + "; ".join(out_parts) + "}"
                     elif isinstance(v, bool):
                         fv = str(v).lower()
                     else:
                         fv = v
                     fp.append(f"{k}: {fv}")
-                font_inner = (';\n' + inner_pad + '   ').join(fp)
-                prop_lines.append(f"font: {{\n{inner_pad}   {font_inner};\n{inner_pad}}}")
+                font_inner = (";\n" + inner_pad + "   ").join(fp)
+                prop_lines.append(
+                    f"font: {{\n{inner_pad}   {font_inner};\n{inner_pad}}}"
+                )
             else:
                 prop_lines.append(f"font: {font}")
 
         # image resource (Image type)
-        image = _get(el, 'image')
+        image = _get(el, "image")
         if image is not None:
             res_parts = []
-            for k in ('uri', 'path', 'id', 'type', 'ext'):
+            for k in ("uri", "path", "id", "type", "ext"):
                 v = _get(image, k)
                 if v is not None:
                     res_parts.append(f"{k}: '{v}'")
@@ -801,7 +887,7 @@ class Converter:
                 prop_lines.append(f"image: {{{'; '.join(res_parts)}}}")
 
         # hotSpot — list of {unit: val} → "val unit val unit ..."
-        hot_spot = _get(el, 'hotSpot') or _get(el, 'hot_spot')
+        hot_spot = _get(el, "hotSpot") or _get(el, "hot_spot")
         if hot_spot is not None:
             if isinstance(hot_spot, list):
                 parts = []
@@ -809,7 +895,7 @@ class Converter:
                     if isinstance(item, dict) and len(item) == 1:
                         unit, val = next(iter(item.items()))
                         parts.append(f"{val} {unit}")
-                    elif hasattr(item, 'value') and hasattr(item, 'unit'):
+                    elif hasattr(item, "value") and hasattr(item, "unit"):
                         parts.append(f"{item.value} {item.unit}")
                     else:
                         parts.append(str(item))
@@ -818,28 +904,30 @@ class Converter:
                 prop_lines.append(f"hotSpot: {hot_spot}")
 
         # tint / blackTint / alphaThreshold
-        tint = _get(el, 'tint')
+        tint = _get(el, "tint")
         if tint is not None:
             prop_lines.append(f"tint: {tint}")
 
-        black_tint = _get(el, 'blackTint') or _get(el, 'black_tint')
+        black_tint = _get(el, "blackTint") or _get(el, "black_tint")
         if black_tint is not None:
             prop_lines.append(f"blackTint: {black_tint}")
 
-        alpha_threshold = _get(el, 'alphaThreshold') or _get(el, 'alpha_threshold')
+        alpha_threshold = _get(el, "alphaThreshold") or _get(el, "alpha_threshold")
         if alpha_threshold is not None:
             prop_lines.append(f"alphaThreshold: {alpha_threshold}")
 
         # opacity (only when non-default for elements other than font)
-        opacity = _get(el, 'opacity')
-        if opacity is not None and 'font' not in [p.split(':')[0].strip() for p in prop_lines]:
+        opacity = _get(el, "opacity")
+        if opacity is not None and "font" not in [
+            p.split(":")[0].strip() for p in prop_lines
+        ]:
             prop_lines.append(f"opacity: {opacity}")
 
-        body = (';\n' + inner_pad).join(prop_lines)
+        body = (";\n" + inner_pad).join(prop_lines)
         if prop_lines:
-            body += ';'
+            body += ";"
         return f"{el_type} {{\n{inner_pad}{body}\n{pad}}}"
-    
+
     def _format_color(self, color) -> str:
         """Format a color value for CSCSS output.
         - [r, g, b] integer array → '#rrggbb' hex
@@ -848,20 +936,24 @@ class Converter:
         """
         if isinstance(color, list) and len(color) == 3:
             try:
-                return '#{:02x}{:02x}{:02x}'.format(int(color[0]), int(color[1]), int(color[2]))
+                return "#{:02x}{:02x}{:02x}".format(
+                    int(color[0]), int(color[1]), int(color[2])
+                )
             except (TypeError, ValueError):
                 pass
-        if isinstance(color, dict) and all(k in color for k in ('r', 'g', 'b')):
+        if isinstance(color, dict) and all(k in color for k in ("r", "g", "b")):
             try:
-                return '#{:02x}{:02x}{:02x}'.format(int(color['r']), int(color['g']), int(color['b']))
+                return "#{:02x}{:02x}{:02x}".format(
+                    int(color["r"]), int(color["g"]), int(color["b"])
+                )
             except (TypeError, ValueError):
                 pass
         return str(color)
 
     def _format_unit_value(self, uv) -> str:
         """Format a UnitValue (or {unit: val} dict) as CSCSS syntax, e.g. '2.0 px'."""
-        if hasattr(uv, 'value') and hasattr(uv, 'unit'):
-            unit_str = uv.unit.value if hasattr(uv.unit, 'value') else str(uv.unit)
+        if hasattr(uv, "value") and hasattr(uv, "unit"):
+            unit_str = uv.unit.value if hasattr(uv.unit, "value") else str(uv.unit)
             return f"{uv.value} {unit_str}"
         if isinstance(uv, dict) and len(uv) == 1:
             unit, val = next(iter(uv.items()))
@@ -871,9 +963,9 @@ class Converter:
     def _fill_to_css(self, fill) -> list:
         """Convert Fill model to CSS lines."""
         lines = []
-        color = getattr(fill, 'color', None)
-        opacity = getattr(fill, 'opacity', None)
-        is_alter = getattr(fill, 'alter', None)
+        color = getattr(fill, "color", None)
+        opacity = getattr(fill, "opacity", None)
+        is_alter = getattr(fill, "alter", None)
 
         if is_alter:
             # Alter mode: use dot-notation
@@ -892,13 +984,13 @@ class Converter:
 
         # TODO: Add pattern support
         return lines
-    
+
     def _stroke_to_css(self, stroke) -> list:
         """Convert Stroke model to CSS lines."""
-        color = getattr(stroke, 'color', None)
-        width = getattr(stroke, 'width', None)
-        opacity = getattr(stroke, 'opacity', None)
-        is_alter = getattr(stroke, 'alter', None)
+        color = getattr(stroke, "color", None)
+        width = getattr(stroke, "width", None)
+        opacity = getattr(stroke, "opacity", None)
+        is_alter = getattr(stroke, "alter", None)
 
         if is_alter:
             # Alter mode: use dot-notation
@@ -924,23 +1016,30 @@ class Converter:
             return [f"  stroke: {{{'; '.join(parts)}}};"]
 
         return []
-    
+
     def _fix_unit_values(self, data):
         """Fix unit value serialization to match JSON schema format."""
         if isinstance(data, dict):
             # Check if this looks like a unit value with value/unit structure
-            if 'value' in data and 'unit' in data and len(data) == 2:
+            if "value" in data and "unit" in data and len(data) == 2:
                 # This is a unit value that should be converted to {unit: value} format
-                value = data['value']
-                unit = data['unit']
+                value = data["value"]
+                unit = data["unit"]
                 # Replace the dict contents with the correct format
                 data.clear()
                 data[unit] = value
                 return
-            
+
             # Check for string values that should be unit values
             # Common properties that should have unit values
-            unit_properties = ['width', 'height', 'size', 'radius', 'distance', 'spacing']
+            unit_properties = [
+                "width",
+                "height",
+                "size",
+                "radius",
+                "distance",
+                "spacing",
+            ]
             for key, value in list(data.items()):
                 if key in unit_properties and isinstance(value, str):
                     # Try to parse "value unit" format like "8.0 m"
@@ -952,56 +1051,56 @@ class Converter:
         elif isinstance(data, list):
             for item in data:
                 self._fix_unit_values(item)
-    
+
     def _parse_unit_string(self, value_str: str):
         """Parse a string like '8.0 m' or '5 px' into {unit: value} format."""
         if not isinstance(value_str, str):
             return None
-        
+
         parts = value_str.strip().split()
         if len(parts) == 2:
             try:
                 # Parse the numeric value
-                num_value = float(parts[0]) if '.' in parts[0] else int(parts[0])
+                num_value = float(parts[0]) if "." in parts[0] else int(parts[0])
                 unit = parts[1]
                 # Valid units according to JSON schema
-                valid_units = ['px', 'mm', 'cm', 'in', 'pt', 'em', 'pc', 'm', 'ft']
+                valid_units = ["px", "mm", "cm", "in", "pt", "em", "pc", "m", "ft"]
                 if unit in valid_units:
                     return {unit: num_value}
             except ValueError:
                 pass
         return None
-    
+
     def _fix_sysid_expressions(self, data):
         """Fix system identifier expressions that contain comparison operators."""
         if isinstance(data, dict):
-            if 'selector' in data:
-                selector = data['selector']
-                if isinstance(selector, dict) and 'sysId' in selector:
-                    sysid = selector['sysId']
+            if "selector" in data:
+                selector = data["selector"]
+                if isinstance(selector, dict) and "sysId" in selector:
+                    sysid = selector["sysId"]
                     if isinstance(sysid, str):
                         # Check if the sysId contains comparison operators
-                        for op in ['>=', '<=', '!=', '=', '>', '<']:
+                        for op in [">=", "<=", "!=", "=", ">", "<"]:
                             if op in sysid:
                                 # Split the expression
                                 parts = sysid.split(op, 1)
                                 if len(parts) == 2:
                                     left_part = parts[0].strip()
                                     right_part = parts[1].strip()
-                                    
+
                                     # Convert right part to appropriate type
                                     try:
-                                        if '.' in right_part:
+                                        if "." in right_part:
                                             right_value = float(right_part)
                                         else:
                                             right_value = int(right_part)
                                     except ValueError:
-                                        right_value = right_part.strip('\'"')
-                                    
+                                        right_value = right_part.strip("'\"")
+
                                     # Replace the selector with a proper comparison
-                                    data['selector'] = {
+                                    data["selector"] = {
                                         "op": op,
-                                        "args": [{"sysId": left_part}, right_value]
+                                        "args": [{"sysId": left_part}, right_value],
                                     }
                                     break
             # Recursively fix nested structures

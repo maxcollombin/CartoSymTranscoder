@@ -5,11 +5,21 @@ This module converts ANTLR-generated AST nodes to Pydantic models.
 """
 
 import re as _re
-from typing import Dict, Any, List, Optional, Union
-from .ast import StyleSheet as AstStyleSheet, StylingRule as AstStylingRule, Metadata as AstMetadata
+from typing import Any, Dict, List, Optional, Union
+
+from .ast import Metadata as AstMetadata
+from .ast import StyleSheet as AstStyleSheet
+from .ast import StylingRule as AstStylingRule
 from .models import (
-    Style, StylingRule, Metadata, 
-    Symbolizer, Fill, Stroke, Marker, Label, BaseCartoSymModel
+    BaseCartoSymModel,
+    Fill,
+    Label,
+    Marker,
+    Metadata,
+    Stroke,
+    Style,
+    StylingRule,
+    Symbolizer,
 )
 
 
@@ -30,24 +40,24 @@ def _strip_inline_comment(s: str) -> str:
             if i < len(s):
                 result.append(s[i])
                 i += 1
-        elif ch == '/' and i + 1 < len(s) and s[i + 1] == '/':
+        elif ch == "/" and i + 1 < len(s) and s[i + 1] == "/":
             break
         else:
             result.append(ch)
             i += 1
-    return ''.join(result).rstrip()
+    return "".join(result).rstrip()
 
 
 def _parse_resource_string(inner: str) -> dict:
     """Parse ``uri: 'val'; path: 'val'; ...`` (content inside ``{}``) into a
     resource dict, stripping surrounding quotes from each value."""
     result = {}
-    for part in inner.split(';'):
+    for part in inner.split(";"):
         part = part.strip()
         if not part:
             continue
-        if ':' in part:
-            key, _, value = part.partition(':')
+        if ":" in part:
+            key, _, value = part.partition(":")
             key = key.strip()
             value = value.strip().strip("'\"")
             if key:
@@ -61,9 +71,9 @@ def _parse_hotspot_string(s: str) -> list:
     parts = s.strip().split()
     if len(parts) == 4:
         try:
-            x_val = float(parts[0]) if '.' in parts[0] else int(parts[0])
+            x_val = float(parts[0]) if "." in parts[0] else int(parts[0])
             x_unit = parts[1]
-            y_val = float(parts[2]) if '.' in parts[2] else int(parts[2])
+            y_val = float(parts[2]) if "." in parts[2] else int(parts[2])
             y_unit = parts[3]
             return [{x_unit: x_val}, {y_unit: y_val}]
         except (ValueError, IndexError):
@@ -83,16 +93,16 @@ def _parse_nested_props(props_str: str) -> dict:
     current = ""
     depth = 0
     for char in props_str:
-        if char == '{':
+        if char == "{":
             depth += 1
             current += char
-        elif char == '}':
+        elif char == "}":
             if depth > 0:
                 depth -= 1
                 current += char
             else:
                 break
-        elif char in (';', ',') and depth == 0:
+        elif char in (";", ",") and depth == 0:
             if current.strip():
                 parts.append(current.strip())
             current = ""
@@ -101,14 +111,14 @@ def _parse_nested_props(props_str: str) -> dict:
     if current.strip():
         parts.append(current.strip())
     for part in parts:
-        if '//' in part:
+        if "//" in part:
             part = _strip_inline_comment(part)
         if not part:
             continue
-        if ':' in part:
-            colon_idx = part.index(':')
+        if ":" in part:
+            colon_idx = part.index(":")
             key = part[:colon_idx].strip()
-            value = part[colon_idx + 1:].strip()
+            value = part[colon_idx + 1 :].strip()
             if key:
                 props[key] = value
     return props
@@ -116,10 +126,10 @@ def _parse_nested_props(props_str: str) -> dict:
 
 def _parse_color_value(v: str):
     """Convert a color string to schema-valid form: hex #rrggbb or #rgb → [r,g,b]; web names kept as-is."""
-    if isinstance(v, str) and v.startswith('#') and len(v) in (4, 7):
+    if isinstance(v, str) and v.startswith("#") and len(v) in (4, 7):
         hex_str = v[1:]
         if len(hex_str) == 3:
-            hex_str = ''.join(c * 2 for c in hex_str)
+            hex_str = "".join(c * 2 for c in hex_str)
         try:
             return [int(hex_str[0:2], 16), int(hex_str[2:4], 16), int(hex_str[4:6], 16)]
         except ValueError:
@@ -137,11 +147,11 @@ def _coerce_font_dict(font: dict) -> None:
         v = font[k]
         if not isinstance(v, str):
             # Already coerced (or a sub-dict like outline that needs its own pass)
-            if k == 'outline' and isinstance(v, dict):
+            if k == "outline" and isinstance(v, dict):
                 _coerce_outline_dict(v)
             continue
         v = v.strip().strip("'\"")
-        if k == 'size':
+        if k == "size":
             try:
                 font[k] = int(v)
             except ValueError:
@@ -149,18 +159,20 @@ def _coerce_font_dict(font: dict) -> None:
                     font[k] = float(v)
                 except ValueError:
                     font[k] = v
-        elif k in ('bold', 'italic', 'underline'):
-            font[k] = (v.lower() == 'true')
-        elif k == 'opacity':
+        elif k in ("bold", "italic", "underline"):
+            font[k] = v.lower() == "true"
+        elif k == "opacity":
             try:
                 font[k] = float(v)
             except ValueError:
                 font[k] = v
-        elif k == 'color':
+        elif k == "color":
             font[k] = _parse_color_value(v)
-        elif k == 'outline' and v.startswith('{') and v.endswith('}'):
+        elif k == "outline" and v.startswith("{") and v.endswith("}"):
             outline_raw = _parse_nested_props(v[1:-1])
-            outline_dict = {ok: ov.strip().strip("'\"") for ok, ov in outline_raw.items()}
+            outline_dict = {
+                ok: ov.strip().strip("'\"") for ok, ov in outline_raw.items()
+            }
             _coerce_outline_dict(outline_dict)
             font[k] = outline_dict
         else:
@@ -174,7 +186,7 @@ def _coerce_outline_dict(outline: dict) -> None:
         if not isinstance(v, str):
             continue
         v = v.strip().strip("'\"")
-        if k == 'size':
+        if k == "size":
             try:
                 outline[k] = int(v)
             except ValueError:
@@ -182,12 +194,12 @@ def _coerce_outline_dict(outline: dict) -> None:
                     outline[k] = float(v)
                 except ValueError:
                     outline[k] = v
-        elif k == 'opacity':
+        elif k == "opacity":
             try:
                 outline[k] = float(v)
             except ValueError:
                 outline[k] = v
-        elif k == 'color':
+        elif k == "color":
             outline[k] = _parse_color_value(v)
         else:
             outline[k] = v
@@ -206,32 +218,32 @@ def _normalize_graphic_element(el: dict) -> None:
         return
 
     # Convert opacity string to float for any element type
-    if 'opacity' in el and isinstance(el['opacity'], str):
+    if "opacity" in el and isinstance(el["opacity"], str):
         try:
-            el['opacity'] = float(el['opacity'])
+            el["opacity"] = float(el["opacity"])
         except ValueError:
             pass
 
     # Convert size string to int/float for any element type (e.g. a Dot's
     # `size: 10` — shapes don't get the font/outline-specific coercion below).
-    if 'size' in el and isinstance(el['size'], str):
-        v = el['size'].strip()
+    if "size" in el and isinstance(el["size"], str):
+        v = el["size"].strip()
         try:
-            el['size'] = int(v)
+            el["size"] = int(v)
         except ValueError:
             try:
-                el['size'] = float(v)
+                el["size"] = float(v)
             except ValueError:
                 pass
 
     # position2D / position_2d (CSCSS syntax) → the schema's `position`
     # field (a UnitPoint): "{ 10, -4 }" → {x: 10, y: -4}
-    for pos_key in ('position2D', 'position_2d'):
+    for pos_key in ("position2D", "position_2d"):
         if pos_key in el and isinstance(el[pos_key], str):
             raw = el.pop(pos_key).strip()
-            if raw.startswith('{') and raw.endswith('}'):
+            if raw.startswith("{") and raw.endswith("}"):
                 raw = raw[1:-1]
-            parts = [p.strip() for p in raw.split(',') if p.strip()]
+            parts = [p.strip() for p in raw.split(",") if p.strip()]
             if len(parts) == 2:
                 coords = []
                 for p in parts:
@@ -242,39 +254,41 @@ def _normalize_graphic_element(el: dict) -> None:
                             coords.append(float(p))
                         except ValueError:
                             coords.append(p)
-                el['position'] = {'x': coords[0], 'y': coords[1]}
+                el["position"] = {"x": coords[0], "y": coords[1]}
         else:
             el.pop(pos_key, None)
 
-    el_type = el.get('type', '')
+    el_type = el.get("type", "")
 
-    if el_type == 'Text':
+    if el_type == "Text":
         # text: NAME (unquoted identifier) → {"property": "NAME"} property reference
         # text: 'literal' (quoted)         → strip quotes, keep as plain string
-        if 'text' in el and isinstance(el['text'], str):
-            t = el['text'].strip()
-            if (t.startswith("'") and t.endswith("'")) or (t.startswith('"') and t.endswith('"')):
-                el['text'] = t[1:-1]  # strip quotes → literal string
+        if "text" in el and isinstance(el["text"], str):
+            t = el["text"].strip()
+            if (t.startswith("'") and t.endswith("'")) or (
+                t.startswith('"') and t.endswith('"')
+            ):
+                el["text"] = t[1:-1]  # strip quotes → literal string
             else:
                 # bare identifier → property reference
-                el['text'] = {'property': t}
+                el["text"] = {"property": t}
 
         # alignment: "left middle"  OR  { left, middle }  → ["left", "middle"]
-        if 'alignment' in el and isinstance(el['alignment'], str):
-            a = el['alignment'].strip()
-            if a.startswith('{') and a.endswith('}'):
+        if "alignment" in el and isinstance(el["alignment"], str):
+            a = el["alignment"].strip()
+            if a.startswith("{") and a.endswith("}"):
                 # { left, middle } block syntax
-                parts = [p.strip() for p in a[1:-1].split(',') if p.strip()]
+                parts = [p.strip() for p in a[1:-1].split(",") if p.strip()]
             else:
                 parts = a.split()
             if len(parts) == 2:
-                el['alignment'] = parts
+                el["alignment"] = parts
 
         # font: "{ face: 'Arial'; ... }" → proper dict
-        if 'font' in el and isinstance(el['font'], str):
-            font_str = el['font'].strip()
+        if "font" in el and isinstance(el["font"], str):
+            font_str = el["font"].strip()
             # Strip outer braces if present
-            if font_str.startswith('{') and font_str.endswith('}'):
+            if font_str.startswith("{") and font_str.endswith("}"):
                 font_inner = font_str[1:-1]
             else:
                 font_inner = font_str
@@ -283,40 +297,40 @@ def _normalize_graphic_element(el: dict) -> None:
             for k, v in font_raw.items():
                 v = v.strip().strip("'\"")
                 font_dict[k] = v
-            el['font'] = font_dict
+            el["font"] = font_dict
 
         # Coerce font dict value types (size → int/float, bold/italic → bool, etc.)
-        if 'font' in el and isinstance(el['font'], dict):
-            _coerce_font_dict(el['font'])
+        if "font" in el and isinstance(el["font"], dict):
+            _coerce_font_dict(el["font"])
 
-    elif el_type == 'Image':
+    elif el_type == "Image":
         # Convert image resource string "{uri: '...'; path: '...'; ...}" to a
         # proper resource dict as required by the schema.
-        if 'image' in el and isinstance(el['image'], str):
-            img_str = el['image'].strip()
-            if img_str.startswith('{') and img_str.endswith('}'):
+        if "image" in el and isinstance(el["image"], str):
+            img_str = el["image"].strip()
+            if img_str.startswith("{") and img_str.endswith("}"):
                 resource = _parse_resource_string(img_str[1:-1])
                 if resource:
-                    el['image'] = resource
+                    el["image"] = resource
         # Convert hotSpot string "N unit N unit" → [{unit: N}, {unit: N}]
-        if 'hotSpot' in el and isinstance(el['hotSpot'], str):
-            el['hotSpot'] = _parse_hotspot_string(el['hotSpot'])
+        if "hotSpot" in el and isinstance(el["hotSpot"], str):
+            el["hotSpot"] = _parse_hotspot_string(el["hotSpot"])
         # Convert alphaThreshold string → float
-        if 'alphaThreshold' in el and isinstance(el['alphaThreshold'], str):
+        if "alphaThreshold" in el and isinstance(el["alphaThreshold"], str):
             try:
-                el['alphaThreshold'] = float(el['alphaThreshold'])
+                el["alphaThreshold"] = float(el["alphaThreshold"])
             except ValueError:
                 pass
 
     # Strip empty dicts that carry no information (parser artifact for
     # brace-enclosed comma-separated values it cannot fully parse)
-    if isinstance(el.get('alignment'), dict) and len(el['alignment']) == 0:
-        del el['alignment']
+    if isinstance(el.get("alignment"), dict) and len(el["alignment"]) == 0:
+        del el["alignment"]
 
 
 class AstToPydanticConverter:
     """Converts ANTLR AST nodes to Pydantic models."""
-    
+
     def convert_stylesheet(self, ast_stylesheet: AstStyleSheet) -> Style:
         """Convert AST StyleSheet to Pydantic Style model, preserving nested rules only as children."""
         try:
@@ -324,15 +338,15 @@ class AstToPydanticConverter:
             metadata = None
             if ast_stylesheet.metadata:
                 metadata_dict = {}
-                _list_fields = {'keywords', 'authors', 'geoDataClasses'}
-                _multiline_fields = {'abstract', 'description', 'title'}
+                _list_fields = {"keywords", "authors", "geoDataClasses"}
+                _multiline_fields = {"abstract", "description", "title"}
                 for meta in ast_stylesheet.metadata:
-                    if not (hasattr(meta, 'key') and hasattr(meta, 'value')):
+                    if not (hasattr(meta, "key") and hasattr(meta, "value")):
                         continue
                     key, value = meta.key, meta.value
                     if key in _list_fields:
                         if isinstance(value, str):
-                            items = [v.strip() for v in value.split(',') if v.strip()]
+                            items = [v.strip() for v in value.split(",") if v.strip()]
                         elif isinstance(value, list):
                             items = value
                         else:
@@ -340,7 +354,7 @@ class AstToPydanticConverter:
                         existing = metadata_dict.get(key, [])
                         metadata_dict[key] = existing + items
                     elif key in _multiline_fields and key in metadata_dict:
-                        metadata_dict[key] = metadata_dict[key] + '\n' + value
+                        metadata_dict[key] = metadata_dict[key] + "\n" + value
                     else:
                         metadata_dict[key] = value
                 if metadata_dict:
@@ -348,20 +362,26 @@ class AstToPydanticConverter:
 
             # Convert variables (if present)
             variables = None
-            if hasattr(ast_stylesheet, 'variables') and ast_stylesheet.variables:
+            if hasattr(ast_stylesheet, "variables") and ast_stylesheet.variables:
                 from .models.styles import Variable
-                variables = [Variable(name=v.name, value=v.value, type=getattr(v, 'type', None)) for v in ast_stylesheet.variables]
+
+                variables = [
+                    Variable(name=v.name, value=v.value, type=getattr(v, "type", None))
+                    for v in ast_stylesheet.variables
+                ]
 
             # Build variable lookup and resolve references in the AST
             # before Pydantic model validation
             var_lookup = {}
-            if hasattr(ast_stylesheet, 'variables') and ast_stylesheet.variables:
+            if hasattr(ast_stylesheet, "variables") and ast_stylesheet.variables:
                 for v in ast_stylesheet.variables:
                     var_lookup[v.name] = v.value
 
             # Convert only top-level styling rules (do not flatten nested rules)
             styling_rules = []
-            if ast_stylesheet.styling_rules and hasattr(ast_stylesheet.styling_rules, 'rules'):
+            if ast_stylesheet.styling_rules and hasattr(
+                ast_stylesheet.styling_rules, "rules"
+            ):
                 for ast_rule in ast_stylesheet.styling_rules.rules:
                     if var_lookup:
                         self._resolve_ast_variables(ast_rule, var_lookup)
@@ -370,9 +390,7 @@ class AstToPydanticConverter:
                         styling_rules.append(pydantic_rule)
 
             style = Style(
-                metadata=metadata,
-                styling_rules=styling_rules,
-                variables=variables
+                metadata=metadata, styling_rules=styling_rules, variables=variables
             )
 
             return style
@@ -391,7 +409,7 @@ class AstToPydanticConverter:
             return
 
         def _resolve_value(v):
-            if isinstance(v, str) and v.startswith('@'):
+            if isinstance(v, str) and v.startswith("@"):
                 var_name = v[1:]
                 if var_name in var_lookup:
                     return var_lookup[var_name]
@@ -412,7 +430,7 @@ class AstToPydanticConverter:
                         resolved = _resolve_value(item)
                         if resolved is not item:
                             val[i] = resolved
-                    elif hasattr(item, '__dict__'):
+                    elif hasattr(item, "__dict__"):
                         self._resolve_ast_variables(item, var_lookup)
             elif isinstance(val, dict):
                 for k in list(val.keys()):
@@ -421,93 +439,104 @@ class AstToPydanticConverter:
                         resolved = _resolve_value(v)
                         if resolved is not v:
                             val[k] = resolved
-                    elif hasattr(v, '__dict__'):
+                    elif hasattr(v, "__dict__"):
                         self._resolve_ast_variables(v, var_lookup)
-            elif hasattr(val, '__dict__'):
+            elif hasattr(val, "__dict__"):
                 self._resolve_ast_variables(val, var_lookup)
-    
+
     def _format_selector_expression(self, expression) -> str:
         """Format a selector expression into a readable string."""
         try:
             # Handle IdentifierExpression
-            if hasattr(expression, 'name') and hasattr(expression, 'type'):
+            if hasattr(expression, "name") and hasattr(expression, "type"):
                 if str(expression.type) == "ExpressionType.IDENTIFIER":
                     return expression.name
-            
+
             # Handle MemberAccessExpression
-            if hasattr(expression, 'object') and hasattr(expression, 'member'):
+            if hasattr(expression, "object") and hasattr(expression, "member"):
                 obj_str = self._format_selector_expression(expression.object)
                 return f"{obj_str}.{expression.member}"
-            
+
             # Handle BinaryOperationExpression
-            if hasattr(expression, 'left') and hasattr(expression, 'right') and hasattr(expression, 'operator'):
+            if (
+                hasattr(expression, "left")
+                and hasattr(expression, "right")
+                and hasattr(expression, "operator")
+            ):
                 left_str = self._format_selector_expression(expression.left)
                 right_str = self._format_selector_expression(expression.right)
-                
+
                 # Map operator enum to string
                 op_str = str(expression.operator)
-                if 'AND' in op_str:
-                    op_str = ' and '
-                elif 'OR' in op_str:
-                    op_str = ' or '
-                elif 'EQ' in op_str or 'EQUAL' in op_str:
-                    op_str = ' = '
-                elif 'LT' in op_str and 'LESS_THAN' in op_str:
-                    op_str = ' < '
-                elif 'GT' in op_str and 'GREATER_THAN' in op_str:
-                    op_str = ' > '
-                elif 'LTE' in op_str or 'LESS_EQUAL' in op_str:
-                    op_str = ' <= '
-                elif 'GTE' in op_str or 'GREATER_EQUAL' in op_str:
-                    op_str = ' >= '
-                elif 'NEQ' in op_str or 'NOT_EQUAL' in op_str:
-                    op_str = ' != '
+                if "AND" in op_str:
+                    op_str = " and "
+                elif "OR" in op_str:
+                    op_str = " or "
+                elif "EQ" in op_str or "EQUAL" in op_str:
+                    op_str = " = "
+                elif "LT" in op_str and "LESS_THAN" in op_str:
+                    op_str = " < "
+                elif "GT" in op_str and "GREATER_THAN" in op_str:
+                    op_str = " > "
+                elif "LTE" in op_str or "LESS_EQUAL" in op_str:
+                    op_str = " <= "
+                elif "GTE" in op_str or "GREATER_EQUAL" in op_str:
+                    op_str = " >= "
+                elif "NEQ" in op_str or "NOT_EQUAL" in op_str:
+                    op_str = " != "
                 else:
                     # Extract operator from string representation and add spaces
-                    if '.' in op_str:
-                        op_name = op_str.split('.')[-1].lower()
-                        if op_name in ['and', 'or', 'not']:
+                    if "." in op_str:
+                        op_name = op_str.split(".")[-1].lower()
+                        if op_name in ["and", "or", "not"]:
                             op_str = f" {op_name} "
-                        elif op_name in ['equal', 'eq']:
-                            op_str = ' = '
-                        elif op_name in ['less_than', 'lt']:
-                            op_str = ' < '
-                        elif op_name in ['greater_than', 'gt']:
-                            op_str = ' > '
-                        elif op_name in ['less_equal', 'lte']:
-                            op_str = ' <= '
-                        elif op_name in ['greater_equal', 'gte']:
-                            op_str = ' >= '
-                        elif op_name in ['not_equal', 'neq']:
-                            op_str = ' != '
+                        elif op_name in ["equal", "eq"]:
+                            op_str = " = "
+                        elif op_name in ["less_than", "lt"]:
+                            op_str = " < "
+                        elif op_name in ["greater_than", "gt"]:
+                            op_str = " > "
+                        elif op_name in ["less_equal", "lte"]:
+                            op_str = " <= "
+                        elif op_name in ["greater_equal", "gte"]:
+                            op_str = " >= "
+                        elif op_name in ["not_equal", "neq"]:
+                            op_str = " != "
                         else:
                             op_str = f" {op_name} "
                     else:
                         op_str = f" {op_str} "
-                
+
                 return f"{left_str}{op_str}{right_str}"
-            
+
             # Handle LiteralExpression/ConstantExpression
-            if hasattr(expression, 'value'):
+            if hasattr(expression, "value"):
                 if isinstance(expression.value, str):
                     # Handle string literals with quotes if needed
-                    if expression.value.startswith("'") or expression.value.startswith('"'):
+                    if expression.value.startswith("'") or expression.value.startswith(
+                        '"'
+                    ):
                         return expression.value
                     return f"'{expression.value}'"
                 return str(expression.value)
-            
+
             # Handle FunctionCallExpression
-            if hasattr(expression, 'function_name') and hasattr(expression, 'arguments'):
-                args_str = ", ".join(self._format_selector_expression(arg) for arg in expression.arguments)
+            if hasattr(expression, "function_name") and hasattr(
+                expression, "arguments"
+            ):
+                args_str = ", ".join(
+                    self._format_selector_expression(arg)
+                    for arg in expression.arguments
+                )
                 return f"{expression.function_name}({args_str})"
-            
+
             # Handle simple name attribute
-            if hasattr(expression, 'name'):
+            if hasattr(expression, "name"):
                 return expression.name
-                
+
             # Fallback to string representation
             return str(expression)
-            
+
         except Exception as e:
             # If anything goes wrong, return the string representation
             return str(expression)
@@ -519,7 +548,7 @@ class AstToPydanticConverter:
                 # Post-process arguments recursively
                 processed_args = []
                 op = selector.get("op", "")
-                is_comparison = op in ['=', '<', '<=', '>', '>=', '!=']
+                is_comparison = op in ["=", "<", "<=", ">", ">=", "!="]
                 for i, arg in enumerate(selector["args"]):
                     # Convert string arguments to property references in comparisons
                     if isinstance(arg, str):
@@ -529,7 +558,11 @@ class AstToPydanticConverter:
                             processed_args.append(arg)
                         # Check if it's a simple identifier that should be a property
                         # Don't convert if it contains quotes, spaces, dots, or is purely numeric
-                        elif arg and not any(c in arg for c in ['"', "'", ' ', '.']) and not arg.replace('-', '').replace('_', '').isdigit():
+                        elif (
+                            arg
+                            and not any(c in arg for c in ['"', "'", " ", "."])
+                            and not arg.replace("-", "").replace("_", "").isdigit()
+                        ):
                             # Simple identifier on left side - convert to property reference
                             processed_args.append({"property": arg})
                         else:
@@ -543,112 +576,126 @@ class AstToPydanticConverter:
             elif "sysId" in selector:
                 sysid = selector["sysId"]
                 # Check if sysId contains an embedded expression
-                for op in ['>=', '<=', '!=', '=', '>', '<']:
-                    if op in sysid and not (sysid.startswith('"') or sysid.startswith("'")):
+                for op in [">=", "<=", "!=", "=", ">", "<"]:
+                    if op in sysid and not (
+                        sysid.startswith('"') or sysid.startswith("'")
+                    ):
                         parts = sysid.split(op, 1)
                         if len(parts) == 2:
                             left_part = parts[0].strip()
                             right_part = parts[1].strip()
-                            
+
                             # Convert right part
                             if right_part.isdigit():
                                 right_arg = int(right_part)
-                            elif right_part.replace('.', '').isdigit():
+                            elif right_part.replace(".", "").isdigit():
                                 right_arg = float(right_part)
                             else:
-                                right_arg = right_part.strip('\'"')
-                            
-                            return {
-                                "op": op,
-                                "args": [{"sysId": left_part}, right_arg]
-                            }
+                                right_arg = right_part.strip("'\"")
+
+                            return {"op": op, "args": [{"sysId": left_part}, right_arg]}
             elif "property" in selector:
                 prop = selector["property"]
                 # Check if property is actually an unparsed CQL2 expression (e.g. T_DURING(...))
-                if ('(' in prop and prop.endswith(')')) or ('{' in prop and prop.endswith('}')):
+                if ("(" in prop and prop.endswith(")")) or (
+                    "{" in prop and prop.endswith("}")
+                ):
                     try:
                         from .expression_parser import ExpressionParser
+
                         parsed = ExpressionParser._parse_single_expression(prop)
                         converted = self._convert_expression_to_json_selector(parsed)
-                        if converted and converted != prop and converted != {"property": prop}:
+                        if (
+                            converted
+                            and converted != prop
+                            and converted != {"property": prop}
+                        ):
                             return self._post_process_selector(converted)
                     except Exception:
                         pass
                 # Check if property contains an embedded expression
-                for op in ['>=', '<=', '!=', '=', '>', '<']:
-                    if op in prop and not (prop.startswith('"') or prop.startswith("'")):
+                for op in [">=", "<=", "!=", "=", ">", "<"]:
+                    if op in prop and not (
+                        prop.startswith('"') or prop.startswith("'")
+                    ):
                         parts = prop.split(op, 1)
                         if len(parts) == 2:
                             left_part = parts[0].strip()
                             right_part = parts[1].strip()
-                            
+
                             # Determine if left part is system property or regular property
-                            if '.' in left_part and any(left_part.startswith(prefix) for prefix in ['viz', 'dataLayer', 'feature']):
+                            if "." in left_part and any(
+                                left_part.startswith(prefix)
+                                for prefix in ["viz", "dataLayer", "feature"]
+                            ):
                                 left_arg = {"sysId": left_part}
                             # Special case: certain properties are known system identifiers
-                            elif left_part in ['featuresGeometryDimensions', 'featuresGeometry', 'geometryDimensions']:
+                            elif left_part in [
+                                "featuresGeometryDimensions",
+                                "featuresGeometry",
+                                "geometryDimensions",
+                            ]:
                                 left_arg = {"sysId": f"dataLayer.{left_part}"}
                             else:
                                 left_arg = {"property": left_part}
-                            
+
                             # Convert right part
                             if right_part.isdigit():
                                 right_arg = int(right_part)
-                            elif right_part.replace('.', '').replace('-', '').isdigit():
+                            elif right_part.replace(".", "").replace("-", "").isdigit():
                                 right_arg = float(right_part)
                             else:
-                                right_arg = right_part.strip('\'"')
-                            
-                            return {
-                                "op": op,
-                                "args": [left_arg, right_arg]
-                            }
+                                right_arg = right_part.strip("'\"")
+
+                            return {"op": op, "args": [left_arg, right_arg]}
             return selector
         elif isinstance(selector, str):
             # Handle string selectors that should be expressions
             return self._convert_string_to_json_selector(selector)
-        elif isinstance(selector, dict) and "property" in selector and len(selector) == 1:
+        elif (
+            isinstance(selector, dict) and "property" in selector and len(selector) == 1
+        ):
             # Invalid standalone property selector - convert to a valid boolean expression
             prop_name = selector["property"]
             # Convert standalone property to boolean check (property IS NOT NULL)
-            return {
-                "op": "!=",
-                "args": [{"property": prop_name}, None]
-            }
+            return {"op": "!=", "args": [{"property": prop_name}, None]}
         else:
             return selector
-    
+
     def _convert_string_to_json_selector(self, selector_str: str) -> Dict[str, Any]:
         """Convert string selector to proper JSON structure."""
         # Handle expressions embedded in strings
-        for op in ['>=', '<=', '!=', '=', '>', '<']:
-            if op in selector_str and not (selector_str.startswith('"') or selector_str.startswith("'")):
+        for op in [">=", "<=", "!=", "=", ">", "<"]:
+            if op in selector_str and not (
+                selector_str.startswith('"') or selector_str.startswith("'")
+            ):
                 parts = selector_str.split(op, 1)
                 if len(parts) == 2:
                     left_part = parts[0].strip()
-                    right_part = parts[1].strip().strip('\'"')
+                    right_part = parts[1].strip().strip("'\"")
                     # Determine if left part is system property or regular property
-                    if '.' in left_part and any(left_part.startswith(prefix) for prefix in ['viz', 'dataLayer']):
+                    if "." in left_part and any(
+                        left_part.startswith(prefix) for prefix in ["viz", "dataLayer"]
+                    ):
                         left_arg = {"sysId": left_part}
-                    elif left_part in ['validDate', 'FunctionCode', 'FunctionTitle']:
+                    elif left_part in ["validDate", "FunctionCode", "FunctionTitle"]:
                         left_arg = {"property": left_part}
                     else:
                         left_arg = left_part
                     # Convert right part (handle sysId for dot notation)
                     if right_part.isdigit():
                         right_arg = int(right_part)
-                    elif right_part.replace('.', '').isdigit():
+                    elif right_part.replace(".", "").isdigit():
                         right_arg = float(right_part)
-                    elif '.' in right_part and any(right_part.startswith(prefix) for prefix in ['viz', 'dataLayer']):
+                    elif "." in right_part and any(
+                        right_part.startswith(prefix) for prefix in ["viz", "dataLayer"]
+                    ):
                         right_arg = {"sysId": right_part}
-                    elif right_part in ['validDate', 'FunctionCode', 'FunctionTitle']:
+                    elif right_part in ["validDate", "FunctionCode", "FunctionTitle"]:
                         right_arg = {"property": right_part}
                     else:
                         right_arg = right_part
-                    return {
-                        "op": op,
-                        "args": [left_arg, right_arg]
-                    }
+                    return {"op": op, "args": [left_arg, right_arg]}
         # If no operator found, treat as property
         return {"property": selector_str}
 
@@ -659,108 +706,122 @@ class AstToPydanticConverter:
         """
         if not expression:
             return {}
-        
+
         # Handle ANTLR context objects (from grammar)
-        if hasattr(expression, 'getRuleIndex'):
+        if hasattr(expression, "getRuleIndex"):
             from .grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+
             rule_name = CartoSymCSSGrammar.ruleNames[expression.getRuleIndex()]
             return self._convert_antlr_expression(expression, rule_name)
-        
+
         # Handle BinaryOperationExpression (AST objects)
-        if hasattr(expression, 'left') and hasattr(expression, 'right') and hasattr(expression, 'operator'):
+        if (
+            hasattr(expression, "left")
+            and hasattr(expression, "right")
+            and hasattr(expression, "operator")
+        ):
             left_arg = self._convert_expression_to_json_selector(expression.left)
             right_arg = self._convert_expression_to_json_selector(expression.right)
-            
+
             # Map operator enum to string
             op_str = str(expression.operator)
-            if 'AND' in op_str:
-                op = 'and'
-            elif 'OR' in op_str:
-                op = 'or'
-            elif 'EQ' in op_str or 'EQUAL' in op_str:
-                op = '='
-            elif 'LT' in op_str and 'LESS_THAN' in op_str:
-                op = '<'
-            elif 'GT' in op_str and 'GREATER_THAN' in op_str:
-                op = '>'
-            elif 'LTE' in op_str or 'LESS_EQUAL' in op_str:
-                op = '<='
-            elif 'GTE' in op_str or 'GREATER_EQUAL' in op_str:
-                op = '>='
-            elif 'NEQ' in op_str or 'NOT_EQUAL' in op_str:
-                op = '!='
+            if "AND" in op_str:
+                op = "and"
+            elif "OR" in op_str:
+                op = "or"
+            elif "EQ" in op_str or "EQUAL" in op_str:
+                op = "="
+            elif "LT" in op_str and "LESS_THAN" in op_str:
+                op = "<"
+            elif "GT" in op_str and "GREATER_THAN" in op_str:
+                op = ">"
+            elif "LTE" in op_str or "LESS_EQUAL" in op_str:
+                op = "<="
+            elif "GTE" in op_str or "GREATER_EQUAL" in op_str:
+                op = ">="
+            elif "NEQ" in op_str or "NOT_EQUAL" in op_str:
+                op = "!="
             else:
                 # Extract operator from string representation
-                if '.' in op_str:
-                    op_name = op_str.split('.')[-1].lower()
+                if "." in op_str:
+                    op_name = op_str.split(".")[-1].lower()
                     op = op_name
                 else:
                     op = str(expression.operator)
-            
-            return {
-                "op": op,
-                "args": [left_arg, right_arg]
-            }
-        
+
+            return {"op": op, "args": [left_arg, right_arg]}
+
         # Handle MemberAccessExpression (system properties, recursive for deep access)
-        if hasattr(expression, 'object') and hasattr(expression, 'member'):
+        if hasattr(expression, "object") and hasattr(expression, "member"):
+
             def get_full_property(expr):
-                if hasattr(expr, 'object') and hasattr(expr, 'member'):
-                    return get_full_property(expr.object) + '.' + str(expr.member)
-                elif hasattr(expr, 'name'):
+                if hasattr(expr, "object") and hasattr(expr, "member"):
+                    return get_full_property(expr.object) + "." + str(expr.member)
+                elif hasattr(expr, "name"):
                     return str(expr.name)
                 else:
                     return str(expr)
+
             full_property = get_full_property(expression)
             # Top-level prefix check for sysId
-            top_level = full_property.split('.', 1)[0]
-            if top_level in ['viz', 'vis', 'dataLayer']:
+            top_level = full_property.split(".", 1)[0]
+            if top_level in ["viz", "vis", "dataLayer"]:
                 return {"sysId": full_property}
             else:
                 return {"property": full_property}
-        
+
         # Handle CQL2 TemporalLiteral (DATE/TIMESTAMP/INTERVAL from expression parser)
-        if hasattr(expression, 'temporal_type'):
-            if expression.temporal_type == 'date':
+        if hasattr(expression, "temporal_type"):
+            if expression.temporal_type == "date":
                 return {"date": expression.value}
-            elif expression.temporal_type == 'timestamp':
+            elif expression.temporal_type == "timestamp":
                 return {"timestamp": expression.value}
-            elif expression.temporal_type == 'interval':
+            elif expression.temporal_type == "interval":
                 return {"interval": expression.interval}
 
         # Handle CQL2 BboxLiteral
-        if hasattr(expression, 'bbox') and isinstance(getattr(expression, 'bbox', None), list):
+        if hasattr(expression, "bbox") and isinstance(
+            getattr(expression, "bbox", None), list
+        ):
             return {"bbox": expression.bbox}
 
         # Handle CQL2 GeometryLiteral
-        if hasattr(expression, 'geom_type') and hasattr(expression, 'coordinates'):
+        if hasattr(expression, "geom_type") and hasattr(expression, "coordinates"):
             result = {"type": expression.geom_type}
             if expression.coordinates is not None:
                 result["coordinates"] = expression.coordinates
-            if hasattr(expression, 'geometries') and expression.geometries:
+            if hasattr(expression, "geometries") and expression.geometries:
                 result["geometries"] = [
-                    self._convert_expression_to_json_selector(g) for g in expression.geometries
+                    self._convert_expression_to_json_selector(g)
+                    for g in expression.geometries
                 ]
             return result
 
         # Handle CQL2 spatial/temporal/array predicates + character/geometry functions
-        if hasattr(expression, 'op') and hasattr(expression, 'args') and not hasattr(expression, 'function_name'):
+        if (
+            hasattr(expression, "op")
+            and hasattr(expression, "args")
+            and not hasattr(expression, "function_name")
+        ):
             result = {
                 "op": expression.op,
-                "args": [self._convert_expression_to_json_selector(arg) for arg in expression.args]
+                "args": [
+                    self._convert_expression_to_json_selector(arg)
+                    for arg in expression.args
+                ],
             }
             # Preserve extra fields (e.g. SpatialRelatePredicate.pattern)
-            if hasattr(expression, 'pattern'):
+            if hasattr(expression, "pattern"):
                 result["pattern"] = expression.pattern
             return result
 
         # Handle FunctionCallExpression
-        if hasattr(expression, 'function_name') and hasattr(expression, 'arguments'):
+        if hasattr(expression, "function_name") and hasattr(expression, "arguments"):
             func_name = expression.function_name
             # DATE('...') → { "date": "..." } (OGC scalar-data-types)
-            if func_name.upper() == 'DATE' and len(expression.arguments) == 1:
+            if func_name.upper() == "DATE" and len(expression.arguments) == 1:
                 arg = expression.arguments[0]
-                date_val = arg.value if hasattr(arg, 'value') else str(arg)
+                date_val = arg.value if hasattr(arg, "value") else str(arg)
                 # Strip surrounding quotes if present
                 if isinstance(date_val, str):
                     date_val = date_val.strip("'\"")
@@ -768,15 +829,18 @@ class AstToPydanticConverter:
             # Other function calls use "op" (not "function")
             return {
                 "op": func_name,
-                "args": [self._convert_expression_to_json_selector(arg) for arg in expression.arguments]
+                "args": [
+                    self._convert_expression_to_json_selector(arg)
+                    for arg in expression.arguments
+                ],
             }
 
         # Handle IdentifierExpression (simple properties)
-        if hasattr(expression, 'name'):
+        if hasattr(expression, "name"):
             return self._convert_identifier(expression.name)
 
         # Handle LiteralExpression/ConstantExpression
-        if hasattr(expression, 'value'):
+        if hasattr(expression, "value"):
             return self._convert_literal_value(expression.value)
 
         # Handle string representation (fallback)
@@ -785,48 +849,57 @@ class AstToPydanticConverter:
 
         # Final fallback - convert to string
         return str(expression)
-    
+
     def _convert_antlr_expression(self, expr_ctx, rule_name: str) -> Dict[str, Any]:
         """
         Convert ANTLR expression context based on the actual AST structure.
         Based on detailed AST analysis showing binary expressions as:
         expression -> expression + operator + expression
         """
-        if rule_name == 'expression':
-            if hasattr(expr_ctx, 'getChildCount'):
+        if rule_name == "expression":
+            if hasattr(expr_ctx, "getChildCount"):
                 child_count = expr_ctx.getChildCount()
-                
+
                 # Binary expression pattern: expression + operator + expression (count = 3)
                 if child_count == 3:
                     left_child = expr_ctx.getChild(0)
-                    op_child = expr_ctx.getChild(1)  
+                    op_child = expr_ctx.getChild(1)
                     right_child = expr_ctx.getChild(2)
-                    
+
                     # Check if middle child is an operator
-                    if hasattr(op_child, 'getRuleIndex'):
-                        from .grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+                    if hasattr(op_child, "getRuleIndex"):
+                        from .grammar.generated.CartoSymCSSGrammar import (
+                            CartoSymCSSGrammar,
+                        )
+
                         op_rule = CartoSymCSSGrammar.ruleNames[op_child.getRuleIndex()]
-                        
-                        if op_rule in ['relationalOperator', 'binaryLogicalOperator']:
+
+                        if op_rule in ["relationalOperator", "binaryLogicalOperator"]:
                             # This is a binary operation
-                            left_arg = self._convert_antlr_expression(left_child, 'expression')
+                            left_arg = self._convert_antlr_expression(
+                                left_child, "expression"
+                            )
                             operator = op_child.getText()
-                            right_arg = self._convert_antlr_expression(right_child, 'expression')
-                            
-                            return {
-                                "op": operator,
-                                "args": [left_arg, right_arg]
-                            }
-                    
+                            right_arg = self._convert_antlr_expression(
+                                right_child, "expression"
+                            )
+
+                            return {"op": operator, "args": [left_arg, right_arg]}
+
                     # Property access pattern: expression + '.' + terminal
-                    elif (hasattr(left_child, 'getRuleIndex') and
-                          not hasattr(op_child, 'getRuleIndex') and op_child.getText() == '.' and
-                          not hasattr(right_child, 'getRuleIndex')):
-                        
+                    elif (
+                        hasattr(left_child, "getRuleIndex")
+                        and not hasattr(op_child, "getRuleIndex")
+                        and op_child.getText() == "."
+                        and not hasattr(right_child, "getRuleIndex")
+                    ):
+
                         # Build property path: obj.member
-                        left_part = self._convert_antlr_expression(left_child, 'expression')
+                        left_part = self._convert_antlr_expression(
+                            left_child, "expression"
+                        )
                         right_part = right_child.getText()
-                        
+
                         if isinstance(left_part, str):
                             full_path = f"{left_part}.{right_part}"
                         elif isinstance(left_part, dict) and "sysId" in left_part:
@@ -835,164 +908,206 @@ class AstToPydanticConverter:
                             full_path = f"{left_part['property']}.{right_part}"
                         else:
                             full_path = f"{left_part}.{right_part}"
-                        
+
                         return self._convert_identifier(full_path)
-                
+
                 # Single child expression
                 elif child_count == 1:
                     child = expr_ctx.getChild(0)
-                    if hasattr(child, 'getRuleIndex'):
-                        from .grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+                    if hasattr(child, "getRuleIndex"):
+                        from .grammar.generated.CartoSymCSSGrammar import (
+                            CartoSymCSSGrammar,
+                        )
+
                         child_rule = CartoSymCSSGrammar.ruleNames[child.getRuleIndex()]
                         return self._convert_antlr_expression(child, child_rule)
                     else:
                         # Terminal
                         return self._convert_identifier(child.getText())
-        
-        elif rule_name == 'idOrConstant':
+
+        elif rule_name == "idOrConstant":
             # Check for expConstant child (numeric literal)
-            if hasattr(expr_ctx, 'getChildCount') and expr_ctx.getChildCount() == 1:
+            if hasattr(expr_ctx, "getChildCount") and expr_ctx.getChildCount() == 1:
                 child = expr_ctx.getChild(0)
-                if hasattr(child, 'getRuleIndex'):
+                if hasattr(child, "getRuleIndex"):
                     from .grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+
                     child_rule = CartoSymCSSGrammar.ruleNames[child.getRuleIndex()]
-                    if child_rule == 'expConstant':
+                    if child_rule == "expConstant":
                         return self._convert_literal_value(child.getText())
-            
+
             # Otherwise treat as identifier
             return self._convert_identifier(expr_ctx.getText())
-        
-        elif rule_name == 'expString':
+
+        elif rule_name == "expString":
             # String literal - remove quotes
             text = expr_ctx.getText()
-            if (text.startswith("'") and text.endswith("'")) or (text.startswith('"') and text.endswith('"')):
+            if (text.startswith("'") and text.endswith("'")) or (
+                text.startswith('"') and text.endswith('"')
+            ):
                 return text[1:-1]
             return text
-        
+
         # Default: get text and convert as identifier
         return self._convert_identifier(expr_ctx.getText())
-    
+
     def _convert_identifier(self, name: str) -> Union[Dict[str, Any], str, int, float]:
         """Convert identifier to appropriate JSON selector part with proper system property mapping."""
         # Handle embedded operators first
-        for op in ['>=', '<=', '!=', '=', '>', '<']:
-            if f'{op}' in name and not (name.startswith('"') or name.startswith("'")):
+        for op in [">=", "<=", "!=", "=", ">", "<"]:
+            if f"{op}" in name and not (name.startswith('"') or name.startswith("'")):
                 parts = name.split(op, 1)
                 if len(parts) == 2:
                     left_part = parts[0].strip()
                     right_part = parts[1].strip()
-                    
+
                     # Convert left part (property)
-                    if '.' in left_part:
-                        if any(left_part.startswith(prefix) for prefix in ['viz', 'vis', 'dataLayer']):
+                    if "." in left_part:
+                        if any(
+                            left_part.startswith(prefix)
+                            for prefix in ["viz", "vis", "dataLayer"]
+                        ):
                             # Map system properties correctly
                             mapped_prop = self._map_system_property(left_part)
                             left_arg = {"sysId": mapped_prop}
                         else:
                             left_arg = {"property": left_part}
                     else:
-                        if left_part in ['validDate', 'FunctionCode', 'FunctionTitle']:
+                        if left_part in ["validDate", "FunctionCode", "FunctionTitle"]:
                             left_arg = {"property": left_part}
-                        elif any(left_part.startswith(prefix) for prefix in ['viz', 'vis', 'dataLayer']):
+                        elif any(
+                            left_part.startswith(prefix)
+                            for prefix in ["viz", "vis", "dataLayer"]
+                        ):
                             mapped_prop = self._map_system_property(left_part)
                             left_arg = {"sysId": mapped_prop}
                         else:
                             left_arg = left_part
-                    
+
                     # Convert right part (value)
                     right_arg = self._convert_literal_value(right_part)
-                    
-                    return {
-                        "op": op,
-                        "args": [left_arg, right_arg]
-                    }
-        
+
+                    return {"op": op, "args": [left_arg, right_arg]}
+
         # No operator - determine property type
-        if '.' in name:
-            if any(name.startswith(prefix) for prefix in ['viz', 'vis', 'dataLayer']):
+        if "." in name:
+            if any(name.startswith(prefix) for prefix in ["viz", "vis", "dataLayer"]):
                 mapped_prop = self._map_system_property(name)
                 return {"sysId": mapped_prop}
             else:
                 return {"property": name}
         else:
-            if name in ['validDate', 'FunctionCode', 'FunctionTitle']:
+            if name in ["validDate", "FunctionCode", "FunctionTitle"]:
                 return {"property": name}
-            elif any(name.startswith(prefix) for prefix in ['viz', 'vis', 'dataLayer']):
+            elif any(name.startswith(prefix) for prefix in ["viz", "vis", "dataLayer"]):
                 mapped_prop = self._map_system_property(name)
                 return {"sysId": mapped_prop}
             else:
                 return self._convert_literal_value(name)
-    
+
     def _map_system_property(self, prop: str) -> str:
         """Retourne la propriété système telle quelle (mapping identique)."""
         return prop
-    
-    def _convert_literal_value(self, value: Union[str, int, float]) -> Union[str, int, float, list]:
+
+    def _convert_literal_value(
+        self, value: Union[str, int, float]
+    ) -> Union[str, int, float, list]:
         """Convert literal value to appropriate JSON type with proper CS.JSON formatting."""
         if isinstance(value, (int, float)):
             return value
-            
+
         if not isinstance(value, str):
             value = str(value)
-            
+
         # Handle quoted strings
-        if (value.startswith("'") and value.endswith("'")) or (value.startswith('"') and value.endswith('"')):
+        if (value.startswith("'") and value.endswith("'")) or (
+            value.startswith('"') and value.endswith('"')
+        ):
             return value[1:-1]  # Remove quotes
-        
+
         # Handle hex colors - convert to [r, g, b] array (CS.JSON color schema only accepts
         # arrays, {r,g,b} objects, or web color names – not hex strings)
-        if value.startswith('#') and len(value) == 7:
+        if value.startswith("#") and len(value) == 7:
             try:
                 hex_color = value[1:]
                 r = int(hex_color[0:2], 16)
-                g = int(hex_color[2:4], 16) 
+                g = int(hex_color[2:4], 16)
                 b = int(hex_color[4:6], 16)
                 return [r, g, b]
             except ValueError:
                 return value  # Keep as string if not valid hex
-        
+
         # Handle numbers with units (e.g., "2.0px") -> UnitValue format for CS.JSON
-        if value.endswith(('px', 'em', '%', 'pt', 'pc')):
-            units = ['px', 'em', 'pt', 'pc', '%']
+        if value.endswith(("px", "em", "%", "pt", "pc")):
+            units = ["px", "em", "pt", "pc", "%"]
             for unit in units:
                 if value.endswith(unit):
-                    number_part = value[:-len(unit)]
+                    number_part = value[: -len(unit)]
                     try:
-                        if '.' in number_part:
+                        if "." in number_part:
                             # Return as CS.JSON UnitValue format for Pydantic compatibility
-                            from .models.types import UnitValue, UnitType
-                            return UnitValue(value=float(number_part), unit=getattr(UnitType, unit.upper(), unit))
+                            from .models.types import UnitType, UnitValue
+
+                            return UnitValue(
+                                value=float(number_part),
+                                unit=getattr(UnitType, unit.upper(), unit),
+                            )
                         else:
                             # Return as CS.JSON UnitValue format for Pydantic compatibility
-                            from .models.types import UnitValue, UnitType
-                            return UnitValue(value=int(number_part), unit=getattr(UnitType, unit.upper(), unit))
+                            from .models.types import UnitType, UnitValue
+
+                            return UnitValue(
+                                value=int(number_part),
+                                unit=getattr(UnitType, unit.upper(), unit),
+                            )
                     except (ValueError, ImportError):
                         # Fallback to string if UnitValue creation fails
                         return value
-        
+
         # Handle pure numbers
         if value.isdigit():
             return int(value)
-        
+
         try:
-            if '.' in value:
+            if "." in value:
                 return float(value)
         except ValueError:
             pass
-        
+
         # Handle boolean values
-        if value.lower() == 'true':
+        if value.lower() == "true":
             return True
-        elif value.lower() == 'false':
+        elif value.lower() == "false":
             return False
-        
+
         # Keep known color names as strings (CS.JSON supports named colors)
-        color_names = ['red', 'green', 'blue', 'yellow', 'black', 'white', 'gray', 'grey', 
-                      'darkGray', 'lightGray', 'darkGreen', 'lightGreen', 'darkBlue', 'lightBlue',
-                      'darkRed', 'lightRed', 'orange', 'purple', 'brown', 'pink', 'cyan', 'magenta']
+        color_names = [
+            "red",
+            "green",
+            "blue",
+            "yellow",
+            "black",
+            "white",
+            "gray",
+            "grey",
+            "darkGray",
+            "lightGray",
+            "darkGreen",
+            "lightGreen",
+            "darkBlue",
+            "lightBlue",
+            "darkRed",
+            "lightRed",
+            "orange",
+            "purple",
+            "brown",
+            "pink",
+            "cyan",
+            "magenta",
+        ]
         if value in color_names:
             return value
-        
+
         # Keep known identifiers as strings
         return value
 
@@ -1003,24 +1118,33 @@ class AstToPydanticConverter:
             rule_name = None
             styling_rule_name = None
             # Support explicit stylingRuleName if present
-            if hasattr(ast_rule, 'styling_rule_name') and ast_rule.styling_rule_name:
+            if hasattr(ast_rule, "styling_rule_name") and ast_rule.styling_rule_name:
                 styling_rule_name = ast_rule.styling_rule_name
             # Always process selectors for any rule (top-level or nested)
-            if hasattr(ast_rule, 'selectors') and ast_rule.selectors:
+            if hasattr(ast_rule, "selectors") and ast_rule.selectors:
                 if len(ast_rule.selectors) > 1:
                     selector_args = []
                     for sel in ast_rule.selectors:
-                        if hasattr(sel, 'name') and sel.name:
-                            selector_args.append({"op": "=", "args": [{"sysId": "dataLayer.id"}, sel.name]})
+                        if hasattr(sel, "name") and sel.name:
+                            selector_args.append(
+                                {
+                                    "op": "=",
+                                    "args": [{"sysId": "dataLayer.id"}, sel.name],
+                                }
+                            )
                             if not rule_name:
                                 rule_name = sel.name
-                        elif hasattr(sel, 'conditions') and sel.conditions:
+                        elif hasattr(sel, "conditions") and sel.conditions:
                             for condition in sel.conditions:
-                                json_condition = self._convert_expression_to_json_selector(condition)
+                                json_condition = (
+                                    self._convert_expression_to_json_selector(condition)
+                                )
                                 if isinstance(json_condition, dict):
                                     selector_args.append(json_condition)
-                        elif hasattr(sel, 'expression') and sel.expression:
-                            json_expr = self._convert_expression_to_json_selector(sel.expression)
+                        elif hasattr(sel, "expression") and sel.expression:
+                            json_expr = self._convert_expression_to_json_selector(
+                                sel.expression
+                            )
                             if isinstance(json_expr, dict):
                                 selector_args.append(json_expr)
                     if len(selector_args) > 1:
@@ -1033,38 +1157,45 @@ class AstToPydanticConverter:
                         selector = self._post_process_selector(selector)
                 else:
                     sel = ast_rule.selectors[0]
-                    if hasattr(sel, 'name') and sel.name:
+                    if hasattr(sel, "name") and sel.name:
                         rule_name = sel.name
-                        selector = {"op": "=", "args": [{"sysId": "dataLayer.id"}, sel.name]}
-                    elif hasattr(sel, 'conditions') and sel.conditions:
+                        selector = {
+                            "op": "=",
+                            "args": [{"sysId": "dataLayer.id"}, sel.name],
+                        }
+                    elif hasattr(sel, "conditions") and sel.conditions:
                         if len(sel.conditions) > 1:
                             condition_args = []
                             for condition in sel.conditions:
-                                json_condition = self._convert_expression_to_json_selector(condition)
+                                json_condition = (
+                                    self._convert_expression_to_json_selector(condition)
+                                )
                                 if isinstance(json_condition, dict):
                                     condition_args.append(json_condition)
                             if condition_args:
                                 selector = {"op": "and", "args": condition_args}
                         else:
-                            selector = self._convert_expression_to_json_selector(sel.conditions[0])
+                            selector = self._convert_expression_to_json_selector(
+                                sel.conditions[0]
+                            )
                     else:
                         selector = None
                     if selector:
                         selector = self._post_process_selector(selector)
-            elif hasattr(ast_rule, 'name') and ast_rule.name:
+            elif hasattr(ast_rule, "name") and ast_rule.name:
                 rule_name = ast_rule.name
                 selector = [rule_name]
-            elif hasattr(ast_rule, 'selector') and ast_rule.selector:
+            elif hasattr(ast_rule, "selector") and ast_rule.selector:
                 selector = ["Unknown"]
 
             # Convert symbolizer
             symbolizer = None
-            if hasattr(ast_rule, 'symbolizer') and ast_rule.symbolizer:
+            if hasattr(ast_rule, "symbolizer") and ast_rule.symbolizer:
                 symbolizer = self._convert_symbolizer(ast_rule.symbolizer)
 
             # Convert nested rules (ensure selectors are processed for each)
             nested_rules = None
-            if hasattr(ast_rule, 'nested_rules') and ast_rule.nested_rules:
+            if hasattr(ast_rule, "nested_rules") and ast_rule.nested_rules:
                 nested_rules = []
                 for nested_ast_rule in ast_rule.nested_rules:
                     nested_pydantic_rule = self._convert_styling_rule(nested_ast_rule)
@@ -1076,188 +1207,277 @@ class AstToPydanticConverter:
                 styling_rule_name=styling_rule_name,
                 selector=selector,
                 symbolizer=symbolizer,
-                nested_rules=nested_rules
+                nested_rules=nested_rules,
             )
 
         except Exception as e:
             print(f"Warning: Failed to convert styling rule: {e}")
             return None
-    
+
     def _convert_symbolizer(self, ast_symbolizer) -> Optional[Symbolizer]:
         """Convert AST Symbolizer to Pydantic Symbolizer."""
         try:
             symbolizer_data = {}
-            
+
             # Basic properties
-            if hasattr(ast_symbolizer, 'visibility') and ast_symbolizer.visibility is not None:
-                symbolizer_data['visibility'] = ast_symbolizer.visibility
-            
-            if hasattr(ast_symbolizer, 'opacity') and ast_symbolizer.opacity is not None:
-                symbolizer_data['opacity'] = ast_symbolizer.opacity
-            
-            if hasattr(ast_symbolizer, 'z_order') and ast_symbolizer.z_order is not None:
-                symbolizer_data['zOrder'] = ast_symbolizer.z_order
-            
+            if (
+                hasattr(ast_symbolizer, "visibility")
+                and ast_symbolizer.visibility is not None
+            ):
+                symbolizer_data["visibility"] = ast_symbolizer.visibility
+
+            if (
+                hasattr(ast_symbolizer, "opacity")
+                and ast_symbolizer.opacity is not None
+            ):
+                symbolizer_data["opacity"] = ast_symbolizer.opacity
+
+            if (
+                hasattr(ast_symbolizer, "z_order")
+                and ast_symbolizer.z_order is not None
+            ):
+                symbolizer_data["zOrder"] = ast_symbolizer.z_order
+
             # Complex properties
-            if hasattr(ast_symbolizer, 'fill') and ast_symbolizer.fill:
+            if hasattr(ast_symbolizer, "fill") and ast_symbolizer.fill:
                 fill = self._convert_fill(ast_symbolizer.fill)
                 if fill:
-                    symbolizer_data['fill'] = fill
-            
-            if hasattr(ast_symbolizer, 'stroke') and ast_symbolizer.stroke:
+                    symbolizer_data["fill"] = fill
+
+            if hasattr(ast_symbolizer, "stroke") and ast_symbolizer.stroke:
                 stroke = self._convert_stroke(ast_symbolizer.stroke)
                 if stroke:
-                    symbolizer_data['stroke'] = stroke
-            
-            if hasattr(ast_symbolizer, 'marker') and ast_symbolizer.marker:
+                    symbolizer_data["stroke"] = stroke
+
+            if hasattr(ast_symbolizer, "marker") and ast_symbolizer.marker:
                 marker = self._convert_marker(ast_symbolizer.marker)
                 if marker:
-                    symbolizer_data['marker'] = marker
-            
-            if hasattr(ast_symbolizer, 'label') and ast_symbolizer.label:
+                    symbolizer_data["marker"] = marker
+
+            if hasattr(ast_symbolizer, "label") and ast_symbolizer.label:
                 label = self._convert_label(ast_symbolizer.label)
                 if label:
-                    symbolizer_data['label'] = label
-            
+                    symbolizer_data["label"] = label
+
             # Coverage/Raster properties - Phase B Priority 1
-            if hasattr(ast_symbolizer, 'single_channel') and ast_symbolizer.single_channel is not None:
-                symbolizer_data['single_channel'] = self._convert_channel_value(ast_symbolizer.single_channel)
-            elif hasattr(ast_symbolizer, 'singleChannel') and ast_symbolizer.singleChannel is not None:
-                symbolizer_data['single_channel'] = self._convert_channel_value(ast_symbolizer.singleChannel)
-            
-            if hasattr(ast_symbolizer, 'color_channels') and ast_symbolizer.color_channels is not None:
-                symbolizer_data['color_channels'] = self._convert_channel_value(ast_symbolizer.color_channels)
-            elif hasattr(ast_symbolizer, 'colorChannels') and ast_symbolizer.colorChannels is not None:
-                symbolizer_data['color_channels'] = self._convert_channel_value(ast_symbolizer.colorChannels)
-            
-            if hasattr(ast_symbolizer, 'alpha_channel') and ast_symbolizer.alpha_channel is not None:
-                symbolizer_data['alpha_channel'] = self._convert_channel_value(ast_symbolizer.alpha_channel)
-            elif hasattr(ast_symbolizer, 'alphaChannel') and ast_symbolizer.alphaChannel is not None:
-                symbolizer_data['alpha_channel'] = self._convert_channel_value(ast_symbolizer.alphaChannel)
-            
-            if hasattr(ast_symbolizer, 'color_map') and ast_symbolizer.color_map is not None:
-                symbolizer_data['color_map'] = self._convert_color_map(ast_symbolizer.color_map)
-            elif hasattr(ast_symbolizer, 'colorMap') and ast_symbolizer.colorMap is not None:
-                symbolizer_data['color_map'] = self._convert_color_map(ast_symbolizer.colorMap)
-            
-            if hasattr(ast_symbolizer, 'opacity_map') and ast_symbolizer.opacity_map is not None:
-                symbolizer_data['opacity_map'] = self._convert_opacity_map(ast_symbolizer.opacity_map)
-            elif hasattr(ast_symbolizer, 'opacityMap') and ast_symbolizer.opacityMap is not None:
-                symbolizer_data['opacity_map'] = self._convert_opacity_map(ast_symbolizer.opacityMap)
-            
-            if hasattr(ast_symbolizer, 'hill_shading') and ast_symbolizer.hill_shading is not None:
-                symbolizer_data['hill_shading'] = self._convert_hill_shading(ast_symbolizer.hill_shading)
-            elif hasattr(ast_symbolizer, 'hillShading') and ast_symbolizer.hillShading is not None:
-                symbolizer_data['hill_shading'] = self._convert_hill_shading(ast_symbolizer.hillShading)
-            
+            if (
+                hasattr(ast_symbolizer, "single_channel")
+                and ast_symbolizer.single_channel is not None
+            ):
+                symbolizer_data["single_channel"] = self._convert_channel_value(
+                    ast_symbolizer.single_channel
+                )
+            elif (
+                hasattr(ast_symbolizer, "singleChannel")
+                and ast_symbolizer.singleChannel is not None
+            ):
+                symbolizer_data["single_channel"] = self._convert_channel_value(
+                    ast_symbolizer.singleChannel
+                )
+
+            if (
+                hasattr(ast_symbolizer, "color_channels")
+                and ast_symbolizer.color_channels is not None
+            ):
+                symbolizer_data["color_channels"] = self._convert_channel_value(
+                    ast_symbolizer.color_channels
+                )
+            elif (
+                hasattr(ast_symbolizer, "colorChannels")
+                and ast_symbolizer.colorChannels is not None
+            ):
+                symbolizer_data["color_channels"] = self._convert_channel_value(
+                    ast_symbolizer.colorChannels
+                )
+
+            if (
+                hasattr(ast_symbolizer, "alpha_channel")
+                and ast_symbolizer.alpha_channel is not None
+            ):
+                symbolizer_data["alpha_channel"] = self._convert_channel_value(
+                    ast_symbolizer.alpha_channel
+                )
+            elif (
+                hasattr(ast_symbolizer, "alphaChannel")
+                and ast_symbolizer.alphaChannel is not None
+            ):
+                symbolizer_data["alpha_channel"] = self._convert_channel_value(
+                    ast_symbolizer.alphaChannel
+                )
+
+            if (
+                hasattr(ast_symbolizer, "color_map")
+                and ast_symbolizer.color_map is not None
+            ):
+                symbolizer_data["color_map"] = self._convert_color_map(
+                    ast_symbolizer.color_map
+                )
+            elif (
+                hasattr(ast_symbolizer, "colorMap")
+                and ast_symbolizer.colorMap is not None
+            ):
+                symbolizer_data["color_map"] = self._convert_color_map(
+                    ast_symbolizer.colorMap
+                )
+
+            if (
+                hasattr(ast_symbolizer, "opacity_map")
+                and ast_symbolizer.opacity_map is not None
+            ):
+                symbolizer_data["opacity_map"] = self._convert_opacity_map(
+                    ast_symbolizer.opacity_map
+                )
+            elif (
+                hasattr(ast_symbolizer, "opacityMap")
+                and ast_symbolizer.opacityMap is not None
+            ):
+                symbolizer_data["opacity_map"] = self._convert_opacity_map(
+                    ast_symbolizer.opacityMap
+                )
+
+            if (
+                hasattr(ast_symbolizer, "hill_shading")
+                and ast_symbolizer.hill_shading is not None
+            ):
+                symbolizer_data["hill_shading"] = self._convert_hill_shading(
+                    ast_symbolizer.hill_shading
+                )
+            elif (
+                hasattr(ast_symbolizer, "hillShading")
+                and ast_symbolizer.hillShading is not None
+            ):
+                symbolizer_data["hill_shading"] = self._convert_hill_shading(
+                    ast_symbolizer.hillShading
+                )
+
             return Symbolizer(**symbolizer_data) if symbolizer_data else None
-            
+
         except Exception as e:
             print(f"Warning: Failed to convert symbolizer: {e}")
             return None
-    
+
     def _convert_fill(self, ast_fill) -> Optional[Fill]:
         """Convert AST Fill to Pydantic Fill with proper value conversion."""
         try:
             fill_data = {}
-            
-            if hasattr(ast_fill, 'alter') and ast_fill.alter is not None:
-                fill_data['alter'] = ast_fill.alter
-            
-            if hasattr(ast_fill, 'color') and ast_fill.color is not None:
+
+            if hasattr(ast_fill, "alter") and ast_fill.alter is not None:
+                fill_data["alter"] = ast_fill.alter
+
+            if hasattr(ast_fill, "color") and ast_fill.color is not None:
                 # Use _convert_literal_value for proper hex/color conversion
-                fill_data['color'] = self._convert_literal_value(str(ast_fill.color))
-            
-            if hasattr(ast_fill, 'opacity') and ast_fill.opacity is not None:
-                fill_data['opacity'] = float(ast_fill.opacity)
-            
+                fill_data["color"] = self._convert_literal_value(str(ast_fill.color))
+
+            if hasattr(ast_fill, "opacity") and ast_fill.opacity is not None:
+                fill_data["opacity"] = float(ast_fill.opacity)
+
             return Fill(**fill_data) if fill_data else None
-            
+
         except Exception as e:
             print(f"Warning: Failed to convert fill: {e}")
             return None
-    
+
     def _convert_stroke(self, ast_stroke) -> Optional[Stroke]:
         """Convert AST Stroke to Pydantic Stroke with proper value conversion."""
         try:
             stroke_data = {}
-            
-            if hasattr(ast_stroke, 'alter') and ast_stroke.alter is not None:
-                stroke_data['alter'] = ast_stroke.alter
-            
-            if hasattr(ast_stroke, 'color') and ast_stroke.color is not None:
+
+            if hasattr(ast_stroke, "alter") and ast_stroke.alter is not None:
+                stroke_data["alter"] = ast_stroke.alter
+
+            if hasattr(ast_stroke, "color") and ast_stroke.color is not None:
                 # Use _convert_literal_value for proper hex/color conversion
-                stroke_data['color'] = self._convert_literal_value(str(ast_stroke.color))
-            
-            if hasattr(ast_stroke, 'width') and ast_stroke.width is not None:
+                stroke_data["color"] = self._convert_literal_value(
+                    str(ast_stroke.color)
+                )
+
+            if hasattr(ast_stroke, "width") and ast_stroke.width is not None:
                 # Use _convert_literal_value for proper unit conversion
                 width_value = str(ast_stroke.width)
-                stroke_data['width'] = self._convert_literal_value(width_value)
-            
-            if hasattr(ast_stroke, 'opacity') and ast_stroke.opacity is not None:
-                stroke_data['opacity'] = float(ast_stroke.opacity)
-            
+                stroke_data["width"] = self._convert_literal_value(width_value)
+
+            if hasattr(ast_stroke, "opacity") and ast_stroke.opacity is not None:
+                stroke_data["opacity"] = float(ast_stroke.opacity)
+
             return Stroke(**stroke_data) if stroke_data else None
-            
+
         except Exception as e:
             print(f"Warning: Failed to convert stroke: {e}")
             return None
-    
+
     def _convert_marker(self, ast_marker) -> Optional[Marker]:
         """Convert AST Marker to Pydantic Marker, including position and opacity if present, and preserving all element properties."""
         try:
             from .models.symbolizers import Marker as PydanticMarker
+
             marker_data = {}
             # Alter flag (set when marker.elements[N] syntax is used)
-            if hasattr(ast_marker, 'alter') and ast_marker.alter is not None:
-                marker_data['alter'] = ast_marker.alter
+            if hasattr(ast_marker, "alter") and ast_marker.alter is not None:
+                marker_data["alter"] = ast_marker.alter
             # Position and opacity at marker level
-            if hasattr(ast_marker, 'position') and ast_marker.position is not None:
-                marker_data['position'] = ast_marker.position
-            if hasattr(ast_marker, 'opacity') and ast_marker.opacity is not None:
-                marker_data['opacity'] = ast_marker.opacity
+            if hasattr(ast_marker, "position") and ast_marker.position is not None:
+                marker_data["position"] = ast_marker.position
+            if hasattr(ast_marker, "opacity") and ast_marker.opacity is not None:
+                marker_data["opacity"] = ast_marker.opacity
             # Elements — either a list of graphics or an indexed override {index, value}
-            if hasattr(ast_marker, 'elements') and ast_marker.elements is not None:
+            if hasattr(ast_marker, "elements") and ast_marker.elements is not None:
                 elements = ast_marker.elements
-                if isinstance(elements, dict) and 'index' in elements and 'value' in elements:
+                if (
+                    isinstance(elements, dict)
+                    and "index" in elements
+                    and "value" in elements
+                ):
                     # Indexed override: keep the {index, value} form
-                    val = elements['value']
-                    if hasattr(val, 'model_dump'):
+                    val = elements["value"]
+                    if hasattr(val, "model_dump"):
                         el_dict = val.model_dump(exclude_none=True)
-                    elif hasattr(val, 'items'):
+                    elif hasattr(val, "items"):
                         el_dict = dict(val)
                     else:
                         el_dict = val
                     # Marker.elements is typed Any (see models/symbolizers.py),
                     # so Pydantic never auto-validates `position` here — convert
                     # it to a real UnitPoint explicitly.
-                    if isinstance(el_dict, dict) and isinstance(el_dict.get('position'), (str, dict)):
+                    if isinstance(el_dict, dict) and isinstance(
+                        el_dict.get("position"), (str, dict)
+                    ):
                         from .models.symbolizers import UnitPoint as ModelUnitPoint
-                        el_dict['position'] = ModelUnitPoint.model_validate(el_dict['position'])
+
+                        el_dict["position"] = ModelUnitPoint.model_validate(
+                            el_dict["position"]
+                        )
                     _normalize_graphic_element(el_dict)
-                    marker_data['elements'] = {'index': elements['index'], 'value': el_dict}
+                    marker_data["elements"] = {
+                        "index": elements["index"],
+                        "value": el_dict,
+                    }
                 else:
                     converted_elements = []
                     for el in (elements if isinstance(elements, list) else [elements]):
                         # Accept dicts (from marker.elements[N] patch) or Pydantic objects
-                        if hasattr(el, 'model_dump'):
+                        if hasattr(el, "model_dump"):
                             el_dict = el.model_dump(exclude_none=True)
-                        elif hasattr(el, 'items'):
+                        elif hasattr(el, "items"):
                             el_dict = dict(el)
                         else:
                             el_dict = el
                         # Ensure type is present (default to Dot if missing)
-                        if isinstance(el_dict, dict) and 'type' not in el_dict:
-                            el_dict['type'] = 'Dot'
+                        if isinstance(el_dict, dict) and "type" not in el_dict:
+                            el_dict["type"] = "Dot"
                         # Marker.elements is typed Any (see models/symbolizers.py),
                         # so Pydantic never auto-validates `position` here —
                         # convert it to a real UnitPoint explicitly.
-                        if isinstance(el_dict, dict) and isinstance(el_dict.get('position'), (str, dict)):
+                        if isinstance(el_dict, dict) and isinstance(
+                            el_dict.get("position"), (str, dict)
+                        ):
                             from .models.symbolizers import UnitPoint as ModelUnitPoint
-                            el_dict['position'] = ModelUnitPoint.model_validate(el_dict['position'])
+
+                            el_dict["position"] = ModelUnitPoint.model_validate(
+                                el_dict["position"]
+                            )
                         _normalize_graphic_element(el_dict)
                         converted_elements.append(el_dict)
-                    marker_data['elements'] = converted_elements
+                    marker_data["elements"] = converted_elements
             # If no data was collected the marker would serialize to {}, which
             # fails schema validation.  Return None so the symbolizer omits it.
             if not marker_data:
@@ -1266,10 +1486,10 @@ class AstToPydanticConverter:
         except Exception as e:
             print(f"Warning: Failed to convert marker: {e}")
             return None
-    
+
     def _convert_channel_value(self, value: Any) -> Any:
         """Convert a channel value to proper expression format.
-        
+
         If value is a simple identifier string, convert to property reference.
         If value is multiple space-separated identifiers, convert to array of property references.
         If value contains arithmetic operators, parse it as a mathematical expression.
@@ -1277,26 +1497,51 @@ class AstToPydanticConverter:
         """
         if isinstance(value, str):
             # Check if it contains arithmetic operators - if so, parse as expression
-            if any(op in value for op in ['+', '-', '*', '/', '(', ')']):
+            if any(op in value for op in ["+", "-", "*", "/", "(", ")"]):
                 try:
                     return self._parse_arithmetic_expression(value)
                 except Exception as e:
-                    print(f"Warning: Failed to parse arithmetic expression '{value}': {e}")
+                    print(
+                        f"Warning: Failed to parse arithmetic expression '{value}': {e}"
+                    )
                     return value
-            
+
             # Check if it contains multiple space-separated identifiers (like "B04 B03 B02")
             parts = value.split()
             if len(parts) > 1:
                 # Multiple identifiers - check if they're all simple identifiers
-                if all(p and not any(c in p for c in ['+', '-', '*', '/', '(', ')', '[', ']', '{', '}', ';', '.']) for p in parts):
+                if all(
+                    p
+                    and not any(
+                        c in p
+                        for c in [
+                            "+",
+                            "-",
+                            "*",
+                            "/",
+                            "(",
+                            ")",
+                            "[",
+                            "]",
+                            "{",
+                            "}",
+                            ";",
+                            ".",
+                        ]
+                    )
+                    for p in parts
+                ):
                     # Convert to array of property references
-                    return [{'property': p} for p in parts]
+                    return [{"property": p} for p in parts]
             # Single identifier - check if it's a simple identifier (no spaces, no operators)
-            elif value and not any(c in value for c in [' ', '+', '-', '*', '/', '(', ')', '[', ']', '{', '}', ';']):
+            elif value and not any(
+                c in value
+                for c in [" ", "+", "-", "*", "/", "(", ")", "[", "]", "{", "}", ";"]
+            ):
                 # Check if it's a numeric literal
                 try:
                     # Try to parse as number
-                    if '.' in value:
+                    if "." in value:
                         return float(value)
                     else:
                         return int(value)
@@ -1313,24 +1558,24 @@ class AstToPydanticConverter:
             return value
         else:
             return value
-    
+
     def _parse_arithmetic_expression(self, expr: str) -> Dict[str, Any]:
         """Parse arithmetic expression string into JSON expression format.
-        
+
         Handles basic arithmetic: +, -, *, / with parentheses.
         Example: "(B08 - B04)/(B08 + B04)" -> {"op": "/", "args": [...]}
         """
         expr = expr.strip()
-        
+
         # Remove outer parentheses if they wrap the entire expression
-        while expr.startswith('(') and expr.endswith(')'):
+        while expr.startswith("(") and expr.endswith(")"):
             # Check if these parentheses match
             depth = 0
             matches = True
             for i, c in enumerate(expr):
-                if c == '(':
+                if c == "(":
                     depth += 1
-                elif c == ')':
+                elif c == ")":
                     depth -= 1
                 if depth == 0 and i < len(expr) - 1:
                     matches = False
@@ -1339,106 +1584,107 @@ class AstToPydanticConverter:
                 expr = expr[1:-1].strip()
             else:
                 break
-        
+
         # Parse operators with precedence: / and * before + and -
         # Find the last + or - that's not inside parentheses (lowest precedence)
         depth = 0
         last_add_sub = -1
         for i in range(len(expr) - 1, -1, -1):
-            if expr[i] == ')':
+            if expr[i] == ")":
                 depth += 1
-            elif expr[i] == '(':
+            elif expr[i] == "(":
                 depth -= 1
-            elif depth == 0 and expr[i] in ['+', '-']:
+            elif depth == 0 and expr[i] in ["+", "-"]:
                 # Make sure it's not a unary operator at the start
                 if i > 0:
                     last_add_sub = i
                     break
-        
+
         if last_add_sub > 0:
             op = expr[last_add_sub]
             left = expr[:last_add_sub].strip()
-            right = expr[last_add_sub + 1:].strip()
+            right = expr[last_add_sub + 1 :].strip()
             return {
                 "op": op,
                 "args": [
                     self._parse_arithmetic_expression(left),
-                    self._parse_arithmetic_expression(right)
-                ]
+                    self._parse_arithmetic_expression(right),
+                ],
             }
-        
+
         # Find the last * or / that's not inside parentheses (higher precedence)
         depth = 0
         last_mul_div = -1
         for i in range(len(expr) - 1, -1, -1):
-            if expr[i] == ')':
+            if expr[i] == ")":
                 depth += 1
-            elif expr[i] == '(':
+            elif expr[i] == "(":
                 depth -= 1
-            elif depth == 0 and expr[i] in ['*', '/']:
+            elif depth == 0 and expr[i] in ["*", "/"]:
                 last_mul_div = i
                 break
-        
+
         if last_mul_div > 0:
             op = expr[last_mul_div]
             left = expr[:last_mul_div].strip()
-            right = expr[last_mul_div + 1:].strip()
+            right = expr[last_mul_div + 1 :].strip()
             return {
                 "op": op,
                 "args": [
                     self._parse_arithmetic_expression(left),
-                    self._parse_arithmetic_expression(right)
-                ]
+                    self._parse_arithmetic_expression(right),
+                ],
             }
-        
+
         # No operators found - must be a terminal (identifier or number)
         # Check if it's a number
         try:
-            if '.' in expr:
+            if "." in expr:
                 return float(expr)
             else:
                 return int(expr)
         except ValueError:
             # It's an identifier - convert to property reference
             return {"property": expr}
-    
+
     def _convert_label(self, ast_label) -> Optional[Label]:
         """Convert AST Label to Pydantic Label, preserving all element properties."""
         try:
             from .models.symbolizers import Label as PydanticLabel
+
             label_data = {}
             # Position and opacity at label level
-            if hasattr(ast_label, 'position') and ast_label.position is not None:
-                label_data['position'] = ast_label.position
-            if hasattr(ast_label, 'opacity') and ast_label.opacity is not None:
-                label_data['opacity'] = ast_label.opacity
-            if hasattr(ast_label, 'placement') and ast_label.placement is not None:
-                label_data['placement'] = ast_label.placement
+            if hasattr(ast_label, "position") and ast_label.position is not None:
+                label_data["position"] = ast_label.position
+            if hasattr(ast_label, "opacity") and ast_label.opacity is not None:
+                label_data["opacity"] = ast_label.opacity
+            if hasattr(ast_label, "placement") and ast_label.placement is not None:
+                label_data["placement"] = ast_label.placement
             # Elements — list of graphics
-            if hasattr(ast_label, 'elements') and ast_label.elements is not None:
+            if hasattr(ast_label, "elements") and ast_label.elements is not None:
                 elements = ast_label.elements
                 converted_elements = []
                 for el in (elements if isinstance(elements, list) else [elements]):
-                    if hasattr(el, 'model_dump'):
+                    if hasattr(el, "model_dump"):
                         el_dict = el.model_dump(exclude_none=True)
-                    elif hasattr(el, 'items'):
+                    elif hasattr(el, "items"):
                         el_dict = dict(el)
                     else:
                         el_dict = el
-                    if isinstance(el_dict, dict) and 'type' not in el_dict:
-                        el_dict['type'] = 'Dot'
+                    if isinstance(el_dict, dict) and "type" not in el_dict:
+                        el_dict["type"] = "Dot"
                     # `position` (bare "x y" string or {x,y} dict) is
                     # accepted as-is — UnitPoint's own validator parses both.
                     _normalize_graphic_element(el_dict)
                     converted_elements.append(el_dict)
-                label_data['elements'] = converted_elements
+                label_data["elements"] = converted_elements
             if not label_data:
                 return None
             return PydanticLabel(**label_data)
         except Exception as e:
             print(f"Warning: Failed to convert label: {e}")
             return None
-    
+
     def _convert_color_map(self, ast_color_map) -> Optional[Any]:
         """Convert AST ColorMap to array format per JSON schema."""
         try:
@@ -1454,7 +1700,7 @@ class AstToPydanticConverter:
         except Exception as e:
             print(f"Warning: Failed to convert color map: {e}")
             return None
-    
+
     def _convert_opacity_map(self, ast_opacity_map) -> Optional[Any]:
         """Convert AST OpacityMap to array format per JSON schema."""
         try:
@@ -1470,7 +1716,7 @@ class AstToPydanticConverter:
         except Exception as e:
             print(f"Warning: Failed to convert opacity map: {e}")
             return None
-    
+
     def _convert_hill_shading(self, ast_hill_shading) -> Optional[Dict[str, Any]]:
         """Convert AST HillShading to dictionary per JSON schema."""
         try:
@@ -1481,13 +1727,17 @@ class AstToPydanticConverter:
                     if key == "sun":
                         if isinstance(value, dict):
                             result["sun"] = dict(value)
-                        elif isinstance(value, str) and value.startswith('{') and value.endswith('}'):
+                        elif (
+                            isinstance(value, str)
+                            and value.startswith("{")
+                            and value.endswith("}")
+                        ):
                             # Parse sun string like "{azimuth: 45.0; elevation: 60.0}" to object
                             sun_obj = {}
-                            content = value.strip('{}').strip()
-                            for part in content.split(';'):
-                                if ':' in part:
-                                    k, v = part.split(':', 1)
+                            content = value.strip("{}").strip()
+                            for part in content.split(";"):
+                                if ":" in part:
+                                    k, v = part.split(":", 1)
                                     try:
                                         sun_obj[k.strip()] = float(v.strip())
                                     except ValueError:
@@ -1497,10 +1747,14 @@ class AstToPydanticConverter:
                             result["sun"] = value
                     elif key == "colorMap":
                         # colorMap inside hillShading uses 0-1 values for first element
-                        result["colorMap"] = value if isinstance(value, (list, dict)) else str(value)
+                        result["colorMap"] = (
+                            value if isinstance(value, (list, dict)) else str(value)
+                        )
                     elif key == "opacityMap":
                         # opacityMap inside hillShading
-                        result["opacityMap"] = value if isinstance(value, (list, dict)) else str(value)
+                        result["opacityMap"] = (
+                            value if isinstance(value, (list, dict)) else str(value)
+                        )
                     else:
                         result[key] = value
                 return result
@@ -1514,13 +1768,13 @@ class AstToPydanticConverter:
 def convert_ast_to_pydantic(ast_stylesheet: AstStyleSheet) -> Style:
     """
     Convenience function to convert AST StyleSheet to Pydantic Style.
-    
+
     Args:
         ast_stylesheet: ANTLR-generated AST stylesheet
-        
+
     Returns:
         Pydantic Style model
-        
+
     Raises:
         ValueError: If conversion fails
     """

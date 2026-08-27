@@ -7,9 +7,9 @@ Delegates to :meth:`~cartosym_transcoder.converter.Converter.csjson_to_style`.
 from pathlib import Path
 from typing import Union
 
-from ..base import CodecReader
-from ...models.styles import Style
 from ...converter import Converter
+from ...models.styles import Style
+from ..base import CodecReader
 
 
 class CsjsonReader(CodecReader):

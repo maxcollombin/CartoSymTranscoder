@@ -48,9 +48,9 @@ def to_cql2_json(expr) -> Dict[str, Any]:
     """
     if isinstance(expr, dict):
         return expr
-    if hasattr(expr, 'to_cql2_json'):
+    if hasattr(expr, "to_cql2_json"):
         return expr.to_cql2_json()
     # Fallback: if it's a Pydantic model, dump it
-    if hasattr(expr, 'model_dump'):
+    if hasattr(expr, "model_dump"):
         return expr.model_dump(exclude_none=True)
     return expr

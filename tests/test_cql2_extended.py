@@ -14,27 +14,27 @@ Covers:
 
 import pytest
 
+from cartosym_transcoder.converter import Converter
 from cartosym_transcoder.expression_parser import ExpressionParser
 from cartosym_transcoder.models.expressions import (
-    TextOpPredicate,
-    CaseiExpression,
     AccentiExpression,
-    LowerUpperCaseExpression,
+    CaseiExpression,
     ConcatenateExpression,
-    SubstituteExpression,
-    FormatExpression,
-    SpatialPredicate,
-    GeometryBuffer,
-    GeometryManipulationUnary,
-    GeometryManipulationBinary,
     ConstantExpression,
+    FormatExpression,
+    GeometryBuffer,
+    GeometryManipulationBinary,
+    GeometryManipulationUnary,
     IdentifierExpression,
+    LowerUpperCaseExpression,
+    SpatialPredicate,
     StringExpression,
+    SubstituteExpression,
+    TextOpPredicate,
 )
-from cartosym_transcoder.converter import Converter
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────
+
 
 def parse(text: str):
     """Parse *text* via ExpressionParser._parse_expression_text."""
@@ -48,6 +48,7 @@ def writeback(expr_dict: dict) -> str:
 
 
 # ── Text Operation Predicates ─────────────────────────────────────────────
+
 
 class TestTextOpPredicates:
 
@@ -94,6 +95,7 @@ class TestTextOpPredicates:
 
 # ── CASEI / ACCENTI ──────────────────────────────────────────────────────
 
+
 class TestCaseiAccenti:
 
     def test_casei_parse(self):
@@ -122,6 +124,7 @@ class TestCaseiAccenti:
 
 # ── LOWERCASE / UPPERCASE ────────────────────────────────────────────────
 
+
 class TestLowerUpperCase:
 
     def test_lowercase_parse(self):
@@ -145,6 +148,7 @@ class TestLowerUpperCase:
 
 # ── CONCATENATE ──────────────────────────────────────────────────────────
 
+
 class TestConcatenate:
 
     def test_concatenate_parse(self):
@@ -159,13 +163,15 @@ class TestConcatenate:
         assert len(result.args) == 2
 
     def test_writeback_concatenate(self):
-        d = {"op": "concatenate", "args": [
-            {"property": "first"}, " ", {"property": "last"}
-        ]}
+        d = {
+            "op": "concatenate",
+            "args": [{"property": "first"}, " ", {"property": "last"}],
+        }
         assert writeback(d) == "CONCATENATE(first, ' ', last)"
 
 
 # ── SUBSTITUTE ───────────────────────────────────────────────────────────
+
 
 class TestSubstitute:
 
@@ -176,13 +182,12 @@ class TestSubstitute:
         assert len(result.args) == 3
 
     def test_writeback_substitute(self):
-        d = {"op": "substitute", "args": [
-            {"property": "name"}, "old", "new"
-        ]}
+        d = {"op": "substitute", "args": [{"property": "name"}, "old", "new"]}
         assert writeback(d) == "SUBSTITUTE(name, 'old', 'new')"
 
 
 # ── FORMAT ───────────────────────────────────────────────────────────────
+
 
 class TestFormat:
 
@@ -198,13 +203,15 @@ class TestFormat:
         assert len(result.args) == 1
 
     def test_writeback_format(self):
-        d = {"op": "format", "args": [
-            "%s (%d)", {"property": "name"}, {"property": "code"}
-        ]}
+        d = {
+            "op": "format",
+            "args": ["%s (%d)", {"property": "name"}, {"property": "code"}],
+        }
         assert writeback(d) == "FORMAT('%s (%d)', name, code)"
 
 
 # ── S_COVERS / S_COVEREDBY ──────────────────────────────────────────────
+
 
 class TestSpatialCovers:
 
@@ -224,15 +231,14 @@ class TestSpatialCovers:
         assert isinstance(result, SpatialPredicate)
 
     def test_writeback_s_covers(self):
-        d = {"op": "s_covers", "args": [
-            {"property": "geomA"}, {"property": "geomB"}
-        ]}
+        d = {"op": "s_covers", "args": [{"property": "geomA"}, {"property": "geomB"}]}
         assert writeback(d) == "S_COVERS(geomA, geomB)"
 
     def test_writeback_s_coveredby(self):
-        d = {"op": "s_coveredBy", "args": [
-            {"property": "geomA"}, {"property": "geomB"}
-        ]}
+        d = {
+            "op": "s_coveredBy",
+            "args": [{"property": "geomA"}, {"property": "geomB"}],
+        }
         assert writeback(d) == "S_COVEREDBY(geomA, geomB)"
 
     def test_model_accepts_s_covers(self):
@@ -246,14 +252,18 @@ class TestSpatialCovers:
 
 # ── Geometry Manipulation (Binary) ───────────────────────────────────────
 
+
 class TestGeometryManipulationBinary:
 
-    @pytest.mark.parametrize("func,expected_op", [
-        ("S_INTERSECTION", "s_intersection"),
-        ("S_UNION", "s_union"),
-        ("S_DIFFERENCE", "s_difference"),
-        ("S_SYMDIFFERENCE", "s_symDifference"),
-    ])
+    @pytest.mark.parametrize(
+        "func,expected_op",
+        [
+            ("S_INTERSECTION", "s_intersection"),
+            ("S_UNION", "s_union"),
+            ("S_DIFFERENCE", "s_difference"),
+            ("S_SYMDIFFERENCE", "s_symDifference"),
+        ],
+    )
     def test_parse(self, func, expected_op):
         result = parse(f"{func}(geomA, geomB)")
         assert isinstance(result, GeometryManipulationBinary)
@@ -264,25 +274,33 @@ class TestGeometryManipulationBinary:
         result = parse("s_intersection(a, b)")
         assert isinstance(result, GeometryManipulationBinary)
 
-    @pytest.mark.parametrize("op", [
-        "s_intersection", "s_union", "s_difference", "s_symDifference",
-    ])
+    @pytest.mark.parametrize(
+        "op",
+        [
+            "s_intersection",
+            "s_union",
+            "s_difference",
+            "s_symDifference",
+        ],
+    )
     def test_writeback(self, op):
-        d = {"op": op, "args": [
-            {"property": "geomA"}, {"property": "geomB"}
-        ]}
+        d = {"op": op, "args": [{"property": "geomA"}, {"property": "geomB"}]}
         result = writeback(d)
         assert result == f"{op.upper()}(geomA, geomB)"
 
 
 # ── Geometry Manipulation (Unary) ────────────────────────────────────────
 
+
 class TestGeometryManipulationUnary:
 
-    @pytest.mark.parametrize("func,expected_op", [
-        ("S_CONVEXHULL", "s_convexHull"),
-        ("S_ENVELOPE", "s_envelope"),
-    ])
+    @pytest.mark.parametrize(
+        "func,expected_op",
+        [
+            ("S_CONVEXHULL", "s_convexHull"),
+            ("S_ENVELOPE", "s_envelope"),
+        ],
+    )
     def test_parse(self, func, expected_op):
         result = parse(f"{func}(geom)")
         assert isinstance(result, GeometryManipulationUnary)
@@ -297,6 +315,7 @@ class TestGeometryManipulationUnary:
 
 
 # ── Geometry Buffer ──────────────────────────────────────────────────────
+
 
 class TestGeometryBuffer:
 
@@ -316,6 +335,7 @@ class TestGeometryBuffer:
 
 
 # ── Hex Number Literals ──────────────────────────────────────────────────
+
 
 class TestHexNumber:
 
@@ -342,15 +362,16 @@ class TestHexNumber:
 
 # ── Round-trip integration ───────────────────────────────────────────────
 
+
 class TestRoundTrip:
 
     def test_contains_roundtrip(self):
         result = parse("CONTAINS(name, 'park')")
         assert isinstance(result, TextOpPredicate)
-        d = {"op": result.op, "args": [
-            {"property": result.args[0].name},
-            result.args[1].value
-        ]}
+        d = {
+            "op": result.op,
+            "args": [{"property": result.args[0].name}, result.args[1].value],
+        }
         assert writeback(d) == "CONTAINS(name, 'park')"
 
     def test_casei_roundtrip(self):
@@ -362,19 +383,25 @@ class TestRoundTrip:
     def test_s_covers_roundtrip(self):
         result = parse("S_COVERS(geomA, geomB)")
         assert isinstance(result, SpatialPredicate)
-        d = {"op": result.op, "args": [
-            {"property": result.args[0].name},
-            {"property": result.args[1].name},
-        ]}
+        d = {
+            "op": result.op,
+            "args": [
+                {"property": result.args[0].name},
+                {"property": result.args[1].name},
+            ],
+        }
         assert writeback(d) == "S_COVERS(geomA, geomB)"
 
     def test_s_buffer_roundtrip(self):
         result = parse("S_BUFFER(geom, 100)")
         assert isinstance(result, GeometryBuffer)
-        d = {"op": result.op, "args": [
-            {"property": result.args[0].name},
-            result.args[1].value,
-        ]}
+        d = {
+            "op": result.op,
+            "args": [
+                {"property": result.args[0].name},
+                result.args[1].value,
+            ],
+        }
         assert writeback(d) == "S_BUFFER(geom, 100)"
 
     def test_s_convexhull_roundtrip(self):
@@ -386,17 +413,13 @@ class TestRoundTrip:
     def test_concatenate_roundtrip(self):
         result = parse("CONCATENATE(a, b)")
         assert isinstance(result, ConcatenateExpression)
-        d = {"op": "concatenate", "args": [
-            {"property": "a"}, {"property": "b"}
-        ]}
+        d = {"op": "concatenate", "args": [{"property": "a"}, {"property": "b"}]}
         assert writeback(d) == "CONCATENATE(a, b)"
 
     def test_substitute_roundtrip(self):
         result = parse("SUBSTITUTE(name, 'old', 'new')")
         assert isinstance(result, SubstituteExpression)
-        d = {"op": "substitute", "args": [
-            {"property": "name"}, "old", "new"
-        ]}
+        d = {"op": "substitute", "args": [{"property": "name"}, "old", "new"]}
         assert writeback(d) == "SUBSTITUTE(name, 'old', 'new')"
 
     def test_lowercase_roundtrip(self):

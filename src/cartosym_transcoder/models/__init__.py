@@ -5,22 +5,37 @@ This module contains the complete data model based on the OGC CartoSym specifica
 implemented using Pydantic for validation, serialization, and documentation.
 """
 
-from .base import BaseCartoSymModel, CommentMixin, AlterMixin
-from .styles import Style, StylingRule, Metadata
-from .types import (
-    # Color types
-    WebColorName, RGBColor, RGBColorNormalized, Color, ColorNormalized,
-    FlexibleColor,
-    # Unit types
-    UnitType, UnitValue, FlexibleUnitValue,
-    # Angle types
-    AngleUnit, Angle, FlexibleAngle,
-    # Range types
-    ZeroToOne, Percent, ColorComponent255, FlexibleOpacity
-)
+from .base import AlterMixin, BaseCartoSymModel, CommentMixin
+from .styles import Metadata, Style, StylingRule
 from .symbolizers import (
-    Symbolizer, Fill, Stroke, Marker, Label,
-    StrokeStyling, DashPattern, Hatch, DotPattern, Stipple
+    DashPattern,
+    DotPattern,
+    Fill,
+    Hatch,
+    Label,
+    Marker,
+    Stipple,
+    Stroke,
+    StrokeStyling,
+    Symbolizer,
+)
+from .types import (  # Color types; Unit types; Angle types; Range types
+    Angle,
+    AngleUnit,
+    Color,
+    ColorComponent255,
+    ColorNormalized,
+    FlexibleAngle,
+    FlexibleColor,
+    FlexibleOpacity,
+    FlexibleUnitValue,
+    Percent,
+    RGBColor,
+    RGBColorNormalized,
+    UnitType,
+    UnitValue,
+    WebColorName,
+    ZeroToOne,
 )
 
 # Import order will be important due to forward references
@@ -29,30 +44,38 @@ from .symbolizers import (
 __all__ = [
     # Base types
     "BaseCartoSymModel",
-    "CommentMixin", 
+    "CommentMixin",
     "AlterMixin",
-    
     # Core models (Phase 2)
-    "Style", 
-    "StylingRule", 
+    "Style",
+    "StylingRule",
     "Metadata",
-    
     # Phase B precise types
-    "WebColorName", "RGBColor", "RGBColorNormalized", "Color", "ColorNormalized",
+    "WebColorName",
+    "RGBColor",
+    "RGBColorNormalized",
+    "Color",
+    "ColorNormalized",
     "FlexibleColor",
-    "UnitType", "UnitValue", "FlexibleUnitValue",
-    "AngleUnit", "Angle", "FlexibleAngle", 
-    "ZeroToOne", "Percent", "ColorComponent255", "FlexibleOpacity",
-    
+    "UnitType",
+    "UnitValue",
+    "FlexibleUnitValue",
+    "AngleUnit",
+    "Angle",
+    "FlexibleAngle",
+    "ZeroToOne",
+    "Percent",
+    "ColorComponent255",
+    "FlexibleOpacity",
     # Symbolizer models (Phase 3)
     "Symbolizer",
     "Fill",
-    "Stroke", 
+    "Stroke",
     "Marker",
     "Label",
     "StrokeStyling",
     "DashPattern",
     "Hatch",
-    "DotPattern", 
+    "DotPattern",
     "Stipple",
 ]

@@ -16,26 +16,26 @@ Covers:
 
 import pytest
 
+from cartosym_transcoder.converter import Converter
 from cartosym_transcoder.expression_parser import ExpressionParser
 from cartosym_transcoder.models.expressions import (
+    ArrayPredicate,
+    BboxLiteral,
+    ConstantExpression,
+    GeometryLiteral,
+    IdentifierExpression,
     IsBetweenPredicate,
     IsInListPredicate,
     IsLikePredicate,
     IsNullPredicate,
-    UnaryOperationExpression,
     NotExpression,
     SpatialPredicate,
     SpatialRelatePredicate,
-    TemporalPredicate,
-    ArrayPredicate,
-    GeometryLiteral,
-    BboxLiteral,
-    TemporalLiteral,
-    IdentifierExpression,
-    ConstantExpression,
     StringExpression,
+    TemporalLiteral,
+    TemporalPredicate,
+    UnaryOperationExpression,
 )
-from cartosym_transcoder.converter import Converter
 
 
 # Helper: parse text as a standalone expression
@@ -51,6 +51,7 @@ def writeback(expr_dict: dict) -> str:
 
 
 # ── BETWEEN / NOT BETWEEN ─────────────────────────────────────────────────
+
 
 class TestBetween:
 
@@ -76,19 +77,19 @@ class TestBetween:
         assert result.args[2].value == 100
 
     def test_writeback_between(self):
-        d = {"op": "between", "args": [
-            {"property": "age"}, 10, 20
-        ]}
+        d = {"op": "between", "args": [{"property": "age"}, 10, 20]}
         assert writeback(d) == "age BETWEEN 10 AND 20"
 
     def test_writeback_not_between(self):
-        d = {"op": "not", "args": [
-            {"op": "between", "args": [{"property": "age"}, 10, 20]}
-        ]}
+        d = {
+            "op": "not",
+            "args": [{"op": "between", "args": [{"property": "age"}, 10, 20]}],
+        }
         assert writeback(d) == "age NOT BETWEEN 10 AND 20"
 
 
 # ── IN / NOT IN ───────────────────────────────────────────────────────────
+
 
 class TestIn:
 
@@ -109,19 +110,19 @@ class TestIn:
         assert result.args[0].name == "code"
 
     def test_writeback_in(self):
-        d = {"op": "in", "args": [
-            {"property": "status"}, ["a", "b", "c"]
-        ]}
+        d = {"op": "in", "args": [{"property": "status"}, ["a", "b", "c"]]}
         assert writeback(d) == "status IN ('a', 'b', 'c')"
 
     def test_writeback_not_in(self):
-        d = {"op": "not", "args": [
-            {"op": "in", "args": [{"property": "status"}, ["x", "y"]]}
-        ]}
+        d = {
+            "op": "not",
+            "args": [{"op": "in", "args": [{"property": "status"}, ["x", "y"]]}],
+        }
         assert writeback(d) == "status NOT IN ('x', 'y')"
 
 
 # ── LIKE / NOT LIKE / ILIKE ──────────────────────────────────────────────
+
 
 class TestLike:
 
@@ -141,19 +142,19 @@ class TestLike:
         assert result.op == "ilike"
 
     def test_writeback_like(self):
-        d = {"op": "like", "args": [
-            {"property": "name"}, "'%park%'"
-        ]}
+        d = {"op": "like", "args": [{"property": "name"}, "'%park%'"]}
         assert "LIKE" in writeback(d)
 
     def test_writeback_not_like(self):
-        d = {"op": "not", "args": [
-            {"op": "like", "args": [{"property": "name"}, "'%test%'"]}
-        ]}
+        d = {
+            "op": "not",
+            "args": [{"op": "like", "args": [{"property": "name"}, "'%test%'"]}],
+        }
         assert "NOT LIKE" in writeback(d)
 
 
 # ── IS NULL / IS NOT NULL ─────────────────────────────────────────────────
+
 
 class TestIsNull:
 
@@ -171,20 +172,31 @@ class TestIsNull:
         assert writeback(d) == "description IS NULL"
 
     def test_writeback_is_not_null(self):
-        d = {"op": "not", "args": [
-            {"op": "isNull", "args": [{"property": "description"}]}
-        ]}
+        d = {
+            "op": "not",
+            "args": [{"op": "isNull", "args": [{"property": "description"}]}],
+        }
         assert writeback(d) == "description IS NOT NULL"
 
 
 # ── Spatial Predicates ────────────────────────────────────────────────────
 
+
 class TestSpatialPredicateParsing:
 
-    @pytest.mark.parametrize("func", [
-        "S_INTERSECTS", "S_CONTAINS", "S_WITHIN", "S_TOUCHES",
-        "S_CROSSES", "S_DISJOINT", "S_OVERLAPS", "S_EQUALS",
-    ])
+    @pytest.mark.parametrize(
+        "func",
+        [
+            "S_INTERSECTS",
+            "S_CONTAINS",
+            "S_WITHIN",
+            "S_TOUCHES",
+            "S_CROSSES",
+            "S_DISJOINT",
+            "S_OVERLAPS",
+            "S_EQUALS",
+        ],
+    )
     def test_spatial_predicate(self, func):
         result = parse(f"{func}(geomA, geomB)")
         assert isinstance(result, SpatialPredicate)
@@ -204,61 +216,86 @@ class TestSpatialPredicateParsing:
         assert len(result.args) == 2
 
     def test_writeback_spatial(self):
-        d = {"op": "s_intersects", "args": [
-            {"property": "geomA"}, {"property": "geomB"}
-        ]}
+        d = {
+            "op": "s_intersects",
+            "args": [{"property": "geomA"}, {"property": "geomB"}],
+        }
         assert writeback(d) == "S_INTERSECTS(geomA, geomB)"
 
     def test_writeback_s_relate(self):
-        d = {"op": "s_relate", "args": [
-            {"property": "geomA"}, {"property": "geomB"}
-        ], "pattern": "T*F**FFF*"}
+        d = {
+            "op": "s_relate",
+            "args": [{"property": "geomA"}, {"property": "geomB"}],
+            "pattern": "T*F**FFF*",
+        }
         assert writeback(d) == "S_RELATE(geomA, geomB, 'T*F**FFF*')"
 
 
 # ── Temporal Predicates ───────────────────────────────────────────────────
 
+
 class TestTemporalPredicateParsing:
 
-    @pytest.mark.parametrize("func", [
-        "T_BEFORE", "T_AFTER", "T_MEETS", "T_METBY",
-        "T_OVERLAPS", "T_OVERLAPPEDBY", "T_BEGINS", "T_BEGUNBY",
-        "T_DURING", "T_CONTAINS", "T_ENDS", "T_ENDEDBY",
-        "T_EQUALS", "T_INTERSECTS", "T_DISJOINT",
-    ])
+    @pytest.mark.parametrize(
+        "func",
+        [
+            "T_BEFORE",
+            "T_AFTER",
+            "T_MEETS",
+            "T_METBY",
+            "T_OVERLAPS",
+            "T_OVERLAPPEDBY",
+            "T_BEGINS",
+            "T_BEGUNBY",
+            "T_DURING",
+            "T_CONTAINS",
+            "T_ENDS",
+            "T_ENDEDBY",
+            "T_EQUALS",
+            "T_INTERSECTS",
+            "T_DISJOINT",
+        ],
+    )
     def test_temporal_predicate(self, func):
         result = parse(f"{func}(dateA, dateB)")
         assert isinstance(result, TemporalPredicate)
         assert result.op == func.lower()
 
     def test_writeback_temporal(self):
-        d = {"op": "t_before", "args": [
-            {"property": "startDate"}, {"date": "2020-01-01"}
-        ]}
+        d = {
+            "op": "t_before",
+            "args": [{"property": "startDate"}, {"date": "2020-01-01"}],
+        }
         wb = writeback(d)
         assert wb == "T_BEFORE(startDate, DATE('2020-01-01'))"
 
 
 # ── Array Predicates ──────────────────────────────────────────────────────
 
+
 class TestArrayPredicateParsing:
 
-    @pytest.mark.parametrize("func", [
-        "A_EQUALS", "A_CONTAINS", "A_CONTAINEDBY", "A_OVERLAPS",
-    ])
+    @pytest.mark.parametrize(
+        "func",
+        [
+            "A_EQUALS",
+            "A_CONTAINS",
+            "A_CONTAINEDBY",
+            "A_OVERLAPS",
+        ],
+    )
     def test_array_predicate(self, func):
         result = parse(f"{func}(arrA, arrB)")
         assert isinstance(result, ArrayPredicate)
         assert result.op == func.lower()
 
     def test_writeback_array(self):
-        d = {"op": "a_contains", "args": [
-            {"property": "tags"}, {"property": "search"}
-        ]}
+        d = {"op": "a_contains", "args": [{"property": "tags"}, {"property": "search"}]}
         assert writeback(d) == "A_CONTAINS(tags, search)"
 
 
 # ── Temporal Literals ─────────────────────────────────────────────────────
+
 
 class TestTemporalLiteralParsing:
 
@@ -295,6 +332,7 @@ class TestTemporalLiteralParsing:
 
 # ── BBOX Literal ──────────────────────────────────────────────────────────
 
+
 class TestBboxParsing:
 
     def test_bbox_2d(self):
@@ -313,6 +351,7 @@ class TestBboxParsing:
 
 
 # ── WKT Geometry Literals ────────────────────────────────────────────────
+
 
 class TestWktParsing:
 
@@ -354,9 +393,10 @@ class TestWktParsing:
         assert writeback(d) == "LINESTRING(0 0, 1 1)"
 
     def test_writeback_polygon(self):
-        d = {"type": "Polygon", "coordinates": [
-            [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]
-        ]}
+        d = {
+            "type": "Polygon",
+            "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+        }
         wkt = writeback(d)
         assert wkt.startswith("POLYGON(")
         assert "0 0" in wkt
@@ -375,6 +415,7 @@ class TestWktParsing:
 
 
 # ── Integration: parse → model → to_cql2_json → writeback ────────────────
+
 
 class TestParseToJsonRoundTrip:
 

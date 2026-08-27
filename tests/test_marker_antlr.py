@@ -1,10 +1,10 @@
 """Tests for ANTLR-based marker/label element extraction (Phase 2.4)."""
 
-import pytest
 from pathlib import Path
 
-from cartosym_transcoder.parser import CartoSymParser
+import pytest
 
+from cartosym_transcoder.parser import CartoSymParser
 
 INPUT_DIR = Path(__file__).resolve().parent.parent / "input"
 
@@ -36,17 +36,17 @@ class TestMarkerAntlrExtraction:
         # Find the rule with a marker
         marker = None
         for rule in rules:
-            sym = getattr(rule, 'symbolizer', None)
-            if sym and getattr(sym, 'marker', None):
+            sym = getattr(rule, "symbolizer", None)
+            if sym and getattr(sym, "marker", None):
                 marker = sym.marker
                 break
         assert marker is not None, "No marker found"
         assert marker.elements is not None
         assert len(marker.elements) == 1
         el = marker.elements[0]
-        assert el['type'] == 'Dot'
-        assert el['size'] == '10 m'
-        assert el['color'] == 'white'
+        assert el["type"] == "Dot"
+        assert el["size"] == "10 m"
+        assert el["color"] == "white"
 
     # ── Multiple Dot elements ──────────────────────────────────────
 
@@ -70,16 +70,16 @@ class TestMarkerAntlrExtraction:
         style = self.parser.parse_string_to_pydantic(cscss)
         marker = None
         for rule in style.styling_rules:
-            sym = getattr(rule, 'symbolizer', None)
-            if sym and getattr(sym, 'marker', None):
+            sym = getattr(rule, "symbolizer", None)
+            if sym and getattr(sym, "marker", None):
                 marker = sym.marker
                 break
         assert marker is not None
         assert len(marker.elements) == 2
-        assert marker.elements[0]['type'] == 'Dot'
-        assert marker.elements[0]['color'] == 'white'
-        assert marker.elements[1]['type'] == 'Dot'
-        assert marker.elements[1]['color'] == 'orange'
+        assert marker.elements[0]["type"] == "Dot"
+        assert marker.elements[0]["color"] == "white"
+        assert marker.elements[1]["type"] == "Dot"
+        assert marker.elements[1]["color"] == "orange"
 
     # ── Text element with nested font object ──────────────────────
 
@@ -103,22 +103,22 @@ class TestMarkerAntlrExtraction:
         style = self.parser.parse_string_to_pydantic(cscss)
         marker = None
         for rule in style.styling_rules:
-            sym = getattr(rule, 'symbolizer', None)
-            if sym and getattr(sym, 'marker', None):
+            sym = getattr(rule, "symbolizer", None)
+            if sym and getattr(sym, "marker", None):
                 marker = sym.marker
                 break
         assert marker is not None
         assert len(marker.elements) == 1
         el = marker.elements[0]
-        assert el['type'] == 'Text'
+        assert el["type"] == "Text"
         # 'Name' is parsed as an identifier (property reference), not a string literal
-        assert el['text'] == 'Name' or el['text'] == {'property': 'Name'}
+        assert el["text"] == "Name" or el["text"] == {"property": "Name"}
         # Font should be a structured dict (ANTLR extraction), not a raw string
-        font = el['font']
+        font = el["font"]
         assert isinstance(font, dict), f"font should be dict, got {type(font)}"
-        assert font['face'] == 'Arial'
-        assert font['size'] == 14
-        assert font['bold'] is True
+        assert font["face"] == "Arial"
+        assert font["size"] == 14
+        assert font["bold"] is True
 
     # ── Image element with nested image object ────────────────────
 
@@ -142,20 +142,20 @@ class TestMarkerAntlrExtraction:
         style = self.parser.parse_string_to_pydantic(cscss)
         marker = None
         for rule in style.styling_rules:
-            sym = getattr(rule, 'symbolizer', None)
-            if sym and getattr(sym, 'marker', None):
+            sym = getattr(rule, "symbolizer", None)
+            if sym and getattr(sym, "marker", None):
                 marker = sym.marker
                 break
         assert marker is not None
         assert len(marker.elements) == 1
         el = marker.elements[0]
-        assert el['type'] == 'Image'
+        assert el["type"] == "Image"
         # Image should be a nested dict
-        image = el['image']
+        image = el["image"]
         assert isinstance(image, dict), f"image should be dict, got {type(image)}"
-        assert image['uri'] == 'http://example.com/icon'
-        assert image['path'] == 'icon.png'
-        assert image['type'] == 'image/png'
+        assert image["uri"] == "http://example.com/icon"
+        assert image["path"] == "icon.png"
+        assert image["type"] == "image/png"
 
     # ── Label elements ────────────────────────────────────────────
 
@@ -178,8 +178,8 @@ class TestMarkerAntlrExtraction:
         style = self.parser.parse_string_to_pydantic(cscss)
         label = None
         for rule in style.styling_rules:
-            sym = getattr(rule, 'symbolizer', None)
-            if sym and getattr(sym, 'label', None):
+            sym = getattr(rule, "symbolizer", None)
+            if sym and getattr(sym, "label", None):
                 label = sym.label
                 break
         assert label is not None
@@ -189,43 +189,43 @@ class TestMarkerAntlrExtraction:
         # Label.elements is List[Graphic] — Pydantic converts dicts to Graphic objects
         # Graphic uses ConfigDict(extra="allow"), so fields are attributes
         if isinstance(el, dict):
-            assert el['type'] == 'Text'
-            font = el['font']
+            assert el["type"] == "Text"
+            font = el["font"]
         else:
-            assert el.type == 'Text'
+            assert el.type == "Text"
             font = el.font
         # font may be a dict or a Pydantic model
         if isinstance(font, dict):
-            assert font['face'] == 'Verdana'
+            assert font["face"] == "Verdana"
         else:
-            assert font.face == 'Verdana'
+            assert font.face == "Verdana"
 
     # ── Real file: example 3 (vector-line) ────────────────────────
 
     def test_example3_marker(self):
         """Example 3 (vector-line) should parse marker elements correctly."""
-        style = self.parser.parse_file_to_pydantic(INPUT_DIR / '3-vector-line.cscss')
+        style = self.parser.parse_file_to_pydantic(INPUT_DIR / "3-vector-line.cscss")
         # Find a marker somewhere in the rule tree
         found = _find_markers_recursive(style.styling_rules)
         assert len(found) >= 1, "Expected at least one marker in example 3"
         # First marker should have a Dot element
         marker = found[0]
         assert marker.elements is not None
-        assert any(el.get('type') == 'Dot' for el in marker.elements)
+        assert any(el.get("type") == "Dot" for el in marker.elements)
 
     # ── Real file: example 4 (vector-point) ───────────────────────
 
     def test_example4_markers(self):
         """Example 4 (vector-point) should parse multiple Dot markers."""
-        style = self.parser.parse_file_to_pydantic(INPUT_DIR / '4-vector-point.cscss')
+        style = self.parser.parse_file_to_pydantic(INPUT_DIR / "4-vector-point.cscss")
         found = _find_markers_recursive(style.styling_rules)
         assert len(found) >= 1, "Expected at least one marker in example 4"
         # First marker should have 2 Dot elements (white and orange)
         marker = found[0]
         assert marker.elements is not None
         assert len(marker.elements) == 2
-        types = [el.get('type') for el in marker.elements]
-        assert types == ['Dot', 'Dot']
+        types = [el.get("type") for el in marker.elements]
+        assert types == ["Dot", "Dot"]
 
 
 def _find_markers_recursive(rules):
@@ -234,12 +234,12 @@ def _find_markers_recursive(rules):
     if rules is None:
         return markers
     for rule in rules:
-        sym = getattr(rule, 'symbolizer', None)
-        if sym and getattr(sym, 'marker', None):
+        sym = getattr(rule, "symbolizer", None)
+        if sym and getattr(sym, "marker", None):
             m = sym.marker
             if m.elements is not None:
                 markers.append(m)
-        nested = getattr(rule, 'nested_rules', None)
+        nested = getattr(rule, "nested_rules", None)
         if nested:
             markers.extend(_find_markers_recursive(nested))
     return markers

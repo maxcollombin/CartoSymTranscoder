@@ -23,7 +23,6 @@ OGC standards:
 
 from typing import Dict, List
 
-
 # ---------------------------------------------------------------------------
 # DE-9IM predicate → pattern(s) lookup table
 # ---------------------------------------------------------------------------
@@ -45,52 +44,47 @@ from typing import Dict, List
 
 DE9IM_PREDICATES: Dict[str, List[str]] = {
     # Simple predicates — one pattern each
-    "equals":     ["T*F**FFF*"],
-    "disjoint":   ["FF*FF****"],
-    "contains":   ["T*****FF*"],
-    "within":     ["T*F**F***"],
-
+    "equals": ["T*F**FFF*"],
+    "disjoint": ["FF*FF****"],
+    "contains": ["T*****FF*"],
+    "within": ["T*F**F***"],
     # Touches — satisfied by any of three patterns
-    "touches":    ["FT*******", "F**T*****", "F***T****"],
-
+    "touches": ["FT*******", "F**T*****", "F***T****"],
     # Covers — satisfied by any of four patterns
-    "covers":     ["T*****FF*", "*T****FF*", "***T**FF*", "****T*FF*"],
-
+    "covers": ["T*****FF*", "*T****FF*", "***T**FF*", "****T*FF*"],
     # Intersects — negation of disjoint (convenience, not pattern-matched)
     # Handled specially: intersects ⟺ ¬ disjoint
     "intersects": [],
-
     # Dimension-dependent predicates
     # crosses(dimA < dimB): T*T******   crosses(dimA > dimB): T*****T**
     # crosses(dimA == dimB == 1): 0********
     "crosses": ["T*T******", "T*****T**", "0********"],
-
     # overlaps(dim == 2 or dim == 0): T*T***T**   overlaps(dim == 1): 1*T***T**
     "overlaps": ["T*T***T**", "1*T***T**"],
-
     # coveredBy is the transpose of covers
-    "coveredby":  ["T*F**F***", "*TF**F***", "**FT*F***", "**F*TF***"],
+    "coveredby": ["T*F**F***", "*TF**F***", "**FT*F***", "**F*TF***"],
 }
 
 # CQL2 operator name → predicate name mapping
 # CQL2 uses s_ prefix for spatial predicates
 CQL2_SPATIAL_PREDICATES: Dict[str, str] = {
-    "s_equals":     "equals",
-    "s_disjoint":   "disjoint",
+    "s_equals": "equals",
+    "s_disjoint": "disjoint",
     "s_intersects": "intersects",
-    "s_touches":    "touches",
-    "s_contains":   "contains",
-    "s_within":     "within",
-    "s_crosses":    "crosses",
-    "s_overlaps":   "overlaps",
-    "s_covers":     "covers",
-    "s_coveredby":  "coveredby",
+    "s_touches": "touches",
+    "s_contains": "contains",
+    "s_within": "within",
+    "s_crosses": "crosses",
+    "s_overlaps": "overlaps",
+    "s_covers": "covers",
+    "s_coveredby": "coveredby",
 }
 
 
 # ---------------------------------------------------------------------------
 # Pattern matching
 # ---------------------------------------------------------------------------
+
 
 def match_pattern(matrix: str, pattern: str) -> bool:
     """Check whether a 9-character DE-9IM *matrix* matches a *pattern*.

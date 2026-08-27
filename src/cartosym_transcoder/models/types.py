@@ -5,19 +5,20 @@ This module contains precise types based on the JSON Schema analysis,
 including colors, units, ranges, and custom validators.
 """
 
-from enum import Enum
-from typing import Union, List, Literal, Annotated, Any
-from pydantic import BaseModel, Field, field_validator
 import re
+from enum import Enum
+from typing import Annotated, Any, List, Literal, Union
 
+from pydantic import BaseModel, Field, field_validator
 
 # =============================================================================
 # Color Types
 # =============================================================================
 
+
 class WebColorName(str, Enum):
     """Web color names as defined in the CartoSym JSON Schema."""
-    
+
     # Grays and whites
     BLACK = "black"
     DIM_GRAY = "dimGray"
@@ -32,7 +33,7 @@ class WebColorName(str, Enum):
     GAINSBORO = "gainsboro"
     WHITE_SMOKE = "whiteSmoke"
     WHITE = "white"
-    
+
     # Reds and pinks
     ROSY_BROWN = "rosyBrown"
     INDIAN_RED = "indianRed"
@@ -50,7 +51,7 @@ class WebColorName(str, Enum):
     CORAL = "coral"
     ORANGE_RED = "orangeRed"
     LIGHT_SALMON = "lightSalmon"
-    
+
     # Oranges and browns
     SIENNA = "sienna"
     SEA_SHELL = "seaShell"
@@ -73,7 +74,7 @@ class WebColorName(str, Enum):
     WHEAT = "wheat"
     OLD_LACE = "oldLace"
     FLORAL_WHITE = "floralWhite"
-    
+
     # Yellows and golds
     DARK_GOLDENROD = "darkGoldenrod"
     GOLDENROD = "goldenrod"
@@ -89,7 +90,7 @@ class WebColorName(str, Enum):
     YELLOW = "yellow"
     LIGHT_YELLOW = "lightYellow"
     IVORY = "ivory"
-    
+
     # Greens
     OLIVE_DRAB = "oliveDrab"
     YELLOW_GREEN = "yellowGreen"
@@ -116,7 +117,7 @@ class WebColorName(str, Enum):
     TURQUOISE = "turquoise"
     LIGHT_SEA_GREEN = "lightSeaGreen"
     MEDIUM_TURQUOISE = "mediumTurquoise"
-    
+
     # Cyans and teals
     DARK_SLATE_GRAY = "darkSlateGray"
     DARK_SLATE_GREY = "darkSlateGrey"
@@ -136,7 +137,7 @@ class WebColorName(str, Enum):
     LIGHT_SKY_BLUE = "lightSkyBlue"
     STEEL_BLUE = "steelBlue"
     ALICE_BLUE = "aliceBlue"
-    
+
     # Blues
     DODGER_BLUE = "dodgerBlue"
     SLATE_GRAY = "slateGray"
@@ -153,7 +154,7 @@ class WebColorName(str, Enum):
     MEDIUM_BLUE = "mediumBlue"
     BLUE = "blue"
     GHOST_WHITE = "ghostWhite"
-    
+
     # Purples and violets
     SLATE_BLUE = "slateBlue"
     DARK_SLATE_BLUE = "darkSlateBlue"
@@ -184,6 +185,7 @@ class WebColorName(str, Enum):
 
 class RGBColor(BaseModel):
     """RGB color with 0-255 components."""
+
     r: Annotated[int, Field(ge=0, le=255, description="Red component (0-255)")]
     g: Annotated[int, Field(ge=0, le=255, description="Green component (0-255)")]
     b: Annotated[int, Field(ge=0, le=255, description="Blue component (0-255)")]
@@ -192,6 +194,7 @@ class RGBColor(BaseModel):
 
 class RGBColorNormalized(BaseModel):
     """RGB color with 0-1 normalized components."""
+
     r: Annotated[float, Field(ge=0.0, le=1.0, description="Red component (0.0-1.0)")]
     g: Annotated[float, Field(ge=0.0, le=1.0, description="Green component (0.0-1.0)")]
     b: Annotated[float, Field(ge=0.0, le=1.0, description="Blue component (0.0-1.0)")]
@@ -200,19 +203,16 @@ class RGBColorNormalized(BaseModel):
 
 # Color type that accepts all forms
 Color = Union[
-    WebColorName,           # Named colors
-    RGBColor,              # RGB object with 0-255 values
-    RGBColorNormalized,    # RGB object with 0-1 values
+    WebColorName,  # Named colors
+    RGBColor,  # RGB object with 0-255 values
+    RGBColorNormalized,  # RGB object with 0-1 values
     List[Annotated[int, Field(ge=0, le=255)]],  # RGB array [r, g, b]
-    str                    # Hex colors like "#ff0000" or expressions
+    str,  # Hex colors like "#ff0000" or expressions
 ]
 
 # Normalized color for coverage operations
 ColorNormalized = Union[
-    WebColorName,
-    RGBColorNormalized,
-    List[Annotated[float, Field(ge=0.0, le=1.0)]],
-    str
+    WebColorName, RGBColorNormalized, List[Annotated[float, Field(ge=0.0, le=1.0)]], str
 ]
 
 
@@ -220,10 +220,12 @@ ColorNormalized = Union[
 # Unit Types
 # =============================================================================
 
+
 class UnitType(str, Enum):
     """Supported unit types."""
+
     PIXELS = "px"
-    MILLIMETERS = "mm" 
+    MILLIMETERS = "mm"
     CENTIMETERS = "cm"
     INCHES = "in"
     POINTS = "pt"
@@ -235,21 +237,22 @@ class UnitType(str, Enum):
 
 class UnitValue(BaseModel):
     """Value with a specific unit."""
+
     value: float = Field(..., description="Numeric value")
     unit: UnitType = Field(..., description="Unit type")
 
-    @field_validator('value', 'unit', mode='before')
+    @field_validator("value", "unit", mode="before")
     @classmethod
     def parse_dict_input(cls, v, info):
         # Accept dicts like {"px": 2.0}
         if isinstance(v, dict) and len(v) == 1:
             unit, value = next(iter(v.items()))
-            if info.field_name == 'value':
+            if info.field_name == "value":
                 return value
-            if info.field_name == 'unit':
+            if info.field_name == "unit":
                 return unit
         # For 'unit' field: coerce string to UnitType enum
-        if info.field_name == 'unit' and isinstance(v, str):
+        if info.field_name == "unit" and isinstance(v, str):
             if v in UnitType.__members__.values():
                 return v
             return UnitType(v)
@@ -276,17 +279,20 @@ FlexibleUnitValue = Union[UnitValue, str, float]
 # Angle Types
 # =============================================================================
 
+
 class AngleUnit(str, Enum):
     """Supported angle units."""
+
     DEGREES = "deg"
     RADIANS = "rad"
 
 
 class Angle(BaseModel):
     """Angle value with unit."""
+
     value: float = Field(..., description="Angle value")
     unit: AngleUnit = Field(AngleUnit.DEGREES, description="Angle unit")
-    
+
     def __str__(self) -> str:
         """String representation like '45deg' or '1.57rad'."""
         return f"{self.value}{self.unit.value}"
@@ -310,16 +316,17 @@ ColorComponent255 = Annotated[int, Field(ge=0, le=255)]
 # Validators
 # =============================================================================
 
+
 def validate_hex_color(v: str) -> str:
     """Validate hex color format."""
     if not isinstance(v, str):
         return v
-        
+
     # Allow hex colors like #ff0000, #fff, etc.
-    hex_pattern = re.compile(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
+    hex_pattern = re.compile(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
     if hex_pattern.match(v):
         return v
-        
+
     # Allow other string expressions (like CSS variables, functions, etc.)
     return v
 
@@ -328,12 +335,12 @@ def validate_unit_string(v: str) -> str:
     """Validate unit string format like '10px', '2.5mm'."""
     if not isinstance(v, str):
         return v
-        
+
     # Pattern for number + unit
-    unit_pattern = re.compile(r'^-?\d+(\.\d+)?(px|mm|cm|in|pt|em|pc|m|ft)$')
+    unit_pattern = re.compile(r"^-?\d+(\.\d+)?(px|mm|cm|in|pt|em|pc|m|ft)$")
     if unit_pattern.match(v):
         return v
-        
+
     # Allow expressions
     return v
 

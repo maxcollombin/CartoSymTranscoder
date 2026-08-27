@@ -3,44 +3,51 @@
 import pytest
 
 from cartosym_transcoder.models.de9im import (
-    DE9IM_PREDICATES,
     CQL2_SPATIAL_PREDICATES,
-    match_pattern,
-    is_valid_de9im,
-    predicate_matches,
+    DE9IM_PREDICATES,
     get_patterns,
+    is_valid_de9im,
+    match_pattern,
+    predicate_matches,
 )
 
-
 # ── is_valid_de9im ────────────────────────────────────────────────────────
+
 
 class TestIsValidDE9IM:
     """Validate that well-formed DE-9IM matrices are recognised."""
 
-    @pytest.mark.parametrize("matrix", [
-        "212101212",
-        "FF2FF1212",
-        "0FFFFFFF2",
-        "F0FFFF012",
-        "FFFFFFFFF",
-        "000000000",
-        "222222222",
-    ])
+    @pytest.mark.parametrize(
+        "matrix",
+        [
+            "212101212",
+            "FF2FF1212",
+            "0FFFFFFF2",
+            "F0FFFF012",
+            "FFFFFFFFF",
+            "000000000",
+            "222222222",
+        ],
+    )
     def test_valid(self, matrix: str):
         assert is_valid_de9im(matrix) is True
 
-    @pytest.mark.parametrize("matrix,reason", [
-        ("T*F**FFF*", "pattern chars not allowed in matrix"),
-        ("short", "too short"),
-        ("0123456789", "too long"),
-        ("21210121X", "invalid char X"),
-        ("", "empty"),
-    ])
+    @pytest.mark.parametrize(
+        "matrix,reason",
+        [
+            ("T*F**FFF*", "pattern chars not allowed in matrix"),
+            ("short", "too short"),
+            ("0123456789", "too long"),
+            ("21210121X", "invalid char X"),
+            ("", "empty"),
+        ],
+    )
     def test_invalid(self, matrix: str, reason: str):
         assert is_valid_de9im(matrix) is False, reason
 
 
 # ── match_pattern ─────────────────────────────────────────────────────────
+
 
 class TestMatchPattern:
     """Test single-pattern matching (Python port of DE9IM::match)."""
@@ -80,6 +87,7 @@ class TestMatchPattern:
 
 
 # ── predicate_matches ─────────────────────────────────────────────────────
+
 
 class TestPredicateMatches:
     """Test named-predicate lookup and matching."""
@@ -129,6 +137,7 @@ class TestPredicateMatches:
 
 # ── get_patterns ──────────────────────────────────────────────────────────
 
+
 class TestGetPatterns:
     """Test pattern retrieval by predicate name."""
 
@@ -153,6 +162,7 @@ class TestGetPatterns:
 
 
 # ── Table integrity ───────────────────────────────────────────────────────
+
 
 class TestTableIntegrity:
     """Verify the lookup tables are consistent."""

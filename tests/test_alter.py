@@ -1,7 +1,8 @@
 """Tests for the 'alter' flag on dot-notation and indexed element overrides (Phase 2.2)."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from cartosym_transcoder.parser import CartoSymParser
 
@@ -56,7 +57,9 @@ class TestAlterFlag:
         nested = style.styling_rules[0].nested_rules[0]
         sym = nested.symbolizer
         assert sym.stroke is not None, "stroke should be set"
-        assert sym.stroke.alter is True, "stroke.color in nested rule must set alter=True"
+        assert (
+            sym.stroke.alter is True
+        ), "stroke.color in nested rule must set alter=True"
 
     # ── stroke.width in a nested rule ──────────────────────────────
 
@@ -77,7 +80,9 @@ class TestAlterFlag:
         nested = style.styling_rules[0].nested_rules[0]
         sym = nested.symbolizer
         assert sym.stroke is not None, "stroke should be set"
-        assert sym.stroke.alter is True, "stroke.width in nested rule must set alter=True"
+        assert (
+            sym.stroke.alter is True
+        ), "stroke.width in nested rule must set alter=True"
 
     # ── fill.color + stroke.color combined ─────────────────────────
 
@@ -127,7 +132,9 @@ class TestAlterFlag:
         nested = style.styling_rules[0].nested_rules[0]
         sym = nested.symbolizer
         assert sym.marker is not None, "marker should be set"
-        assert sym.marker.alter is True, "marker.elements[N] must set alter=True on marker"
+        assert (
+            sym.marker.alter is True
+        ), "marker.elements[N] must set alter=True on marker"
 
     # ── No alter when property is set directly (not dot notation) ──
 
@@ -142,14 +149,15 @@ class TestAlterFlag:
         style = self.parser.parse_string_to_pydantic(cscss)
         sym = style.styling_rules[0].symbolizer
         assert sym.fill is not None
-        assert sym.fill.alter is None or sym.fill.alter is False, \
-            "Direct fill assignment should not set alter"
+        assert (
+            sym.fill.alter is None or sym.fill.alter is False
+        ), "Direct fill assignment should not set alter"
 
     # ── Real file: example 2 should have alter on nested fill/stroke
 
     def test_example2_alter_flags(self):
         """Example 2 (vector-polygon) nested rules should have alter on fill/stroke."""
-        style = self.parser.parse_file_to_pydantic(INPUT_DIR / '2-vector-polygon.cscss')
+        style = self.parser.parse_file_to_pydantic(INPUT_DIR / "2-vector-polygon.cscss")
         # Navigate: stylingRules[0] → nestedRules[0] (the zoom rule) → nestedRules[0..2] (FunctionCode rules)
         base_rule = style.styling_rules[0]
         zoom_rule = base_rule.nested_rules[0]
@@ -158,6 +166,10 @@ class TestAlterFlag:
             rule = zoom_rule.nested_rules[i]
             sym = rule.symbolizer
             assert sym.fill is not None, f"nestedRules[{i}] should have fill"
-            assert sym.fill.alter is True, f"nestedRules[{i}].fill should have alter=True"
+            assert (
+                sym.fill.alter is True
+            ), f"nestedRules[{i}].fill should have alter=True"
             assert sym.stroke is not None, f"nestedRules[{i}] should have stroke"
-            assert sym.stroke.alter is True, f"nestedRules[{i}].stroke should have alter=True"
+            assert (
+                sym.stroke.alter is True
+            ), f"nestedRules[{i}].stroke should have alter=True"

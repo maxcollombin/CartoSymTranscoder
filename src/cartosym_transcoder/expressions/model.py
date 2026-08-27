@@ -9,24 +9,23 @@ in ``models/expressions.py``.
 
 # Re-export everything from the canonical location
 from ..models.expressions import *  # noqa: F401,F403
-from ..models.expressions import (
-    # Explicitly re-export the main classes for IDE auto-complete
-    BaseExpression,
-    ExpressionType,
-    BinaryOperator,
-    UnaryOperator,
-    Expression,
-    IdentifierExpression,
-    ConstantExpression,
-    StringExpression,
-    MemberAccessExpression,
-    FunctionCallExpression,
-    BinaryOperationExpression,
-    UnaryOperationExpression,
-    ConditionalExpression,
+from ..models.expressions import (  # Explicitly re-export the main classes for IDE auto-complete
     ArrayExpression,
-    PropertyAssignment,
+    BaseExpression,
+    BinaryOperationExpression,
+    BinaryOperator,
+    ConditionalExpression,
+    ConstantExpression,
+    Expression,
+    ExpressionType,
+    FunctionCallExpression,
+    IdentifierExpression,
     InstanceExpression,
+    MemberAccessExpression,
+    PropertyAssignment,
     Selector,
+    StringExpression,
     StylingRuleExpression,
+    UnaryOperationExpression,
+    UnaryOperator,
 )

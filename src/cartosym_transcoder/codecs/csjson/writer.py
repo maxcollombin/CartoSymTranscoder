@@ -8,9 +8,9 @@ Delegates to :meth:`~cartosym_transcoder.converter.Converter.cscss_to_csjson`
 import json
 from typing import Any, Union
 
-from ..base import CodecWriter
-from ...models.styles import Style
 from ...converter import Converter
+from ...models.styles import Style
+from ..base import CodecWriter
 
 
 class CsjsonWriter(CodecWriter):

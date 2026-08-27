@@ -5,8 +5,9 @@ Write-back:     output/*.cs.json  →  csjson_to_cscss  →  re-parse without er
 """
 
 import json
-import pytest
 from pathlib import Path
+
+import pytest
 
 from cartosym_transcoder.converter import Converter
 
@@ -26,6 +27,7 @@ _FORWARD_CASES = sorted(
 # Forward conversion:  .cscss → .cs.json  must match expected output
 # ---------------------------------------------------------------------------
 
+
 class TestForwardConversion:
     """Parse each input .cscss and compare JSON output with expected file."""
 
@@ -44,13 +46,14 @@ class TestForwardConversion:
 
         assert result == expected, (
             f"Mismatch for {stem}.cscss — "
-            f"re-run `python -c \"...\"` to see diffs or regenerate expected output"
+            f're-run `python -c "..."` to see diffs or regenerate expected output'
         )
 
 
 # ---------------------------------------------------------------------------
 # Structural round-trip:  .cs.json → .cscss → .cs.json  (re-parseable)
 # ---------------------------------------------------------------------------
+
 
 class TestRoundTripFidelity:
     """Full round-trip fidelity: CSCSS → JSON → CSCSS → JSON must match.
@@ -76,9 +79,9 @@ class TestRoundTripFidelity:
 
         # Step 2: Write-back
         cscss_wb = self.converter.csjson_to_cscss(expected_path)
-        assert isinstance(cscss_wb, str) and len(cscss_wb) > 0, (
-            "write-back produced empty CSCSS"
-        )
+        assert (
+            isinstance(cscss_wb, str) and len(cscss_wb) > 0
+        ), "write-back produced empty CSCSS"
 
         # Step 3: Re-parse
         json2 = self.converter.cscss_to_csjson(cscss_wb)
@@ -93,6 +96,7 @@ class TestRoundTripFidelity:
 # ---------------------------------------------------------------------------
 # Targeted parsing tests — selectors, properties, expressions
 # ---------------------------------------------------------------------------
+
 
 class TestSelectorParsing:
     """Verify various selector patterns are parsed correctly."""
@@ -153,6 +157,7 @@ class TestSelectorParsing:
 # Targeted property tests
 # ---------------------------------------------------------------------------
 
+
 class TestPropertyParsing:
     """Verify symbolizer properties are parsed correctly."""
 
@@ -180,13 +185,17 @@ class TestPropertyParsing:
         assert sym["zOrder"] == 3
 
     def test_fill_object(self):
-        result = self.converter.cscss_to_csjson("[Base]\n{ fill: {color: red; opacity: 0.8}; }")
+        result = self.converter.cscss_to_csjson(
+            "[Base]\n{ fill: {color: red; opacity: 0.8}; }"
+        )
         fill = result["stylingRules"][0]["symbolizer"]["fill"]
         assert fill["color"] == "red"
         assert fill["opacity"] == 0.8
 
     def test_stroke_with_unit_width(self):
-        result = self.converter.cscss_to_csjson("[Base]\n{ stroke: {color: blue; width: 3.0 px}; }")
+        result = self.converter.cscss_to_csjson(
+            "[Base]\n{ stroke: {color: blue; width: 3.0 px}; }"
+        )
         stroke = result["stylingRules"][0]["symbolizer"]["stroke"]
         assert stroke["color"] == "blue"
         assert stroke["width"] == {"px": 3.0}
@@ -221,6 +230,7 @@ class TestPropertyParsing:
 # Coverage-specific tests (DEM, NDVI, Sentinel-2, etc.)
 # ---------------------------------------------------------------------------
 
+
 class TestCoverageProperties:
     """Verify coverage-specific properties: colorMap, channels, etc."""
 
@@ -245,7 +255,9 @@ class TestCoverageProperties:
         assert isinstance(cm, list), "colorMap should be an array"
 
     def test_sentinel2_has_channels(self):
-        result = self.converter.cscss_to_csjson(INPUT_DIR / "6-coverage-sentinel2.cscss")
+        result = self.converter.cscss_to_csjson(
+            INPUT_DIR / "6-coverage-sentinel2.cscss"
+        )
         ch = self._find_key_in_rules(result["stylingRules"], "colorChannels")
         assert ch is not None, "Sentinel-2 should have colorChannels"
 
@@ -255,7 +267,9 @@ class TestCoverageProperties:
         assert cm is not None, "NDVI example should have a colorMap"
 
     def test_hillshading_has_hill_shading(self):
-        result = self.converter.cscss_to_csjson(INPUT_DIR / "8-coverage-hillshading.cscss")
+        result = self.converter.cscss_to_csjson(
+            INPUT_DIR / "8-coverage-hillshading.cscss"
+        )
         hs = self._find_key_in_rules(result["stylingRules"], "hillShading")
         assert hs is not None, "Hillshading example should have hillShading"
 
@@ -263,6 +277,7 @@ class TestCoverageProperties:
 # ---------------------------------------------------------------------------
 # Metadata parsing
 # ---------------------------------------------------------------------------
+
 
 class TestMetadataParsing:
     """Verify .title, .abstract and other directives."""
@@ -288,11 +303,13 @@ class TestMetadataParsing:
 # Font and graphic element normalization (ast_converter)
 # ---------------------------------------------------------------------------
 
+
 class TestFontNormalization:
     """Verify font dict values are coerced to proper types."""
 
     def setup_method(self):
         from cartosym_transcoder.ast_converter import _coerce_font_dict
+
         self.coerce = _coerce_font_dict
 
     def test_size_string_to_int(self):
@@ -346,6 +363,7 @@ class TestGraphicElementNormalization:
 
     def setup_method(self):
         from cartosym_transcoder.ast_converter import _normalize_graphic_element
+
         self.normalize = _normalize_graphic_element
 
     def test_text_bare_identifier_becomes_property_ref(self):
@@ -384,11 +402,13 @@ class TestGraphicElementNormalization:
 # Color parsing (ast_converter)
 # ---------------------------------------------------------------------------
 
+
 class TestColorParsing:
     """Verify _parse_color_value handles various formats."""
 
     def setup_method(self):
         from cartosym_transcoder.ast_converter import _parse_color_value
+
         self.parse = _parse_color_value
 
     def test_named_color(self):
@@ -414,6 +434,7 @@ class TestColorParsing:
 # Variable resolution
 # ---------------------------------------------------------------------------
 
+
 class TestVariableResolution:
     """Verify that @variable references are resolved during parsing."""
 
@@ -423,7 +444,9 @@ class TestVariableResolution:
     def test_variable_substitution_in_fill(self, tmp_path):
         """Variables are resolved during file pre-processing."""
         f = tmp_path / "vars.cscss"
-        f.write_text("@baseColor = #336699;\n\nLanduse\n{\n   fill: {color: @baseColor};\n}\n")
+        f.write_text(
+            "@baseColor = #336699;\n\nLanduse\n{\n   fill: {color: @baseColor};\n}\n"
+        )
         result = self.converter.cscss_to_csjson(f)
         fill = result["stylingRules"][0]["symbolizer"]["fill"]
         # Variable should be resolved to the hex color
@@ -431,7 +454,9 @@ class TestVariableResolution:
 
     def test_variable_substitution_numeric(self, tmp_path):
         f = tmp_path / "vars.cscss"
-        f.write_text("@baseOpacity = 0.7;\n\nLanduse\n{\n   opacity: @baseOpacity;\n}\n")
+        f.write_text(
+            "@baseOpacity = 0.7;\n\nLanduse\n{\n   opacity: @baseOpacity;\n}\n"
+        )
         result = self.converter.cscss_to_csjson(f)
         sym = result["stylingRules"][0]["symbolizer"]
         assert sym["opacity"] == 0.7
