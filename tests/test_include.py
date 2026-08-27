@@ -135,6 +135,45 @@ class TestIncludeDirective:
         with pytest.raises(ValueError, match="[Cc]ircular"):
             self.parser.parse_file(a)
 
+    # ── Metadata stripping ────────────────────────────────────────
+
+    def test_include_strips_arbitrary_metadata_keys(self, tmp_path):
+        """Any leading `.identifier 'x'` metadata (not just .title/.abstract)
+        must be stripped from an included file, since the grammar only
+        allows metadata at the very top of a stylesheet."""
+        child = tmp_path / "child.cscss"
+        child.write_text(
+            ".description 'A child stylesheet'\n"
+            ".keywords 'a, b, c'\n"
+            "[Layer]\n{\n   visibility: true;\n}\n"
+        )
+
+        parent = tmp_path / "parent.cscss"
+        parent.write_text(".include 'child.cscss'\n")
+
+        # Would raise a parse error if .description/.keywords leaked
+        # through into the middle of the flattened stylesheet.
+        result = self.parser.parse_file(parent)
+        assert result.styling_rules is not None
+        assert _rule_selector_name(result.styling_rules.rules[0]) == "Layer"
+
+    def test_include_preserves_styling_rule_name_in_body(self, tmp_path):
+        """`.name 'x'` inside a rule body (stylingRuleName) has the exact
+        same textual shape as a metadata directive but must NOT be
+        stripped — it only looks like metadata before the first `{`."""
+        child = tmp_path / "child.cscss"
+        child.write_text(
+            "[Layer]\n{\n   .name 'CustomName'\n   visibility: true;\n}\n"
+        )
+
+        parent = tmp_path / "parent.cscss"
+        parent.write_text(".include 'child.cscss'\n")
+
+        result = self.parser.parse_file(parent)
+        assert result.styling_rules is not None
+        rule = result.styling_rules.rules[0]
+        assert rule.styling_rule_name == "CustomName"
+
     # ── Integration with real input files ─────────────────────────
 
     def test_include_example_file_parses(self):

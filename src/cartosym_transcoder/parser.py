@@ -95,9 +95,12 @@ class CartoSymParser:
 
         return self.parse_string(content)
 
-    # Regex matching metadata directives (.title / .abstract)
+    # Regex matching a metadata directive (`.title 'x'`, `.abstract 'x'`,
+    # `.keywords 'x'`, ... — the grammar's `metadata` rule accepts any
+    # identifier, not a fixed set: `'.' IDENTIFIER CHARACTER_LITERAL`).
+    # Excludes `.include`, which is resolved separately, before this runs.
     _METADATA_RE = re.compile(
-        r"^\s*\.(title|abstract)\s+['\"].*?['\"]\s*$", re.MULTILINE
+        r"^\s*\.(?!include\b)\w+\s+['\"].*?['\"]\s*$", re.MULTILINE
     )
 
     def _resolve_includes(
@@ -141,10 +144,20 @@ class CartoSymParser:
             with open(abs_path, 'r', encoding='utf-8') as f:
                 included = f.read()
 
-            # Strip metadata (.title / .abstract) from included files —
-            # the ANTLR grammar only supports metadata at the top of the
-            # stylesheet, not between styling rules.
-            included = self._METADATA_RE.sub('', included)
+            # Strip metadata directives from included files — the ANTLR
+            # grammar only supports metadata at the top of the stylesheet
+            # (`styleSheet: metadata* variableDef* stylingRuleList?`), not
+            # between styling rules. Only strip within the leading portion
+            # before the first `{`: `.identifier 'literal'` has the exact
+            # same shape as `stylingRuleName` (`.name 'x'`, grammar rule
+            # `stylingRuleName`), which legitimately appears just inside a
+            # rule body — e.g. `Landuse { .name 'x'; ... }` — and must not
+            # be stripped.
+            brace_idx = included.find('{')
+            head, tail = (included, '') if brace_idx == -1 else (
+                included[:brace_idx], included[brace_idx:]
+            )
+            included = self._METADATA_RE.sub('', head) + tail
 
             # Recurse: the included file may itself contain .include
             return self._resolve_includes(included, abs_path.parent, seen)
