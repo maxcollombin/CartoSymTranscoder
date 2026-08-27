@@ -125,6 +125,11 @@ def symbolizer_to_elements(sym: Any) -> List[etree._Element]:
             )
         elements.extend(_graphic_elements_to_symbolizers(_g(label, "elements")))
 
+    # An empty result means the symbolizer carried no geometry-styling
+    # intent (only visibility / opacity / zOrder, or nothing). SE 1.1.0
+    # forbids a se:Rule without a se:Symbolizer, so the caller decides
+    # whether such a rule can be dropped faithfully or must fail loudly
+    # (see writer.SldSeWriter._build_rule and mapping-issues issue #36).
     return elements
 
 

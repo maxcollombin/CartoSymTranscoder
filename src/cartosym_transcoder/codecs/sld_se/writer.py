@@ -10,6 +10,7 @@ naming the unsupported field rather than being silently dropped, per this
 project's lossless-transcoding requirement.
 """
 
+import logging
 from collections import OrderedDict
 from typing import List, Optional, Tuple
 
@@ -20,6 +21,8 @@ from ..base import CodecWriter
 from ._filter import extract_feature_type_name, selector_to_filter_xml
 from ._symbolizer import has_raster_fields, symbolizer_to_elements
 from ._xml_helpers import NSMAP, se_el, sld_el
+
+logger = logging.getLogger(__name__)
 
 
 class SldSeWriter(CodecWriter):
@@ -73,8 +76,19 @@ class SldSeWriter(CodecWriter):
             )
 
         groups = self._group_rules_by_feature_type(style.styling_rules)
+        emitted = 0
         for feature_type_name, rules in groups.items():
-            user_style.append(self._build_feature_type_style(feature_type_name, rules))
+            fts = self._build_feature_type_style(feature_type_name, rules)
+            if fts is not None:
+                user_style.append(fts)
+                emitted += 1
+        if emitted == 0:
+            raise NotImplementedError(
+                "Style has no SLD/SE-renderable content — every styling rule "
+                "is symbolizer-less (visibility / opacity / zOrder only). SE "
+                "1.1.0 forbids a se:Rule without a symbolizer (see "
+                "mapping-issues issue #36)"
+            )
         return user_style
 
     def _group_rules_by_feature_type(
@@ -109,7 +123,7 @@ class SldSeWriter(CodecWriter):
         self,
         feature_type_name: Optional[str],
         rules_and_selectors: List[Tuple[StylingRule, Optional[dict]]],
-    ) -> etree._Element:
+    ) -> Optional[etree._Element]:
         # A group styling a coverage (any rule carries raster fields) maps
         # to se:CoverageStyle/se:CoverageName; a feature group maps to
         # se:FeatureTypeStyle/se:FeatureTypeName. se:CoverageName only
@@ -125,10 +139,20 @@ class SldSeWriter(CodecWriter):
             fts = se_el("FeatureTypeStyle")
             if feature_type_name is not None:
                 se_el("FeatureTypeName", parent=fts, text=str(feature_type_name))
+        n_rules = 0
         for rule, remaining_selector in rules_and_selectors:
-            fts.append(self._build_rule(rule, remaining_selector))
+            rule_el = self._build_rule(rule, remaining_selector)
+            if rule_el is not None:
+                fts.append(rule_el)
+                n_rules += 1
             for else_rule in self._flatten_nested_rules(rule):
                 fts.append(else_rule)
+                n_rules += 1
+        if n_rules == 0:
+            # Every rule in this group was symbolizer-less and faithfully
+            # dropped — se:FeatureTypeStyle/se:CoverageStyle both require
+            # >=1 se:Rule, so emit nothing for this group.
+            return None
         return fts
 
     def _rule_has_raster(self, rule: StylingRule) -> bool:
@@ -149,7 +173,9 @@ class SldSeWriter(CodecWriter):
         """
         out = []
         for nested in rule.nested_rules or []:
-            out.append(self._build_rule(nested, None, is_else=True))
+            nested_el = self._build_rule(nested, None, is_else=True)
+            if nested_el is not None:
+                out.append(nested_el)
             out.extend(self._flatten_nested_rules(nested))
         return out
 
@@ -158,7 +184,33 @@ class SldSeWriter(CodecWriter):
         rule: StylingRule,
         remaining_selector: Optional[dict],
         is_else: bool = False,
-    ) -> etree._Element:
+    ) -> Optional[etree._Element]:
+        sym_elements = (
+            symbolizer_to_elements(rule.symbolizer)
+            if rule.symbolizer is not None
+            else []
+        )
+        if not sym_elements:
+            # SE 1.1.0 forbids a se:Rule without a se:Symbolizer. A
+            # symbolizer-less CartoSym rule (visibility / opacity / zOrder
+            # only, or a cascade base case) is dropped; whatever intent it
+            # carried is warned about, not silently lost, and the whole
+            # style raises upstream if nothing renders at all.
+            sym = rule.symbolizer
+            carried = [
+                f
+                for f in ("visibility", "opacity", "z_order")
+                if sym is not None and getattr(sym, f, None) is not None
+            ]
+            if carried and not is_else:
+                logger.warning(
+                    "SLD/SE writer: dropping symbolizer-less rule %r "
+                    "(carried %s) — not representable in SE 1.1.0",
+                    rule.styling_rule_name or rule.name or "<unnamed>",
+                    ", ".join(carried),
+                )
+            return None
+
         rule_el = se_el("Rule")
         name = rule.styling_rule_name or rule.name
         if name:
@@ -171,8 +223,7 @@ class SldSeWriter(CodecWriter):
             if filt is not None:
                 rule_el.append(filt)
 
-        if rule.symbolizer is not None:
-            for sym_el in symbolizer_to_elements(rule.symbolizer):
-                rule_el.append(sym_el)
+        for sym_el in sym_elements:
+            rule_el.append(sym_el)
 
         return rule_el
