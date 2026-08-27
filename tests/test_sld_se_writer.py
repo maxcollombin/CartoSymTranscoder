@@ -807,3 +807,71 @@ class TestRealRasterFixturesRegression:
         sym = self._symbolizer_for("9-coverage-hillshading-opacity")
         with pytest.raises(NotImplementedError, match="sun"):
             symbolizer_to_elements(sym)
+
+
+class TestSymbolizerOpacity:
+    """Symbolizer.opacity has no whole-symbolizer equivalent in SE 1.1.0 —
+    it is folded (multiplicatively) into every leaf opacity produced
+    (mapping-issues issue #38)."""
+
+    def test_folds_into_fill_and_stroke_opacity(self):
+        root = _write(
+            _rule_style(
+                {
+                    "opacity": 0.5,
+                    "fill": {"color": "gray", "opacity": 0.8},
+                    "stroke": {"color": "#202020", "width": {"px": 2.0}},
+                }
+            )
+        )
+        poly = root.find(".//se:PolygonSymbolizer", NS)
+        fill_params = {
+            p.get("name"): p.text for p in poly.findall("se:Fill/se:SvgParameter", NS)
+        }
+        stroke_params = {
+            p.get("name"): p.text for p in poly.findall("se:Stroke/se:SvgParameter", NS)
+        }
+        assert fill_params["fill-opacity"] == "0.4"  # 0.5 * 0.8
+        assert stroke_params["stroke-opacity"] == "0.5"  # 0.5 * (implicit 1)
+
+    def test_folds_into_raster_opacity_and_round_trips(self):
+        style_dict = _rule_style(
+            {"opacity": 0.5, "singleChannel": {"property": "elevation"}}
+        )
+        xml = SldSeWriter().write(Style.from_dict(style_dict))
+        root = etree.fromstring(xml.encode("utf-8"))
+        op = root.find(".//se:RasterSymbolizer/se:Opacity", NS)
+        assert op is not None and op.text == "0.5"
+
+        from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
+
+        back = SldSeReader().read(xml)
+        assert back.styling_rules[0].symbolizer.opacity == 0.5
+
+    def test_folds_into_point_graphic_opacity(self):
+        root = _write(
+            _rule_style(
+                {
+                    "opacity": 0.25,
+                    "marker": {"elements": [{"type": "Dot", "color": "red"}]},
+                }
+            )
+        )
+        op = root.find(".//se:PointSymbolizer/se:Graphic/se:Opacity", NS)
+        assert op is not None and op.text == "0.25"
+
+    def test_output_stays_xsd_valid(self):
+        from ._xsd import assert_sld_valid
+
+        xml = SldSeWriter().write(
+            Style.from_dict(
+                _rule_style(
+                    {
+                        "opacity": 0.5,
+                        "fill": {"color": "gray"},
+                        "stroke": {"color": "black", "width": {"px": 1.0}},
+                    }
+                )
+            )
+        )
+        assert_sld_valid(xml, label="symbolizer opacity")

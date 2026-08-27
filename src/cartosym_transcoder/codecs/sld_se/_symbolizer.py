@@ -12,6 +12,12 @@ and raise :exc:`NotImplementedError` naming the field — per this project's
 lossless-transcoding requirement, out-of-scope content must fail loudly
 rather than silently drop data.
 
+``Symbolizer.opacity`` has no whole-symbolizer equivalent in SE 1.1.0 and
+is folded multiplicatively into every leaf opacity produced
+(``fill-opacity``, ``stroke-opacity``, ``se:Graphic/se:Opacity``,
+``se:RasterSymbolizer/se:Opacity``) — round-trips cleanly only for raster
+(mapping-issues issue #38).
+
 ``Dot``, ``Image``, and ``Text`` graphic elements (found in either
 ``Symbolizer.marker.elements`` or ``Symbolizer.label.elements`` — CartoSym
 allows Text under either) are in scope (``Shape``/``Circle``/``Rectangle``
@@ -98,6 +104,34 @@ def has_raster_fields(sym: Any) -> bool:
     return any(_g(sym, attr) is not None for attr in _RASTER_FIELD_ATTRS)
 
 
+def _opacity_float(value: Any) -> Optional[float]:
+    """Numeric opacity (0..1) for *value*, or ``None`` if unset.
+
+    ``format_opacity`` already raises ``NotImplementedError`` for
+    expression/property-driven opacity (mapping-issues issue #11), so any
+    value that survives is numeric.
+    """
+    if value is None:
+        return None
+    return float(format_opacity(value))
+
+
+def _combine_opacity(base: Optional[float], own: Any) -> Optional[str]:
+    """Formatted product of a symbolizer-level opacity *base* and an
+    element's *own* opacity.
+
+    SE 1.1.0 has no whole-symbolizer opacity — ``Symbolizer.opacity`` is
+    folded into each leaf opacity the symbolizer emits (``fill-opacity``,
+    ``stroke-opacity``, ``se:Graphic/se:Opacity``, ``se:RasterSymbolizer/
+    se:Opacity``). Returns ``None`` when neither is set (emit nothing).
+    """
+    own_f = _opacity_float(own)
+    if base is None and own_f is None:
+        return None
+    factor = (1.0 if base is None else base) * (1.0 if own_f is None else own_f)
+    return format_opacity(factor)
+
+
 def symbolizer_to_elements(sym: Any) -> List[etree._Element]:
     """Convert one CartoSym ``Symbolizer`` into 1..N sibling SLD/SE elements."""
     elements: List[etree._Element] = []
@@ -105,17 +139,20 @@ def symbolizer_to_elements(sym: Any) -> List[etree._Element]:
     stroke = _g(sym, "stroke")
     marker = _g(sym, "marker")
     label = _g(sym, "label")
+    # SE 1.1.0 has no whole-symbolizer opacity — fold Symbolizer.opacity
+    # into every leaf opacity produced below (mapping-issues issue #38).
+    s_op = _opacity_float(_g(sym, "opacity"))
 
     if fill is not None:
-        elements.append(_build_polygon_symbolizer(fill, stroke))
+        elements.append(_build_polygon_symbolizer(fill, stroke, s_op))
     elif stroke is not None:
-        elements.append(_build_line_symbolizer(stroke))
+        elements.append(_build_line_symbolizer(stroke, s_op))
 
     if has_raster_fields(sym):
-        elements.append(_build_raster_symbolizer(sym))
+        elements.append(_build_raster_symbolizer(sym, s_op))
 
     if marker is not None:
-        elements.extend(_graphic_elements_to_symbolizers(_g(marker, "elements")))
+        elements.extend(_graphic_elements_to_symbolizers(_g(marker, "elements"), s_op))
 
     if label is not None:
         if _g(label, "placement") is not None:
@@ -123,7 +160,7 @@ def symbolizer_to_elements(sym: Any) -> List[etree._Element]:
                 "Label.placement (line placement / priority / spacing) has "
                 "no SLD/SE mapping in this codec (see mapping-issues issue #18)"
             )
-        elements.extend(_graphic_elements_to_symbolizers(_g(label, "elements")))
+        elements.extend(_graphic_elements_to_symbolizers(_g(label, "elements"), s_op))
 
     # An empty result means the symbolizer carried no geometry-styling
     # intent (only visibility / opacity / zOrder, or nothing). SE 1.1.0
@@ -133,7 +170,9 @@ def symbolizer_to_elements(sym: Any) -> List[etree._Element]:
     return elements
 
 
-def _graphic_elements_to_symbolizers(elements: Any) -> List[etree._Element]:
+def _graphic_elements_to_symbolizers(
+    elements: Any, base_opacity: Optional[float] = None
+) -> List[etree._Element]:
     if elements is None:
         return []
     if isinstance(elements, dict) and "index" in elements and "value" in elements:
@@ -148,11 +187,11 @@ def _graphic_elements_to_symbolizers(elements: Any) -> List[etree._Element]:
     for el in elements:
         el_type = _g(el, "type")
         if el_type == "Dot":
-            result.append(_build_point_symbolizer(el))
+            result.append(_build_point_symbolizer(el, base_opacity))
         elif el_type == "Image":
-            result.append(_build_image_symbolizer(el))
+            result.append(_build_image_symbolizer(el, base_opacity))
         elif el_type == "Text":
-            result.append(_build_text_symbolizer(el))
+            result.append(_build_text_symbolizer(el, base_opacity))
         else:
             raise NotImplementedError(
                 f"Graphic element type {el_type!r} has no SLD/SE mapping in "
@@ -171,15 +210,17 @@ def _raise_if_fill_out_of_scope(fill: Any) -> None:
             )
 
 
-def _build_fill_element(fill: Any) -> etree._Element:
+def _build_fill_element(
+    fill: Any, base_opacity: Optional[float] = None
+) -> etree._Element:
     _raise_if_fill_out_of_scope(fill)
     el = se_el("Fill")
     color = _g(fill, "color")
-    opacity = _g(fill, "opacity")
     if color is not None:
         svg_param(el, "fill", format_color(color))
-    if opacity is not None:
-        svg_param(el, "fill-opacity", format_opacity(opacity))
+    combined = _combine_opacity(base_opacity, _g(fill, "opacity"))
+    if combined is not None:
+        svg_param(el, "fill-opacity", combined)
     return el
 
 
@@ -201,19 +242,21 @@ def _raise_if_stroke_out_of_scope(stroke: Any) -> None:
         )
 
 
-def _build_stroke_element(stroke: Any) -> etree._Element:
+def _build_stroke_element(
+    stroke: Any, base_opacity: Optional[float] = None
+) -> etree._Element:
     _raise_if_stroke_out_of_scope(stroke)
     el = se_el("Stroke")
     color = _g(stroke, "color")
     width = _g(stroke, "width")
-    opacity = _g(stroke, "opacity")
     dash_pattern = _g(stroke, "dash_pattern")
     if color is not None:
         svg_param(el, "stroke", format_color(color))
     if width is not None:
         svg_param(el, "stroke-width", format_unit_value(width))
-    if opacity is not None:
-        svg_param(el, "stroke-opacity", format_opacity(opacity))
+    combined = _combine_opacity(base_opacity, _g(stroke, "opacity"))
+    if combined is not None:
+        svg_param(el, "stroke-opacity", combined)
     if dash_pattern is not None:
         pattern = _g(dash_pattern, "pattern")
         if pattern:
@@ -221,18 +264,22 @@ def _build_stroke_element(stroke: Any) -> etree._Element:
     return el
 
 
-def _build_polygon_symbolizer(fill: Any, stroke: Any) -> etree._Element:
+def _build_polygon_symbolizer(
+    fill: Any, stroke: Any, base_opacity: Optional[float] = None
+) -> etree._Element:
     el = se_el("PolygonSymbolizer")
     if fill is not None:
-        el.append(_build_fill_element(fill))
+        el.append(_build_fill_element(fill, base_opacity))
     if stroke is not None:
-        el.append(_build_stroke_element(stroke))
+        el.append(_build_stroke_element(stroke, base_opacity))
     return el
 
 
-def _build_line_symbolizer(stroke: Any) -> etree._Element:
+def _build_line_symbolizer(
+    stroke: Any, base_opacity: Optional[float] = None
+) -> etree._Element:
     el = se_el("LineSymbolizer")
-    el.append(_build_stroke_element(stroke))
+    el.append(_build_stroke_element(stroke, base_opacity))
     return el
 
 
@@ -353,8 +400,14 @@ def _build_shaded_relief(hill_shading: Any) -> etree._Element:
     return sr
 
 
-def _build_raster_symbolizer(sym: Any) -> etree._Element:
+def _build_raster_symbolizer(
+    sym: Any, base_opacity: Optional[float] = None
+) -> etree._Element:
     rs = se_el("RasterSymbolizer")
+
+    # se:RasterSymbolizerType order: Geometry?, Opacity?, ChannelSelection?, ...
+    if base_opacity is not None:
+        se_el("Opacity", parent=rs, text=format_opacity(base_opacity))
 
     color_channels = _g(sym, "color_channels")
     single_channel = _g(sym, "single_channel")
@@ -392,7 +445,9 @@ def _build_raster_symbolizer(sym: Any) -> etree._Element:
     return rs
 
 
-def _build_point_symbolizer(dot: Any) -> etree._Element:
+def _build_point_symbolizer(
+    dot: Any, base_opacity: Optional[float] = None
+) -> etree._Element:
     ps = se_el("PointSymbolizer")
     graphic = se_el("Graphic", parent=ps)
     mark = se_el("Mark", parent=graphic)
@@ -402,6 +457,11 @@ def _build_point_symbolizer(dot: Any) -> etree._Element:
     if color is not None:
         fill_el = se_el("Fill", parent=mark)
         svg_param(fill_el, "fill", format_color(color))
+
+    # se:GraphicType order: (Mark|ExternalGraphic)*, Opacity?, Size?, ...
+    combined = _combine_opacity(base_opacity, _g(dot, "opacity"))
+    if combined is not None:
+        se_el("Opacity", parent=graphic, text=combined)
 
     size = _g(dot, "size")
     if size is not None:
@@ -451,7 +511,9 @@ def _raise_if_image_out_of_scope(image_graphic: Any) -> None:
             )
 
 
-def _build_image_symbolizer(image_graphic: Any) -> etree._Element:
+def _build_image_symbolizer(
+    image_graphic: Any, base_opacity: Optional[float] = None
+) -> etree._Element:
     _raise_if_image_out_of_scope(image_graphic)
 
     resource = _g(image_graphic, "image")
@@ -474,6 +536,12 @@ def _build_image_symbolizer(image_graphic: Any) -> etree._Element:
     online_resource.set(f"{XLINK}href", uri)
     if mime_type is not None:
         se_el("Format", parent=ext_graphic, text=mime_type)
+
+    # se:GraphicType order: (Mark|ExternalGraphic)*, Opacity?, Size?,
+    # Rotation?, AnchorPoint?, Displacement?
+    combined = _combine_opacity(base_opacity, _g(image_graphic, "opacity"))
+    if combined is not None:
+        se_el("Opacity", parent=graphic, text=combined)
 
     position = _g(image_graphic, "position")
     if position is not None:
@@ -509,7 +577,9 @@ def _alignment_hv(alignment: Any):
     return h, v
 
 
-def _build_text_symbolizer(text_graphic: Any) -> etree._Element:
+def _build_text_symbolizer(
+    text_graphic: Any, base_opacity: Optional[float] = None
+) -> etree._Element:
     ts = se_el("TextSymbolizer")
 
     text = _g(text_graphic, "text")
@@ -568,12 +638,13 @@ def _build_text_symbolizer(text_graphic: Any) -> etree._Element:
             se_el("DisplacementX", parent=disp_el, text=format_unit_value(px or 0))
             se_el("DisplacementY", parent=disp_el, text=format_unit_value(py or 0))
 
-    if font_color is not None or font_opacity is not None:
+    combined_opacity = _combine_opacity(base_opacity, font_opacity)
+    if font_color is not None or combined_opacity is not None:
         fill_el = se_el("Fill", parent=ts)
         if font_color is not None:
             svg_param(fill_el, "fill", format_color(font_color))
-        if font_opacity is not None:
-            svg_param(fill_el, "fill-opacity", format_opacity(font_opacity))
+        if combined_opacity is not None:
+            svg_param(fill_el, "fill-opacity", combined_opacity)
 
     return ts
 
@@ -766,6 +837,9 @@ def _parse_raster_symbolizer(el: etree._Element) -> dict:
                 "this codec's scope (see mapping-issues issue #26)"
             )
     result: dict = {}
+    opacity_el = find_se_direct(el, "Opacity")
+    if opacity_el is not None and opacity_el.text:
+        result["opacity"] = parse_opacity(opacity_el.text.strip())
     cs_el = find_se_direct(el, "ChannelSelection")
     if cs_el is not None:
         result.update(_parse_channel_selection(cs_el))
