@@ -1,0 +1,394 @@
+"""
+OGC Filter Encoding <-> CartoSym selector dict mapping, both directions.
+
+Ground truth for the selector dict shapes handled here is
+``converter.py::_format_selector_expr``/``_selector_to_cscss`` — CartoSym's
+``StylingRule.selector`` is a raw CQL2-JSON-shaped ``dict``/``list``/``str``
+at runtime, not the ``Expression`` Pydantic hierarchy in
+``models/expressions.py`` (that hierarchy is not wired into selector
+validation).
+
+Scope, and the mapping-issues entries each boundary is logged under, are
+documented in ``docs/sld_se_mapping_issues.md``.
+"""
+
+from typing import Any, List, Optional, Tuple
+
+from lxml import etree
+
+from ._xml_helpers import GML, ogc_el
+
+_COMPARISON_OPS = {
+    "=": "PropertyIsEqualTo",
+    "!=": "PropertyIsNotEqualTo",
+    "<": "PropertyIsLessThan",
+    ">": "PropertyIsGreaterThan",
+    "<=": "PropertyIsLessThanOrEqualTo",
+    ">=": "PropertyIsGreaterThanOrEqualTo",
+}
+_COMPARISON_TAGS = {v: k for k, v in _COMPARISON_OPS.items()}
+
+_SPATIAL_OPS = {
+    "s_intersects": "Intersects",
+    "s_within": "Within",
+    "s_contains": "Contains",
+    "s_disjoint": "Disjoint",
+    "s_touches": "Touches",
+    "s_overlaps": "Overlaps",
+    "s_crosses": "Crosses",
+}
+_SPATIAL_TAGS = {v: k for k, v in _SPATIAL_OPS.items()}
+
+_TEXT_OP_PATTERNS = {
+    "contains": lambda pat: f"%{pat}%",
+    "startswith": lambda pat: f"{pat}%",
+    "endswith": lambda pat: f"%{pat}",
+}
+
+
+_DATALAYER_METADATA_SYSIDS = (
+    "dataLayer.type",
+    "dataLayer.featuresGeometryDimensions",
+)
+
+
+def _is_sysid_eq(expr: Any, sys_id: str) -> bool:
+    return (
+        isinstance(expr, dict)
+        and expr.get("op") == "="
+        and isinstance(expr.get("args"), list)
+        and len(expr["args"]) == 2
+        and isinstance(expr["args"][0], dict)
+        and expr["args"][0].get("sysId") == sys_id
+    )
+
+
+def _is_datalayer_id_eq(expr: Any) -> bool:
+    return _is_sysid_eq(expr, "dataLayer.id")
+
+
+def _flatten_and_conjuncts(selector: Any) -> List[Any]:
+    """Flatten an arbitrarily-nested (left- or right-nested, or flat
+    n-ary) chain of ``{"op": "and", "args": [...]}`` into one flat list of
+    leaf conjuncts. Only ``and`` is descended into — ``or``/``not``/
+    comparisons flatten to a single-element list containing themselves.
+    """
+    if (
+        isinstance(selector, dict)
+        and selector.get("op") == "and"
+        and isinstance(selector.get("args"), list)
+    ):
+        out: List[Any] = []
+        for arg in selector["args"]:
+            out.extend(_flatten_and_conjuncts(arg))
+        return out
+    return [selector]
+
+
+def _reassemble_and(conjuncts: List[Any]) -> Optional[dict]:
+    if not conjuncts:
+        return None
+    if len(conjuncts) == 1:
+        return conjuncts[0]
+    return {"op": "and", "args": conjuncts}
+
+
+def extract_feature_type_name(
+    selector: Optional[dict],
+) -> Tuple[Optional[str], Optional[dict]]:
+    """Split ``dataLayer.id``/``dataLayer.type``/
+    ``dataLayer.featuresGeometryDimensions`` conjuncts out of *selector*,
+    from anywhere in an arbitrarily-nested ``and`` chain (real generated
+    CS-JSON right-nests these three conjuncts, not a flat 3-ary ``and``).
+
+    ``dataLayer.id`` is captured and returned for the caller to emit as
+    ``<se:FeatureTypeName>`` (mapping-issues issue #6). ``dataLayer.type``/
+    ``dataLayer.featuresGeometryDimensions`` are silently dropped — SLD/SE
+    has no representation for either; this is a permanent, write-only
+    lossy simplification (mapping-issues issue #31). Mirrors the same
+    detection logic as ``converter.py:217-244`` / ``ast_converter.py:1014,1038``.
+
+    Returns
+    -------
+    (feature_type_name, remaining_selector)
+        ``remaining_selector`` is ``None`` if nothing is left, the bare
+        leaf if exactly one conjunct remains, or a flat n-ary ``and`` of
+        whatever remains otherwise.
+    """
+    if selector is None:
+        return None, None
+    conjuncts = _flatten_and_conjuncts(selector)
+    id_val: Optional[str] = None
+    remaining: List[Any] = []
+    for conjunct in conjuncts:
+        if id_val is None and _is_sysid_eq(conjunct, "dataLayer.id"):
+            id_val = _coerce_id_value(conjunct["args"][1])
+        elif any(_is_sysid_eq(conjunct, s) for s in _DATALAYER_METADATA_SYSIDS):
+            continue  # dropped, write-only — mapping-issues issue #31
+        else:
+            remaining.append(conjunct)
+    return id_val, _reassemble_and(remaining)
+
+
+def merge_feature_type_name(
+    name: Optional[str], selector: Optional[dict]
+) -> Optional[dict]:
+    """Reader-side inverse of :func:`extract_feature_type_name`.
+
+    Only ``dataLayer.id`` is reconstructed — ``dataLayer.type``/
+    ``dataLayer.featuresGeometryDimensions`` have no SLD/SE representation
+    to reconstruct from (mapping-issues issue #31), so a selector written
+    with those conjuncts will not round-trip them back.
+    """
+    if name is None:
+        return selector
+    id_eq = {"op": "=", "args": [{"sysId": "dataLayer.id"}, name]}
+    if selector is None:
+        return id_eq
+    return {"op": "and", "args": [id_eq, selector]}
+
+
+def _coerce_id_value(value: Any) -> str:
+    if isinstance(value, dict) and "property" in value:
+        return value["property"]
+    return value
+
+
+def selector_to_filter_xml(selector: Optional[dict]) -> Optional[etree._Element]:
+    """Convert a CartoSym selector dict into an ``<ogc:Filter>`` element.
+
+    *selector* should already have any ``dataLayer.id`` conjunct removed
+    (via :func:`extract_feature_type_name`) by the caller.
+    """
+    if selector is None:
+        return None
+    filt = ogc_el("Filter")
+    filt.append(_expr_to_filter_xml(selector))
+    return filt
+
+
+def filter_xml_to_selector(filter_elem: etree._Element) -> dict:
+    """Convert an ``<ogc:Filter>`` element back into a selector dict."""
+    children = [c for c in filter_elem if isinstance(c.tag, str)]
+    if len(children) != 1:
+        raise NotImplementedError(
+            f"ogc:Filter with {len(children)} top-level predicates is not "
+            "supported (expected exactly 1)"
+        )
+    return _filter_xml_to_expr(children[0])
+
+
+# ---------------------------------------------------------------------------
+# Writer direction: selector dict -> ogc:Filter predicate element
+# ---------------------------------------------------------------------------
+
+
+def _operand_to_xml(operand: Any) -> etree._Element:
+    """Build an ``ogc:PropertyName`` or ``ogc:Literal`` element for *operand*."""
+    if isinstance(operand, dict):
+        if "property" in operand and len(operand) == 1:
+            return ogc_el("PropertyName", text=operand["property"])
+        if "sysId" in operand:
+            raise NotImplementedError(
+                f"sysId {operand['sysId']!r} other than 'dataLayer.id' has no "
+                "SLD/SE mapping in this codec (see mapping-issues issue #14)"
+            )
+        if "date" in operand and len(operand) == 1:
+            return ogc_el("Literal", text=str(operand["date"]))
+        if "timestamp" in operand and len(operand) == 1:
+            return ogc_el("Literal", text=str(operand["timestamp"]))
+        raise NotImplementedError(
+            f"Selector operand shape {operand!r} (interval / geometry literal "
+            "/ other CQL2 construct) has no SLD/SE mapping in this codec "
+            "(see mapping-issues issue #12)"
+        )
+    if isinstance(operand, bool):
+        return ogc_el("Literal", text="true" if operand else "false")
+    return ogc_el("Literal", text=str(operand))
+
+
+def _expr_to_filter_xml(expr: Any) -> etree._Element:
+    """Recursively build the predicate subtree for one selector expression."""
+    if not isinstance(expr, dict) or "op" not in expr:
+        raise NotImplementedError(f"Unsupported selector expression: {expr!r}")
+
+    op = expr["op"]
+    op_lower = op.lower() if isinstance(op, str) else ""
+    args = expr.get("args", [])
+
+    if op_lower in ("and", "or"):
+        tag = "And" if op_lower == "and" else "Or"
+        el = ogc_el(tag)
+        for a in args:
+            el.append(_expr_to_filter_xml(a))
+        return el
+
+    if op_lower == "not" and len(args) == 1:
+        el = ogc_el("Not")
+        el.append(_expr_to_filter_xml(args[0]))
+        return el
+
+    if op in _COMPARISON_OPS and len(args) == 2:
+        el = ogc_el(_COMPARISON_OPS[op])
+        el.append(_operand_to_xml(args[0]))
+        el.append(_operand_to_xml(args[1]))
+        return el
+
+    if op_lower == "between" and len(args) == 3:
+        el = ogc_el("PropertyIsBetween")
+        el.append(_operand_to_xml(args[0]))
+        lower = ogc_el("LowerBoundary", parent=el)
+        lower.append(_operand_to_xml(args[1]))
+        upper = ogc_el("UpperBoundary", parent=el)
+        upper.append(_operand_to_xml(args[2]))
+        return el
+
+    if op_lower in ("like", "ilike") and len(args) == 2:
+        el = ogc_el("PropertyIsLike")
+        el.set("wildCard", "%")
+        el.set("singleChar", "_")
+        el.set("escapeChar", "\\")
+        el.append(_operand_to_xml(args[0]))
+        el.append(_operand_to_xml(args[1]))
+        return el
+
+    if op_lower == "isnull" and len(args) == 1:
+        el = ogc_el("PropertyIsNull")
+        el.append(_operand_to_xml(args[0]))
+        return el
+
+    if op_lower in _TEXT_OP_PATTERNS and len(args) == 2:
+        val, pattern = args
+        if not isinstance(pattern, str):
+            raise NotImplementedError(
+                f"{op} with a non-literal pattern has no SLD/SE mapping "
+                "(see mapping-issues issue #13)"
+            )
+        el = ogc_el("PropertyIsLike")
+        el.set("wildCard", "%")
+        el.set("singleChar", "_")
+        el.set("escapeChar", "\\")
+        el.append(_operand_to_xml(val))
+        el.append(ogc_el("Literal", text=_TEXT_OP_PATTERNS[op_lower](pattern)))
+        return el
+
+    if op_lower in _SPATIAL_OPS and len(args) == 2:
+        el = ogc_el(_SPATIAL_OPS[op_lower])
+        el.append(_operand_to_xml(args[0]))
+        el.append(_operand_to_xml(args[1]))
+        return el
+
+    raise NotImplementedError(
+        f"Selector operator {op!r} has no SLD/SE Filter Encoding mapping in "
+        "this codec's scope (see mapping-issues issue #12)"
+    )
+
+
+def bbox_to_filter_xml(bbox: List[float]) -> etree._Element:
+    """Build an ``<ogc:BBOX>`` element from a ``[minx, miny, maxx, maxy]`` list."""
+    el = ogc_el("BBOX")
+    envelope = etree.SubElement(el, f"{GML}Envelope")
+    minx, miny, maxx, maxy = bbox
+    etree.SubElement(envelope, f"{GML}lowerCorner").text = f"{minx} {miny}"
+    etree.SubElement(envelope, f"{GML}upperCorner").text = f"{maxx} {maxy}"
+    return el
+
+
+# ---------------------------------------------------------------------------
+# Reader direction: ogc:Filter predicate element -> selector dict
+# ---------------------------------------------------------------------------
+
+
+def _local(elem: etree._Element) -> str:
+    return etree.QName(elem).localname
+
+
+def _coerce_literal(text: Optional[str]) -> Any:
+    if text is None:
+        return None
+    if text in ("true", "false"):
+        return text == "true"
+    try:
+        return int(text)
+    except ValueError:
+        pass
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    return text
+
+
+def _operand_from_xml(elem: etree._Element) -> Any:
+    tag = _local(elem)
+    if tag == "PropertyName":
+        return {"property": elem.text}
+    if tag == "Literal":
+        return _coerce_literal(elem.text)
+    raise NotImplementedError(f"Unsupported Filter operand element <{tag}>")
+
+
+def _children(elem: etree._Element) -> List[etree._Element]:
+    return [c for c in elem if isinstance(c.tag, str)]
+
+
+def _filter_xml_to_expr(elem: etree._Element) -> dict:
+    tag = _local(elem)
+
+    if tag in ("And", "Or"):
+        return {
+            "op": "and" if tag == "And" else "or",
+            "args": [_filter_xml_to_expr(c) for c in _children(elem)],
+        }
+
+    if tag == "Not":
+        return {"op": "not", "args": [_filter_xml_to_expr(_children(elem)[0])]}
+
+    if tag in _COMPARISON_TAGS:
+        left, right = _children(elem)
+        return {
+            "op": _COMPARISON_TAGS[tag],
+            "args": [_operand_from_xml(left), _operand_from_xml(right)],
+        }
+
+    if tag == "PropertyIsBetween":
+        value_el, lower_el, upper_el = _children(elem)
+        return {
+            "op": "between",
+            "args": [
+                _operand_from_xml(value_el),
+                _operand_from_xml(_children(lower_el)[0]),
+                _operand_from_xml(_children(upper_el)[0]),
+            ],
+        }
+
+    if tag == "PropertyIsLike":
+        left, right = _children(elem)
+        return {
+            "op": "like",
+            "args": [_operand_from_xml(left), _operand_from_xml(right)],
+        }
+
+    if tag == "PropertyIsNull":
+        return {"op": "isnull", "args": [_operand_from_xml(_children(elem)[0])]}
+
+    if tag in _SPATIAL_TAGS:
+        left, right = _children(elem)
+        return {
+            "op": _SPATIAL_TAGS[tag],
+            "args": [_operand_from_xml(left), _operand_from_xml(right)],
+        }
+
+    if tag == "BBOX":
+        children = _children(elem)
+        envelope = children[-1]
+        lower = envelope.find(f"{GML}lowerCorner")
+        upper = envelope.find(f"{GML}upperCorner")
+        minx, miny = (float(v) for v in lower.text.split())
+        maxx, maxy = (float(v) for v in upper.text.split())
+        return {"bbox": [minx, miny, maxx, maxy]}
+
+    raise NotImplementedError(
+        f"ogc:Filter construct <{tag}> has no CartoSym selector mapping in "
+        "this codec's scope (see mapping-issues issue #12)"
+    )
