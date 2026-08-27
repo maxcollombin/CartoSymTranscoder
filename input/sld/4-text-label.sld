@@ -21,10 +21,6 @@
               <se:SvgParameter name="font-weight">normal</se:SvgParameter>
               <se:SvgParameter name="font-style">normal</se:SvgParameter>
             </se:Font>
-            <se:Fill>
-              <se:SvgParameter name="fill">#a9a9a9</se:SvgParameter>
-              <se:SvgParameter name="fill-opacity">1</se:SvgParameter>
-            </se:Fill>
             <se:LabelPlacement>
               <se:PointPlacement>
                 <se:AnchorPoint>
@@ -37,6 +33,10 @@
                 </se:Displacement>
               </se:PointPlacement>
             </se:LabelPlacement>
+            <se:Fill>
+              <se:SvgParameter name="fill">#a9a9a9</se:SvgParameter>
+              <se:SvgParameter name="fill-opacity">1</se:SvgParameter>
+            </se:Fill>
           </se:TextSymbolizer>
         </se:Rule>
       </se:FeatureTypeStyle>

@@ -509,6 +509,11 @@ def _build_text_symbolizer(text_graphic: Any) -> etree._Element:
     else:
         raise NotImplementedError(f"Unsupported Text.text shape: {text!r}")
 
+    # Font color/opacity map to se:Fill, but SE's TextSymbolizerType fixes
+    # the child order as Label, Font, LabelPlacement, Halo, Fill — so the
+    # Fill element is built last, after the placement block below.
+    font_color = None
+    font_opacity = None
     font = _g(text_graphic, "font")
     if font is not None:
         if _g(font, "underline"):
@@ -530,14 +535,8 @@ def _build_text_symbolizer(text_graphic: Any) -> etree._Element:
         if italic is not None:
             svg_param(font_el, "font-style", "italic" if italic else "normal")
 
-        color = _g(font, "color")
-        opacity = _g(font, "opacity")
-        if color is not None or opacity is not None:
-            fill_el = se_el("Fill", parent=ts)
-            if color is not None:
-                svg_param(fill_el, "fill", format_color(color))
-            if opacity is not None:
-                svg_param(fill_el, "fill-opacity", format_opacity(opacity))
+        font_color = _g(font, "color")
+        font_opacity = _g(font, "opacity")
 
     alignment = _g(text_graphic, "alignment")
     position = _g(text_graphic, "position")
@@ -556,6 +555,13 @@ def _build_text_symbolizer(text_graphic: Any) -> etree._Element:
             disp_el = se_el("Displacement", parent=point_placement_el)
             se_el("DisplacementX", parent=disp_el, text=format_unit_value(px or 0))
             se_el("DisplacementY", parent=disp_el, text=format_unit_value(py or 0))
+
+    if font_color is not None or font_opacity is not None:
+        fill_el = se_el("Fill", parent=ts)
+        if font_color is not None:
+            svg_param(fill_el, "fill", format_color(font_color))
+        if font_opacity is not None:
+            svg_param(fill_el, "fill-opacity", format_opacity(font_opacity))
 
     return ts
 
