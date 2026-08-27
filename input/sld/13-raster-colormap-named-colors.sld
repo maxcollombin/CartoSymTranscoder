@@ -18,7 +18,7 @@
               </se:GrayChannel>
             </se:ChannelSelection>
             <se:ColorMap>
-              <se:Categorize>
+              <se:Categorize fallbackValue="black">
                 <se:LookupValue>Rasterdata</se:LookupValue>
                 <se:Value>black</se:Value>
                 <se:Threshold>0.15</se:Threshold>

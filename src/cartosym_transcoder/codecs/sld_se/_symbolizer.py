@@ -304,6 +304,11 @@ def _build_categorize(pairs: list) -> etree._Element:
     ``pairs[0][0]`` is therefore never written (mapping-issues issue #33).
     """
     categorize = se_el("Categorize")
+    # fallbackValue is required on se:FunctionType (SE 1.1.0). It is the
+    # value returned for an uncategorisable input; the below-first-
+    # threshold colour is the natural choice. Ignored on read (regenerated
+    # deterministically, so the round trip stays stable).
+    categorize.set("fallbackValue", format_color(pairs[0][1]))
     se_el("LookupValue", parent=categorize, text="Rasterdata")
     se_el("Value", parent=categorize, text=format_color(pairs[0][1]))
     for threshold, value in pairs[1:]:

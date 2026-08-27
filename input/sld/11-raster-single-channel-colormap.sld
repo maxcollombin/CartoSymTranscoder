@@ -18,7 +18,7 @@
               </se:GrayChannel>
             </se:ChannelSelection>
             <se:ColorMap>
-              <se:Categorize>
+              <se:Categorize fallbackValue="#608849">
                 <se:LookupValue>Rasterdata</se:LookupValue>
                 <se:Value>#608849</se:Value>
                 <se:Threshold>900</se:Threshold>
