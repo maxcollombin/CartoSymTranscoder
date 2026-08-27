@@ -146,7 +146,8 @@ class Text(Graphic):
     font: Optional[Font] = None
     color: Optional[FlexibleColor] = None
     outline: Optional[FontOutline] = None
-    alignment: Optional[str] = None  # "left", "center", "right", etc.
+    # textAlignment (schema): [hAlignment, vAlignment] pair, e.g. ["center", "middle"]
+    alignment: Optional[List[str]] = None
 
 
 # Image elements

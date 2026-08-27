@@ -417,12 +417,22 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 # Anonymous nested object → recurse into its properties
                 inner = {}
                 inner_list = nested_ei.propertyAssignmentInferredList()
-                if inner_list:
+                if inner_list is not None:
                     for inner_pai in cls._collect_inferred_assignments(inner_list):
                         inner_pa = inner_pai.propertyAssignment()
                         if inner_pa:
                             inner[inner_pa.lhValue().getText()] = cls._expression_source_text(inner_pa.expression())
-                result[key] = inner
+                if inner:
+                    result[key] = inner
+                else:
+                    # Braced but with no `key: value` pairs at all — e.g. a
+                    # bare comma-separated list like "{ center, middle }"
+                    # for `alignment`, where each entry is an "inferred"
+                    # (keyless) assignment. Keep the raw source text instead
+                    # of an empty dict, so downstream string-based coercion
+                    # (see _normalize_graphic_element in ast_converter.py)
+                    # can still parse it.
+                    result[key] = cls._expression_source_text(expr)
             elif nested_ei is not None and nested_ei.IDENTIFIER() is not None:
                 # Named nested instance (rare) → recurse
                 result[key] = cls._extract_element_from_instance(nested_ei)
@@ -493,9 +503,9 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             # internal closing/opening quote pair (apostrophe + whitespace + apostrophe)
             import re as _re_meta
             value = _re_meta.sub(r"'\s*'", ' ', value)
-            # Decode \n and \t escape sequences
-            value = value.replace('\\n', ' ').replace('\\t', ' ')
-            # Collapse multiple spaces and strip
+            # Decode \n and \t escape sequences into real newline/tab chars
+            value = value.replace('\\n', '\n').replace('\\t', '\t')
+            # Collapse multiple spaces (but not the newlines/tabs above) and strip
             value = _re_meta.sub(r'  +', ' ', value).strip()
             metadata = Metadata(key=key, value=value)
             if not self.stylesheet.metadata:
