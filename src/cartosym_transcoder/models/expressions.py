@@ -419,9 +419,11 @@ class SpatialPredicate(BoolExpression):
     op: Literal[
         "s_intersects", "s_contains", "s_within", "s_touches",
         "s_crosses", "s_disjoint", "s_overlaps", "s_equals",
+        "s_covers", "s_coveredBy",
         # Legacy bare names (accepted on input, normalised to s_ prefix on output)
         "intersects", "contains", "within", "touches",
         "crosses", "disjoint", "overlaps", "equals",
+        "covers", "coveredBy",
     ]
     args: List[Expression]
 
@@ -455,21 +457,23 @@ class GeometryExpression(Expression):
 
 
 class GeometryBuffer(GeometryExpression):
-    """Geometry buffer operation: {"op": "buffer", "args": [geometry, distance]}"""
-    op: Literal["buffer"] = "buffer"
+    """Geometry buffer operation: {"op": "s_buffer", "args": [geometry, distance]}"""
+    op: Literal["buffer", "s_buffer"] = "s_buffer"
     args: List[Expression] = Field(min_length=2, max_length=2)  # [geometry, distance]
 
 
 class GeometryManipulationUnary(GeometryExpression):
-    """Unary geometry operations: {"op": "centroid|envelope|convexHull|boundary", "args": [geometry]}"""
-    op: Literal["centroid", "envelope", "convexHull", "boundary"]
-    args: List[GeometryExpression] = Field(min_length=1, max_length=1)
+    """Unary geometry operations: {"op": "s_convexHull|s_envelope|centroid|boundary", "args": [geometry]}"""
+    op: Literal["centroid", "envelope", "convexHull", "boundary",
+               "s_convexHull", "s_envelope"]
+    args: List[Expression] = Field(min_length=1, max_length=1)
 
 
 class GeometryManipulationBinary(GeometryExpression):
-    """Binary geometry operations: {"op": "union|intersection|difference|symDifference", "args": [geom1, geom2]}"""
-    op: Literal["union", "intersection", "difference", "symDifference"]
-    args: List[GeometryExpression] = Field(min_length=2, max_length=2)
+    """Binary geometry operations: {"op": "s_intersection|s_union|s_difference|s_symDifference", "args": [geom1, geom2]}"""
+    op: Literal["union", "intersection", "difference", "symDifference",
+               "s_intersection", "s_union", "s_difference", "s_symDifference"]
+    args: List[Expression] = Field(min_length=2, max_length=2)
 
 
 class SpatialInstance(GeometryExpression):
@@ -707,8 +711,8 @@ class SubstituteExpression(CharacterExpression):
 
 
 class LowerUpperCaseExpression(CharacterExpression):
-    """Case conversion: {"op": "upper|lower", "args": [string]}"""
-    op: Literal["upper", "lower"]
+    """Case conversion: {"op": "lowerCase|upperCase|upper|lower", "args": [string]}"""
+    op: Literal["upper", "lower", "upperCase", "lowerCase"]
     args: List[Expression] = Field(min_length=1, max_length=1)
 
 
@@ -720,9 +724,12 @@ class PatternExpression(CharacterExpression):
 
 
 class TextOpPredicate(BoolExpression):
-    """Text operation predicates for string comparisons."""
-    op: Literal["matches", "startsWith", "endsWith", "contains"]
-    args: List[CharacterExpression] = Field(min_length=2, max_length=2)
+    """Text operation predicates for string comparisons.
+
+    OGC CQL2-JSON: {"op": "contains|startsWith|endsWith", "args": [charExpr, charExpr]}
+    """
+    op: Literal["contains", "startsWith", "endsWith"]
+    args: List[Expression] = Field(min_length=2, max_length=2)
 
 
 # Update forward references

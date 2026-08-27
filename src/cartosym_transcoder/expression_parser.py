@@ -22,6 +22,7 @@ from .ast import (
 _SPATIAL_PREDICATES = {
     's_intersects', 's_contains', 's_within', 's_touches',
     's_crosses', 's_disjoint', 's_overlaps', 's_equals',
+    's_covers', 's_coveredby',
 }
 _SPATIAL_RELATE = 's_relate'
 _TEMPORAL_PREDICATES = {
@@ -44,6 +45,20 @@ _WKT_TO_GEOJSON = {
     'multipolygon': 'MultiPolygon', 'geometrycollection': 'GeometryCollection',
 }
 _TEMPORAL_LITERAL_NAMES = {'date', 'timestamp', 'interval'}
+
+# Character expression function names (CQL2 / CartoSym schema)
+_CHARACTER_FUNCTIONS = {
+    'casei', 'accenti', 'lowercase', 'uppercase',
+    'concatenate', 'substitute', 'format',
+}
+# CQL2 text operation predicates (return bool)
+_TEXT_OP_PREDICATES = {'contains', 'startswith', 'endswith'}
+# Geometry manipulation functions
+_GEOM_MANIPULATION_BINARY = {
+    's_intersection', 's_union', 's_difference', 's_symdifference',
+}
+_GEOM_MANIPULATION_UNARY = {'s_convexhull', 's_envelope'}
+_GEOM_BUFFER = 's_buffer'
 
 # Import ANTLR generated classes - will be used when needed
 # These are loaded dynamically by the main parser
@@ -349,6 +364,13 @@ class ExpressionParser:
         if temporal_brace is not None:
             return temporal_brace
 
+        # Handle hex number literals: 0xFF, 0xAB12 etc.
+        if text.startswith('0x') or text.startswith('0X'):
+            try:
+                return ConstantExpression(value=int(text, 16))
+            except ValueError:
+                pass
+
         # Handle numbers
         try:
             if '.' in text:
@@ -622,6 +644,13 @@ class ExpressionParser:
         if temporal_brace is not None:
             return temporal_brace
 
+        # Handle hex number literals: 0xFF, 0xAB12 etc.
+        if text.startswith('0x') or text.startswith('0X'):
+            try:
+                return ConstantExpression(value=int(text, 16))
+            except ValueError:
+                pass
+
         # Handle numbers
         try:
             if '.' in text:
@@ -780,7 +809,16 @@ class ExpressionParser:
         if func_lower in _SPATIAL_PREDICATES:
             args = ExpressionParser._split_args(args_str)
             parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
-            return SpatialPredicate(op=func_lower, args=parsed_args)
+            # Canonicalise camelCase-sensitive op names
+            _spatial_canonical = {
+                's_intersects': 's_intersects', 's_contains': 's_contains',
+                's_within': 's_within', 's_touches': 's_touches',
+                's_crosses': 's_crosses', 's_disjoint': 's_disjoint',
+                's_overlaps': 's_overlaps', 's_equals': 's_equals',
+                's_covers': 's_covers', 's_coveredby': 's_coveredBy',
+            }
+            canonical_op = _spatial_canonical.get(func_lower, func_lower)
+            return SpatialPredicate(op=canonical_op, args=parsed_args)
 
         # ── S_RELATE(a, b, pattern) ──
         if func_lower == _SPATIAL_RELATE:
@@ -835,6 +873,84 @@ class ExpressionParser:
                 # GeometryCollection contains sub-geometries
                 return GeometryLiteral(geom_type=geom_type, geometries=coords)
             return GeometryLiteral(geom_type=geom_type, coordinates=coords)
+
+        # ── Text operation predicates: CONTAINS(a, b), STARTSWITH, ENDSWITH ──
+        if func_lower in _TEXT_OP_PREDICATES:
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            # Map case-insensitive input to schema-canonical op name
+            _text_op_canonical = {
+                'contains': 'contains', 'startswith': 'startsWith',
+                'endswith': 'endsWith',
+            }
+            return TextOpPredicate(
+                op=_text_op_canonical[func_lower], args=parsed_args,
+            )
+
+        # ── Character expression functions ──
+        # CASEI(expr), ACCENTI(expr)
+        if func_lower in ('casei', 'accenti'):
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            if func_lower == 'casei':
+                return CaseiExpression(args=parsed_args)
+            return AccentiExpression(args=parsed_args)
+
+        # LOWERCASE(expr), UPPERCASE(expr)
+        if func_lower in ('lowercase', 'uppercase'):
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            _case_canonical = {'lowercase': 'lowerCase', 'uppercase': 'upperCase'}
+            return LowerUpperCaseExpression(
+                op=_case_canonical[func_lower], args=parsed_args,
+            )
+
+        # CONCATENATE(a, b, ...)
+        if func_lower == 'concatenate':
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            return ConcatenateExpression(args=parsed_args)
+
+        # SUBSTITUTE(string, pattern, replacement)
+        if func_lower == 'substitute':
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            return SubstituteExpression(args=parsed_args)
+
+        # FORMAT(format_string, ...)
+        if func_lower == 'format':
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            return FormatExpression(args=parsed_args)
+
+        # ── Geometry manipulation functions ──
+        # S_BUFFER(geom, distance)
+        if func_lower == _GEOM_BUFFER:
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            return GeometryBuffer(op='s_buffer', args=parsed_args)
+
+        # S_CONVEXHULL(geom), S_ENVELOPE(geom)
+        if func_lower in _GEOM_MANIPULATION_UNARY:
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            # Canonicalise: s_convexhull → s_convexHull, s_envelope → s_envelope
+            _unary_canonical = {'s_convexhull': 's_convexHull', 's_envelope': 's_envelope'}
+            return GeometryManipulationUnary(
+                op=_unary_canonical[func_lower], args=parsed_args,
+            )
+
+        # S_INTERSECTION(a, b), S_UNION(a, b), S_DIFFERENCE(a, b), S_SYMDIFFERENCE(a, b)
+        if func_lower in _GEOM_MANIPULATION_BINARY:
+            args = ExpressionParser._split_args(args_str)
+            parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
+            _binary_canonical = {
+                's_intersection': 's_intersection', 's_union': 's_union',
+                's_difference': 's_difference', 's_symdifference': 's_symDifference',
+            }
+            return GeometryManipulationBinary(
+                op=_binary_canonical[func_lower], args=parsed_args,
+            )
 
         return None
 

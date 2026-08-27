@@ -52,17 +52,17 @@
             "op": "and",
             "args": [
               {
-                "op": "<",
-                "args": [
-                  {
-                    "sysId": "viz.sd"
-                  },
-                  200000
-                ]
-              },
-              {
                 "op": "and",
                 "args": [
+                  {
+                    "op": "<",
+                    "args": [
+                      {
+                        "sysId": "viz.sd"
+                      },
+                      200000
+                    ]
+                  },
                   {
                     "op": ">=",
                     "args": [
@@ -73,17 +73,17 @@
                         "sysId": "viz.timeInterval.start.date"
                       }
                     ]
+                  }
+                ]
+              },
+              {
+                "op": "<=",
+                "args": [
+                  {
+                    "property": "validDate"
                   },
                   {
-                    "op": "<=",
-                    "args": [
-                      {
-                        "property": "validDate"
-                      },
-                      {
-                        "sysId": "viz.timeInterval.end.date"
-                      }
-                    ]
+                    "sysId": "viz.timeInterval.end.date"
                   }
                 ]
               }

@@ -346,6 +346,27 @@ class Converter:
                 args_str = ", ".join(fmt_cql2_arg(a) for a in args)
                 return f"{cql2_name}({args_str})"
 
+            # --- Text operation predicates: contains, startsWith, endsWith ---
+            if op_lower in ('contains', 'startswith', 'endswith'):
+                _text_op_to_cql = {
+                    'contains': 'CONTAINS', 'startswith': 'STARTSWITH',
+                    'endswith': 'ENDSWITH',
+                }
+                cql_name = _text_op_to_cql[op_lower]
+                args_str = ", ".join(self._format_selector_expr(a) for a in args)
+                return f"{cql_name}({args_str})"
+
+            # --- Character expression functions: casei, accenti, lowerCase, upperCase,
+            #     concatenate, substitute, format ---
+            _char_func_ops = {
+                'casei', 'accenti', 'lowercase', 'uppercase',
+                'concatenate', 'substitute', 'format',
+            }
+            if op_lower in _char_func_ops:
+                cql_name = op.upper()
+                args_str = ", ".join(self._format_selector_expr(a) for a in args)
+                return f"{cql_name}({args_str})"
+
             # --- BETWEEN: {"op": "between", "args": [val, lo, hi]} ---
             if op_lower == 'between' and len(args) == 3:
                 val = self._format_selector_expr(args[0])

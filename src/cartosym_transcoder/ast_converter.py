@@ -743,12 +743,16 @@ class AstToPydanticConverter:
                 ]
             return result
 
-        # Handle CQL2 spatial/temporal/array predicates
+        # Handle CQL2 spatial/temporal/array predicates + character/geometry functions
         if hasattr(expression, 'op') and hasattr(expression, 'args') and not hasattr(expression, 'function_name'):
-            return {
+            result = {
                 "op": expression.op,
                 "args": [self._convert_expression_to_json_selector(arg) for arg in expression.args]
             }
+            # Preserve extra fields (e.g. SpatialRelatePredicate.pattern)
+            if hasattr(expression, 'pattern'):
+                result["pattern"] = expression.pattern
+            return result
 
         # Handle FunctionCallExpression
         if hasattr(expression, 'function_name') and hasattr(expression, 'arguments'):
