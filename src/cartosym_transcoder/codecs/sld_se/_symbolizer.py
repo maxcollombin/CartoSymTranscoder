@@ -6,19 +6,20 @@ Scope: vector symbolizers plus basic Part-1 raster/coverage styling
 (channels, color map, shaded relief) — see
 ``docs/sld_se_mapping_issues.md`` issues #3/#24/#25/#31/#32/#33 for the
 exact boundary. ``Fill.hatch/dotpattern/stipple``, ``Stroke.casing/centerLine``,
-``ImageGraphic``, ``Label.placement``, ``Symbolizer.alphaChannel``,
-``Symbolizer.opacityMap``, and ``HillShading.sun``/``colorMap``/``opacityMap``
-are all out of scope and raise :exc:`NotImplementedError` naming the field —
-per this project's lossless-transcoding requirement, out-of-scope content
-must fail loudly rather than silently drop data.
+``Label.placement``, ``Symbolizer.alphaChannel``, ``Symbolizer.opacityMap``,
+and ``HillShading.sun``/``colorMap``/``opacityMap`` are all out of scope
+and raise :exc:`NotImplementedError` naming the field — per this project's
+lossless-transcoding requirement, out-of-scope content must fail loudly
+rather than silently drop data.
 
-Only ``Dot`` and ``Text`` graphic elements (found in either
+``Dot``, ``Image``, and ``Text`` graphic elements (found in either
 ``Symbolizer.marker.elements`` or ``Symbolizer.label.elements`` — CartoSym
-allows Text under either) are in scope; on read, an ``se:Mark`` always
-reconstructs into ``marker.elements`` and an ``se:TextSymbolizer`` always
-reconstructs into ``label.elements`` (SLD/SE has no construct distinguishing
-CartoSym's separate marker-text vs label-text concepts — see mapping-issues
-issue on this asymmetry).
+allows Text under either) are in scope (``Shape``/``Circle``/``Rectangle``
+are not, see mapping-issues issue #8); on read, an ``se:Mark``/
+``se:ExternalGraphic`` always reconstructs into ``marker.elements`` and an
+``se:TextSymbolizer`` always reconstructs into ``label.elements`` (SLD/SE
+has no construct distinguishing CartoSym's separate marker-text vs
+label-text concepts — see mapping-issues issue on this asymmetry).
 """
 
 from typing import Any, List, Optional
@@ -37,6 +38,7 @@ from ._types import (
 )
 from ._xml_helpers import (
     OGC,
+    XLINK,
     find_se_direct,
     get_svg_param,
     local_name,
@@ -142,12 +144,14 @@ def _graphic_elements_to_symbolizers(elements: Any) -> List[etree._Element]:
         el_type = _g(el, "type")
         if el_type == "Dot":
             result.append(_build_point_symbolizer(el))
+        elif el_type == "Image":
+            result.append(_build_image_symbolizer(el))
         elif el_type == "Text":
             result.append(_build_text_symbolizer(el))
         else:
             raise NotImplementedError(
                 f"Graphic element type {el_type!r} has no SLD/SE mapping in "
-                "this codec's scope (Image/Shape/Circle/Rectangle — see "
+                "this codec's scope (Shape/Circle/Rectangle — see "
                 "mapping-issues issue #8)"
             )
     return result
@@ -402,6 +406,82 @@ def _build_point_symbolizer(dot: Any) -> etree._Element:
                 "PointSymbolizer displacement mapping in this codec (see "
                 "mapping-issues issue #15)"
             )
+    return ps
+
+
+def _percent_to_fraction(value: Any) -> float:
+    if isinstance(value, dict) and set(value) == {"pc"}:
+        return value["pc"] / 100
+    raise NotImplementedError(
+        f"ImageGraphic.hotSpot component {value!r} is not a percent (pc) "
+        "unit value — only pc-unit hotSpot maps to se:AnchorPoint in this "
+        "codec (see mapping-issues issue #35)"
+    )
+
+
+def _hot_spot_to_anchor_fraction(hot_spot: Any):
+    if isinstance(hot_spot, (list, tuple)) and len(hot_spot) == 2:
+        x_raw, y_raw = hot_spot
+    elif isinstance(hot_spot, dict) and "x" in hot_spot and "y" in hot_spot:
+        x_raw, y_raw = hot_spot["x"], hot_spot["y"]
+    else:
+        raise NotImplementedError(
+            f"Unsupported ImageGraphic.hotSpot shape: {hot_spot!r}"
+        )
+    return _percent_to_fraction(x_raw), _percent_to_fraction(y_raw)
+
+
+def _raise_if_image_out_of_scope(image_graphic: Any) -> None:
+    for attr in ("tint", "blackTint", "alphaThreshold"):
+        if _g(image_graphic, attr) is not None:
+            raise NotImplementedError(
+                f"ImageGraphic.{attr} has no SLD/SE mapping in this codec "
+                "— Annex B is silent on it entirely (see mapping-issues "
+                "issue #34)"
+            )
+
+
+def _build_image_symbolizer(image_graphic: Any) -> etree._Element:
+    _raise_if_image_out_of_scope(image_graphic)
+
+    resource = _g(image_graphic, "image")
+    if resource is None:
+        raise NotImplementedError("ImageGraphic.image (Resource) is required")
+    uri = _g(resource, "uri")
+    if uri is None:
+        raise NotImplementedError(
+            "Resource.path-only images (no uri) have no SLD/SE mapping in "
+            "this codec — no local-file resolution (see mapping-issues "
+            "issue #34)"
+        )
+    mime_type = _g(resource, "type")
+
+    ps = se_el("PointSymbolizer")
+    graphic = se_el("Graphic", parent=ps)
+    ext_graphic = se_el("ExternalGraphic", parent=graphic)
+    online_resource = se_el("OnlineResource", parent=ext_graphic)
+    online_resource.set(f"{XLINK}type", "simple")
+    online_resource.set(f"{XLINK}href", uri)
+    if mime_type is not None:
+        se_el("Format", parent=ext_graphic, text=mime_type)
+
+    position = _g(image_graphic, "position")
+    if position is not None:
+        px, py = _unit_point_xy(position)
+        if (px or 0) != 0 or (py or 0) != 0:
+            raise NotImplementedError(
+                "Non-zero ImageGraphic.position (offset) has no verified "
+                "SLD/SE PointSymbolizer displacement mapping in this codec "
+                "(see mapping-issues issue #15)"
+            )
+
+    hot_spot = _g(image_graphic, "hotSpot")
+    if hot_spot is not None:
+        fx, fy = _hot_spot_to_anchor_fraction(hot_spot)
+        anchor_el = se_el("AnchorPoint", parent=ps)
+        se_el("AnchorPointX", parent=anchor_el, text=format_number(fx))
+        se_el("AnchorPointY", parent=anchor_el, text=format_number(fy))
+
     return ps
 
 
@@ -687,11 +767,17 @@ def _parse_point_symbolizer(ps_el: etree._Element) -> dict:
             "se:PointSymbolizer without se:Graphic is not supported"
         )
     mark_el = find_se_direct(graphic_el, "Mark")
-    if mark_el is None:
-        raise NotImplementedError(
-            "se:Graphic/se:ExternalGraphic (image markers) is out of scope "
-            "for this codec (see mapping-issues issue #8)"
-        )
+    if mark_el is not None:
+        return _parse_mark(mark_el, graphic_el)
+    ext_el = find_se_direct(graphic_el, "ExternalGraphic")
+    if ext_el is not None:
+        return _parse_external_graphic(ext_el, ps_el)
+    raise NotImplementedError(
+        "se:Graphic without se:Mark or se:ExternalGraphic is not supported"
+    )
+
+
+def _parse_mark(mark_el: etree._Element, graphic_el: etree._Element) -> dict:
     wkn_el = find_se_direct(mark_el, "WellKnownName")
     wkn = wkn_el.text if wkn_el is not None else None
     if wkn != "circle":
@@ -712,11 +798,50 @@ def _parse_point_symbolizer(ps_el: etree._Element) -> dict:
     return result
 
 
+def _parse_external_graphic(ext_el: etree._Element, ps_el: etree._Element) -> dict:
+    online_resource_el = find_se_direct(ext_el, "OnlineResource")
+    if online_resource_el is None:
+        raise NotImplementedError(
+            "se:ExternalGraphic without se:OnlineResource is not supported"
+        )
+    href = online_resource_el.get(f"{XLINK}href")
+    if not href:
+        raise NotImplementedError("se:OnlineResource must have a non-empty xlink:href")
+
+    result: dict = {
+        "type": "Image",
+        "image": {"uri": href},
+        "position": {"x": 0, "y": 0},
+    }
+    format_el = find_se_direct(ext_el, "Format")
+    if format_el is not None and format_el.text:
+        result["image"]["type"] = format_el.text.strip()
+
+    anchor_el = find_se_direct(ps_el, "AnchorPoint")
+    if anchor_el is not None:
+        ax_el = find_se_direct(anchor_el, "AnchorPointX")
+        ay_el = find_se_direct(anchor_el, "AnchorPointY")
+        fx = _parsed_number_or(ax_el, 0.5)
+        fy = _parsed_number_or(ay_el, 0.5)
+        result["hotSpot"] = [
+            {"pc": round(fx * 100)},
+            {"pc": round(fy * 100)},
+        ]
+    return result
+
+
 def _parsed_px_or_zero(el: Optional[etree._Element]) -> float:
     if el is None or el.text is None:
         return 0
     parsed = parse_unit_value(el.text)
     return parsed["px"] if parsed is not None else 0
+
+
+def _parsed_number_or(el: Optional[etree._Element], default: float) -> float:
+    if el is None or el.text is None:
+        return default
+    parsed = parse_number(el.text)
+    return parsed if parsed is not None else default
 
 
 def _parse_text_symbolizer(ts_el: etree._Element) -> dict:

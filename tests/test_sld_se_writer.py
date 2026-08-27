@@ -23,6 +23,7 @@ NS = {
     "se": "http://www.opengis.net/se",
     "ogc": "http://www.opengis.net/ogc",
     "gml": "http://www.opengis.net/gml",
+    "xlink": "http://www.w3.org/1999/xlink",
 }
 
 
@@ -372,7 +373,9 @@ class TestWriteOutOfScopeRaises:
                 )
             )
 
-    def test_image_graphic_raises(self):
+    def test_shape_graphic_raises(self):
+        """Image is now supported (see TestWriteImage) — Shape/Circle/
+        Rectangle remain the unsupported graphic types."""
         with pytest.raises(NotImplementedError):
             _write(
                 _rule_style(
@@ -380,8 +383,8 @@ class TestWriteOutOfScopeRaises:
                         "marker": {
                             "elements": [
                                 {
-                                    "type": "Image",
-                                    "image": {"uri": "http://example.com/x.png"},
+                                    "type": "Shape",
+                                    "size": {"px": 5},
                                     "position": {"x": 0, "y": 0},
                                 }
                             ]
@@ -410,6 +413,121 @@ class TestWriteOutOfScopeRaises:
                                 }
                             ],
                             "placement": {"type": "line"},
+                        }
+                    }
+                )
+            )
+
+
+class TestWriteImage:
+    def test_image_produces_external_graphic(self):
+        root = _write(
+            _rule_style(
+                {
+                    "marker": {
+                        "elements": [
+                            {
+                                "type": "Image",
+                                "image": {
+                                    "uri": "http://example.com/x.png",
+                                    "type": "image/png",
+                                },
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+        point = root.find(".//se:PointSymbolizer", NS)
+        assert point is not None
+        online = point.find("se:Graphic/se:ExternalGraphic/se:OnlineResource", NS)
+        assert online is not None
+        assert online.get(f"{{{NS['xlink']}}}href") == "http://example.com/x.png"
+        fmt = point.find("se:Graphic/se:ExternalGraphic/se:Format", NS)
+        assert fmt is not None and fmt.text == "image/png"
+
+    def test_image_hot_spot_produces_anchor_point(self):
+        root = _write(
+            _rule_style(
+                {
+                    "marker": {
+                        "elements": [
+                            {
+                                "type": "Image",
+                                "image": {"uri": "http://example.com/x.png"},
+                                "hotSpot": [{"pc": 50}, {"pc": 50}],
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+        anchor = root.find(".//se:PointSymbolizer/se:AnchorPoint", NS)
+        assert anchor is not None
+        assert anchor.find("se:AnchorPointX", NS).text == "0.5"
+        assert anchor.find("se:AnchorPointY", NS).text == "0.5"
+
+    def test_image_hot_spot_non_percent_raises(self):
+        with pytest.raises(NotImplementedError):
+            _write(
+                _rule_style(
+                    {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"uri": "http://example.com/x.png"},
+                                    "hotSpot": [{"px": 5}, {"px": 5}],
+                                }
+                            ]
+                        }
+                    }
+                )
+            )
+
+    def test_image_without_uri_raises(self):
+        with pytest.raises(NotImplementedError):
+            _write(
+                _rule_style(
+                    {
+                        "marker": {
+                            "elements": [{"type": "Image", "image": {"path": "x.png"}}]
+                        }
+                    }
+                )
+            )
+
+    def test_image_tint_always_raises(self):
+        with pytest.raises(NotImplementedError):
+            _write(
+                _rule_style(
+                    {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"uri": "http://example.com/x.png"},
+                                    "tint": "white",
+                                }
+                            ]
+                        }
+                    }
+                )
+            )
+
+    def test_image_non_zero_position_raises(self):
+        with pytest.raises(NotImplementedError):
+            _write(
+                _rule_style(
+                    {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"uri": "http://example.com/x.png"},
+                                    "position": {"x": 10, "y": 0},
+                                }
+                            ]
                         }
                     }
                 )

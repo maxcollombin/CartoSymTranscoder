@@ -132,7 +132,7 @@ class TestReadOutOfScopeRaises:
         with pytest.raises(NotImplementedError):
             self._read_string(xml)
 
-    def test_external_graphic_raises(self):
+    def test_external_graphic_without_online_resource_raises(self):
         xml = """<?xml version='1.0' encoding='UTF-8'?>
 <StyledLayerDescriptor
     xmlns="http://www.opengis.net/sld"
@@ -141,9 +141,7 @@ class TestReadOutOfScopeRaises:
     version="1.1.0">
   <NamedLayer><UserStyle><se:FeatureTypeStyle><se:Rule>
     <se:PointSymbolizer><se:Graphic><se:ExternalGraphic>
-      <se:OnlineResource
-          xlink:href="http://x/y.png"
-          xmlns:xlink="http://www.w3.org/1999/xlink"/>
+      <se:Format>image/png</se:Format>
     </se:ExternalGraphic></se:Graphic></se:PointSymbolizer>
   </se:Rule></se:FeatureTypeStyle></UserStyle></NamedLayer>
 </StyledLayerDescriptor>"""
@@ -213,6 +211,19 @@ class TestReadOutOfScopeRaises:
 </StyledLayerDescriptor>"""
         with pytest.raises(NotImplementedError):
             self._read_string(xml)
+
+
+class TestReadImage:
+    def test_image_marker_uri_format_and_anchor_point(self):
+        style = _read("15-image-marker.sld")
+        sym = style.styling_rules[0].symbolizer
+        el = sym.marker.elements[0]
+        assert el["type"] == "Image"
+        assert el["image"] == {
+            "uri": "http://example.com/parkingIcon.png",
+            "type": "image/png",
+        }
+        assert el["hotSpot"] == [{"pc": 50}, {"pc": 50}]
 
 
 class TestReadRaster:

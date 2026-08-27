@@ -11,18 +11,21 @@ SLD_NS = "http://www.opengis.net/sld"
 SE_NS = "http://www.opengis.net/se"
 OGC_NS = "http://www.opengis.net/ogc"
 GML_NS = "http://www.opengis.net/gml"
+XLINK_NS = "http://www.w3.org/1999/xlink"
 
 NSMAP = {
     None: SLD_NS,
     "se": SE_NS,
     "ogc": OGC_NS,
     "gml": GML_NS,
+    "xlink": XLINK_NS,
 }
 
 SE = f"{{{SE_NS}}}"
 OGC = f"{{{OGC_NS}}}"
 GML = f"{{{GML_NS}}}"
 SLD = f"{{{SLD_NS}}}"
+XLINK = f"{{{XLINK_NS}}}"
 
 
 def se_el(
