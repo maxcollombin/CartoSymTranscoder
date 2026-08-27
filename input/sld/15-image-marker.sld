@@ -22,11 +22,11 @@
                 <se:OnlineResource xlink:type="simple" xlink:href="http://example.com/parkingIcon.png"/>
                 <se:Format>image/png</se:Format>
               </se:ExternalGraphic>
+              <se:AnchorPoint>
+                <se:AnchorPointX>0.5</se:AnchorPointX>
+                <se:AnchorPointY>0.5</se:AnchorPointY>
+              </se:AnchorPoint>
             </se:Graphic>
-            <se:AnchorPoint>
-              <se:AnchorPointX>0.5</se:AnchorPointX>
-              <se:AnchorPointY>0.5</se:AnchorPointY>
-            </se:AnchorPoint>
           </se:PointSymbolizer>
         </se:Rule>
       </se:FeatureTypeStyle>

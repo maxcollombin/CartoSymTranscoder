@@ -462,7 +462,7 @@ class TestWriteImage:
                 }
             )
         )
-        anchor = root.find(".//se:PointSymbolizer/se:AnchorPoint", NS)
+        anchor = root.find(".//se:PointSymbolizer/se:Graphic/se:AnchorPoint", NS)
         assert anchor is not None
         assert anchor.find("se:AnchorPointX", NS).text == "0.5"
         assert anchor.find("se:AnchorPointY", NS).text == "0.5"

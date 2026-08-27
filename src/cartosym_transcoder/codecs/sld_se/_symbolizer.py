@@ -483,7 +483,9 @@ def _build_image_symbolizer(image_graphic: Any) -> etree._Element:
     hot_spot = _g(image_graphic, "hotSpot")
     if hot_spot is not None:
         fx, fy = _hot_spot_to_anchor_fraction(hot_spot)
-        anchor_el = se_el("AnchorPoint", parent=ps)
+        # se:AnchorPoint belongs inside se:Graphic (after ExternalGraphic/
+        # Mark, Opacity, Size, Rotation), not directly under the symbolizer.
+        anchor_el = se_el("AnchorPoint", parent=graphic)
         se_el("AnchorPointX", parent=anchor_el, text=format_number(fx))
         se_el("AnchorPointY", parent=anchor_el, text=format_number(fy))
 
@@ -782,7 +784,7 @@ def _parse_point_symbolizer(ps_el: etree._Element) -> dict:
         return _parse_mark(mark_el, graphic_el)
     ext_el = find_se_direct(graphic_el, "ExternalGraphic")
     if ext_el is not None:
-        return _parse_external_graphic(ext_el, ps_el)
+        return _parse_external_graphic(ext_el, graphic_el)
     raise NotImplementedError(
         "se:Graphic without se:Mark or se:ExternalGraphic is not supported"
     )
@@ -809,7 +811,9 @@ def _parse_mark(mark_el: etree._Element, graphic_el: etree._Element) -> dict:
     return result
 
 
-def _parse_external_graphic(ext_el: etree._Element, ps_el: etree._Element) -> dict:
+def _parse_external_graphic(
+    ext_el: etree._Element, graphic_el: etree._Element
+) -> dict:
     online_resource_el = find_se_direct(ext_el, "OnlineResource")
     if online_resource_el is None:
         raise NotImplementedError(
@@ -828,7 +832,7 @@ def _parse_external_graphic(ext_el: etree._Element, ps_el: etree._Element) -> di
     if format_el is not None and format_el.text:
         result["image"]["type"] = format_el.text.strip()
 
-    anchor_el = find_se_direct(ps_el, "AnchorPoint")
+    anchor_el = find_se_direct(graphic_el, "AnchorPoint")
     if anchor_el is not None:
         ax_el = find_se_direct(anchor_el, "AnchorPointX")
         ay_el = find_se_direct(anchor_el, "AnchorPointY")
