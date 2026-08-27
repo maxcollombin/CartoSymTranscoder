@@ -7,7 +7,7 @@
         <se:Title>Styling a DEM coverage with shaded relief</se:Title>
         <se:Abstract>SLD/SE codec fixture: RasterSymbolizer/ShadedRelief/ReliefFactor alongside ChannelSelection/ColorMap</se:Abstract>
       </se:Description>
-      <se:FeatureTypeStyle>
+      <se:CoverageStyle>
         <se:CoverageName>Elevation</se:CoverageName>
         <se:Rule>
           <se:Name>Elevation</se:Name>
@@ -36,7 +36,7 @@
             </se:ShadedRelief>
           </se:RasterSymbolizer>
         </se:Rule>
-      </se:FeatureTypeStyle>
+      </se:CoverageStyle>
     </UserStyle>
   </NamedLayer>
 </StyledLayerDescriptor>

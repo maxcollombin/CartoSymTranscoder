@@ -7,7 +7,7 @@
         <se:Title>Styling a Sentinel-2 true-color coverage</se:Title>
         <se:Abstract>SLD/SE codec fixture: RasterSymbolizer/ChannelSelection with RedChannel/GreenChannel/BlueChannel, no alphaChannel</se:Abstract>
       </se:Description>
-      <se:FeatureTypeStyle>
+      <se:CoverageStyle>
         <se:CoverageName>sentinel2-l2a</se:CoverageName>
         <se:Rule>
           <se:Name>TrueColor</se:Name>
@@ -25,7 +25,7 @@
             </se:ChannelSelection>
           </se:RasterSymbolizer>
         </se:Rule>
-      </se:FeatureTypeStyle>
+      </se:CoverageStyle>
     </UserStyle>
   </NamedLayer>
 </StyledLayerDescriptor>

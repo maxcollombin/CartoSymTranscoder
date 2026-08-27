@@ -94,7 +94,7 @@ _RASTER_FIELD_ATTRS = (
 )
 
 
-def _has_raster_fields(sym: Any) -> bool:
+def has_raster_fields(sym: Any) -> bool:
     return any(_g(sym, attr) is not None for attr in _RASTER_FIELD_ATTRS)
 
 
@@ -111,7 +111,7 @@ def symbolizer_to_elements(sym: Any) -> List[etree._Element]:
     elif stroke is not None:
         elements.append(_build_line_symbolizer(stroke))
 
-    if _has_raster_fields(sym):
+    if has_raster_fields(sym):
         elements.append(_build_raster_symbolizer(sym))
 
     if marker is not None:
@@ -811,9 +811,7 @@ def _parse_mark(mark_el: etree._Element, graphic_el: etree._Element) -> dict:
     return result
 
 
-def _parse_external_graphic(
-    ext_el: etree._Element, graphic_el: etree._Element
-) -> dict:
+def _parse_external_graphic(ext_el: etree._Element, graphic_el: etree._Element) -> dict:
     online_resource_el = find_se_direct(ext_el, "OnlineResource")
     if online_resource_el is None:
         raise NotImplementedError(

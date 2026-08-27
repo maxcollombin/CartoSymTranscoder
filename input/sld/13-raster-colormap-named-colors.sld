@@ -7,7 +7,7 @@
         <se:Title>Styling a hillshade coverage with named colors</se:Title>
         <se:Abstract>SLD/SE codec fixture: ColorMap/Categorize using CSS color names instead of hex</se:Abstract>
       </se:Description>
-      <se:FeatureTypeStyle>
+      <se:CoverageStyle>
         <se:CoverageName>Hillshade</se:CoverageName>
         <se:Rule>
           <se:Name>Hillshade</se:Name>
@@ -31,7 +31,7 @@
             </se:ColorMap>
           </se:RasterSymbolizer>
         </se:Rule>
-      </se:FeatureTypeStyle>
+      </se:CoverageStyle>
     </UserStyle>
   </NamedLayer>
 </StyledLayerDescriptor>

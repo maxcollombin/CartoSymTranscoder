@@ -7,7 +7,7 @@
         <se:Title>Out-of-scope raster styling</se:Title>
         <se:Abstract>SLD/SE codec fixture: se:RasterSymbolizer/se:ContrastEnhancement must raise NotImplementedError (Part-4/out-of-scope construct, see mapping-issues issue #26)</se:Abstract>
       </se:Description>
-      <se:FeatureTypeStyle>
+      <se:CoverageStyle>
         <se:CoverageName>Elevation</se:CoverageName>
         <se:Rule>
           <se:Name>Hillshade</se:Name>
@@ -17,7 +17,7 @@
             </se:ContrastEnhancement>
           </se:RasterSymbolizer>
         </se:Rule>
-      </se:FeatureTypeStyle>
+      </se:CoverageStyle>
     </UserStyle>
   </NamedLayer>
 </StyledLayerDescriptor>

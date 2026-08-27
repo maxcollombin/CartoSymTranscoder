@@ -7,7 +7,7 @@
         <se:Title>Styling a DEM coverage</se:Title>
         <se:Abstract>SLD/SE codec fixture: RasterSymbolizer/ChannelSelection/GrayChannel + ColorMap/Categorize with array [r,g,b] colors</se:Abstract>
       </se:Description>
-      <se:FeatureTypeStyle>
+      <se:CoverageStyle>
         <se:CoverageName>Elevation</se:CoverageName>
         <se:Rule>
           <se:Name>Elevation</se:Name>
@@ -33,7 +33,7 @@
             </se:ColorMap>
           </se:RasterSymbolizer>
         </se:Rule>
-      </se:FeatureTypeStyle>
+      </se:CoverageStyle>
     </UserStyle>
   </NamedLayer>
 </StyledLayerDescriptor>

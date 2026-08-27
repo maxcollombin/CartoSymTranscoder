@@ -75,7 +75,12 @@ class SldSeReader(CodecReader):
                 metadata["abstract"] = abstract_el.text
 
         styling_rules: List[dict] = []
-        for fts_el in findall_se(user_style, "FeatureTypeStyle"):
+        for fts_el in [
+            child
+            for child in user_style
+            if isinstance(child.tag, str)
+            and local_name(child) in ("FeatureTypeStyle", "CoverageStyle")
+        ]:
             styling_rules.extend(self._parse_feature_type_style(fts_el))
 
         style_dict: dict = {"stylingRules": styling_rules}
@@ -86,6 +91,8 @@ class SldSeReader(CodecReader):
 
     def _parse_feature_type_style(self, fts_el: etree._Element) -> List[dict]:
         ftn_el = find_se_direct(fts_el, "FeatureTypeName")
+        if ftn_el is None:
+            ftn_el = find_se_direct(fts_el, "CoverageName")
         feature_type_name = ftn_el.text if ftn_el is not None else None
 
         rule_dicts: List[dict] = []

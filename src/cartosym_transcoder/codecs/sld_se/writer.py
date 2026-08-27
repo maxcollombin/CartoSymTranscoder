@@ -18,7 +18,7 @@ from lxml import etree
 from ...models.styles import Style, StylingRule
 from ..base import CodecWriter
 from ._filter import extract_feature_type_name, selector_to_filter_xml
-from ._symbolizer import symbolizer_to_elements
+from ._symbolizer import has_raster_fields, symbolizer_to_elements
 from ._xml_helpers import NSMAP, se_el, sld_el
 
 
@@ -110,14 +110,32 @@ class SldSeWriter(CodecWriter):
         feature_type_name: Optional[str],
         rules_and_selectors: List[Tuple[StylingRule, Optional[dict]]],
     ) -> etree._Element:
-        fts = se_el("FeatureTypeStyle")
-        if feature_type_name is not None:
-            se_el("FeatureTypeName", parent=fts, text=str(feature_type_name))
+        # A group styling a coverage (any rule carries raster fields) maps
+        # to se:CoverageStyle/se:CoverageName; a feature group maps to
+        # se:FeatureTypeStyle/se:FeatureTypeName. se:CoverageName only
+        # exists on se:CoverageStyleType (SE 1.1.0).
+        is_coverage = any(
+            self._rule_has_raster(rule) for rule, _ in rules_and_selectors
+        )
+        if is_coverage:
+            fts = se_el("CoverageStyle")
+            if feature_type_name is not None:
+                se_el("CoverageName", parent=fts, text=str(feature_type_name))
+        else:
+            fts = se_el("FeatureTypeStyle")
+            if feature_type_name is not None:
+                se_el("FeatureTypeName", parent=fts, text=str(feature_type_name))
         for rule, remaining_selector in rules_and_selectors:
             fts.append(self._build_rule(rule, remaining_selector))
             for else_rule in self._flatten_nested_rules(rule):
                 fts.append(else_rule)
         return fts
+
+    def _rule_has_raster(self, rule: StylingRule) -> bool:
+        """True if *rule* or any of its nested rules carries raster fields."""
+        if rule.symbolizer is not None and has_raster_fields(rule.symbolizer):
+            return True
+        return any(self._rule_has_raster(n) for n in rule.nested_rules or [])
 
     def _flatten_nested_rules(self, rule: StylingRule) -> List[etree._Element]:
         """Flatten ``StylingRule.nested_rules`` into sibling ``se:Rule``
