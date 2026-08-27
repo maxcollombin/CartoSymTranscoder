@@ -1,3 +1,5 @@
+.title 'Example of including external styleSheets'
+.description 'This example showcases how to include external styleSheets'
 .include '2-vector-polygon.cscss'
 .include '8-coverage-hillshading.cscss'
 
@@ -5,3 +7,5 @@
 {
    opacity: 1.0;
 }
+
+
