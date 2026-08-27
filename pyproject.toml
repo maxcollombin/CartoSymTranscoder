@@ -40,6 +40,7 @@ dev = [
     "isort",
     "flake8",
     "mypy",
+    "xmlschema>=3.0",
 ]
 sld = [
     "lxml>=4.9.0",
