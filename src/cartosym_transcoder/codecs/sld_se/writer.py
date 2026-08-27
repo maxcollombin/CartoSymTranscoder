@@ -35,6 +35,12 @@ class SldSeWriter(CodecWriter):
         root = etree.Element(f"{{{NSMAP[None]}}}StyledLayerDescriptor", nsmap=NSMAP)
         root.set("version", "1.1.0")
         named_layer = sld_el("NamedLayer", parent=root)
+        # SLD 1.1.0 requires se:Name as the first child of NamedLayer
+        # (minOccurs=1). CartoSym has no layer-name concept, so this is
+        # synthesised from the style title (write-only; the reader ignores
+        # it) — see docs/sld_se_mapping_issues.md.
+        title = getattr(style.metadata, "title", None) if style.metadata else None
+        se_el("Name", parent=named_layer, text=title or "CartoSym Style")
         named_layer.append(self._build_user_style(style))
         return root
 

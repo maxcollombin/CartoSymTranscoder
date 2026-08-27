@@ -1,6 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <StyledLayerDescriptor xmlns="http://www.opengis.net/sld" xmlns:se="http://www.opengis.net/se" xmlns:ogc="http://www.opengis.net/ogc" xmlns:gml="http://www.opengis.net/gml" version="1.1.0">
   <NamedLayer>
+    <se:Name>Styling a Sentinel-2 true-color coverage</se:Name>
     <UserStyle>
       <se:Description>
         <se:Title>Styling a Sentinel-2 true-color coverage</se:Title>
