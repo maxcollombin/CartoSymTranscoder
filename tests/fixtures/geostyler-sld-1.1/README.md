@@ -26,10 +26,35 @@ Files are copied unmodified. They are SE 1.1.0 (`se:` namespace,
   scope. Each must `read` → `write` → validate against the vendored OGC XSD
   → `read` again to a Pydantic-model fixed point.
 - **out of scope** — files using constructs this codec deliberately does
-  not map (non-`circle` marks, graphic fills/strokes, `ogc:Function`
-  filters, `se:MinScaleDenominator`, `se:LinePlacement`, contrast
-  enhancement, …). Each must raise `NotImplementedError` (a *clean*
-  rejection — never another exception type).
+  not map. Each must raise `NotImplementedError` (a *clean* rejection —
+  never another exception type).
 
 Moving a file between categories is a deliberate act: the test will fail
 loudly if a change silently shifts one.
+
+## Out-of-scope breakdown (28 files)
+
+The scope boundary, mapped against this corpus:
+
+| SE/SLD construct rejected | files | assessment |
+|---|---|---|
+| `se:Mark/se:WellKnownName` other than `circle` (`square`, `triangle`, `star`, `cross`, `x`, `shape://slash`, `ttf://` glyph) | 8 | extensible — real future scope |
+| `se:GraphicFill` / `se:GraphicStroke` (hatch / pattern fills & strokes) | 6 | GeoServer vendor extension / CartoSym Part 2 |
+| `se:MinScaleDenominator` / `se:MaxScaleDenominator` | 4 | **real 1:1 mapping to `viz.sd`, not yet implemented** |
+| `se:LabelPlacement/se:LinePlacement` | 3 | unfinished design work |
+| `ogc:Function` inside `ogc:Filter` | 2 | no Filter Encoding 1.1 mapping without `ogc:Function` support |
+| `ogc:Function` inside `se:Label` (`round`, …) | 1 | property-driven label text, out of scope |
+| `se:RasterSymbolizer/se:ContrastEnhancement` | 1 | "not supported by SLD/SE" per OGC Annex B |
+| `se:ExternalGraphic/se:InlineContent` (base64) | 1 | no `se:OnlineResource` |
+| bare `se:RasterSymbolizer` (only `se:Opacity`) | 1 | niche, no fix planned |
+| colour = `se:Categorize` function result | 1 | property-driven colour, out of scope |
+
+Only the `ScaleDenominator` and non-`circle`-mark rows (~12 files) are
+"could reasonably be added"; the rest are deliberate Part-2 / vendor
+scope calls.
+
+**Source validity**: 6 of the 52 files are not themselves valid against
+the pure OGC SE 1.1.0 XSD (empty `<se:Filter/>`, `ogc:Function` where the
+schema wants `ogc:PropertyName`, a disallowed `type` attribute). Two of
+those (`empty_filter`, `function_nested`) are in-scope — the codec
+normalises them into valid SLD on write.
