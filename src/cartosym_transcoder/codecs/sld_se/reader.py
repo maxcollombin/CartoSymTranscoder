@@ -17,9 +17,34 @@ from lxml import etree
 
 from ...models.styles import Style
 from ..base import CodecReader
-from ._filter import filter_xml_to_selector, merge_feature_type_name
+from ._filter import (
+    filter_xml_to_selector,
+    merge_feature_type_name,
+    merge_scale_denominators,
+)
 from ._symbolizer import elements_to_symbolizer
 from ._xml_helpers import OGC, SLD, find_se_direct, findall_se, local_name
+
+
+def _scale_denominator_value(
+    el: Optional[etree._Element],
+) -> Optional[Union[int, float]]:
+    """Parse an ``se:Min/MaxScaleDenominator`` element's text to a number.
+
+    Integral values come back as ``int`` so a ``viz.sd`` selector conjunct
+    round-trips to the same textual form GeoStyler and this codec's writer
+    emit.
+    """
+    if el is None or el.text is None:
+        return None
+    text = el.text.strip()
+    try:
+        num = float(text)
+    except ValueError as exc:
+        raise NotImplementedError(
+            f"non-numeric se:ScaleDenominator value {text!r}"
+        ) from exc
+    return int(num) if num.is_integer() else num
 
 
 class SldSeReader(CodecReader):
@@ -128,20 +153,28 @@ class SldSeReader(CodecReader):
         if name_el is not None and name_el.text:
             rule_dict["stylingRuleName"] = name_el.text
 
-        if find_se_direct(rule_el, "MinScaleDenominator") is not None or (
-            find_se_direct(rule_el, "MaxScaleDenominator") is not None
-        ):
-            raise NotImplementedError(
-                "se:Rule MinScaleDenominator/MaxScaleDenominator has no "
-                "CartoSym mapping in this codec's scope"
-            )
+        min_sd = _scale_denominator_value(
+            find_se_direct(rule_el, "MinScaleDenominator")
+        )
+        max_sd = _scale_denominator_value(
+            find_se_direct(rule_el, "MaxScaleDenominator")
+        )
 
         is_else = find_se_direct(rule_el, "ElseFilter") is not None
 
         if not is_else:
             filter_el = rule_el.find(f"{OGC}Filter")
-            if filter_el is not None:
-                rule_dict["selector"] = filter_xml_to_selector(filter_el)
+            filter_selector = (
+                filter_xml_to_selector(filter_el) if filter_el is not None else None
+            )
+            selector = merge_scale_denominators(min_sd, max_sd, filter_selector)
+            if selector is not None:
+                rule_dict["selector"] = selector
+        elif min_sd is not None or max_sd is not None:
+            raise NotImplementedError(
+                "se:Rule with se:ElseFilter cannot also carry "
+                "se:Min/MaxScaleDenominator in this codec's scope"
+            )
 
         sym_children = [c for c in rule_el if local_name(c).endswith("Symbolizer")]
         if sym_children:

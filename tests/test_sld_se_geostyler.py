@@ -39,6 +39,8 @@ IN_SCOPE = [
     "point_simpleLabel2",
     "point_simplepoint",
     "point_simplepoint_displacement",
+    "point_simplepoint_filter",
+    "point_simplepoint_nestedLogicalFilters",
     "point_simplepoint_oneline",
     "point_styledLabel_elementOrder",
     "point_styledLabel_literalPlaceholder",
@@ -48,6 +50,7 @@ IN_SCOPE = [
     "text_pointplacement",
     "text_pointplacement_anchor",
     "unsupported_properties",
+    "zero_values",
 ]
 
 OUT_OF_SCOPE = [
@@ -63,9 +66,7 @@ OUT_OF_SCOPE = [
     "point_fontglyph",
     "point_simplecross",
     "point_simplepoint_categorizefunctionfilter",
-    "point_simplepoint_filter",
     "point_simplepoint_functionfilter",
-    "point_simplepoint_nestedLogicalFilters",
     "point_simpleslash",
     "point_simplesquare",
     "point_simplestar",
@@ -78,7 +79,6 @@ OUT_OF_SCOPE = [
     "text_lineplacement",
     "text_lineplacement_offset",
     "text_lineplacement_repeat",
-    "zero_values",
 ]
 
 

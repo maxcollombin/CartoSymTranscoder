@@ -88,6 +88,77 @@ class TestReadFilter:
         assert "or" in ops
 
 
+class TestReadScaleDenominator:
+    _RULE = """<?xml version="1.0"?>
+<StyledLayerDescriptor version="1.1.0"
+    xmlns="http://www.opengis.net/sld"
+    xmlns:se="http://www.opengis.net/se"
+    xmlns:ogc="http://www.opengis.net/ogc">
+  <NamedLayer><se:Name>L</se:Name><UserStyle><se:Name>S</se:Name>
+    <se:FeatureTypeStyle>
+      <se:Rule>
+        <se:Name>R</se:Name>
+        {filter}
+        {min}
+        {max}
+        <se:PointSymbolizer><se:Graphic><se:Mark>
+          <se:WellKnownName>circle</se:WellKnownName>
+          <se:Fill><se:SvgParameter name="fill">#FF0000</se:SvgParameter></se:Fill>
+        </se:Mark></se:Graphic></se:PointSymbolizer>
+      </se:Rule>
+    </se:FeatureTypeStyle>
+  </UserStyle></NamedLayer>
+</StyledLayerDescriptor>"""
+
+    def _read(self, *, filter="", min="", max=""):
+        xml = self._RULE.format(filter=filter, min=min, max=max)
+        return SldSeReader().read(xml).styling_rules[0].selector
+
+    def test_min_and_max_become_viz_sd_range(self):
+        selector = self._read(
+            min="<se:MinScaleDenominator>10000</se:MinScaleDenominator>",
+            max="<se:MaxScaleDenominator>20000</se:MaxScaleDenominator>",
+        )
+        assert selector == {
+            "op": "and",
+            "args": [
+                {"op": ">=", "args": [{"sysId": "viz.sd"}, 10000]},
+                {"op": "<", "args": [{"sysId": "viz.sd"}, 20000]},
+            ],
+        }
+
+    def test_max_only(self):
+        selector = self._read(
+            max="<se:MaxScaleDenominator>200000</se:MaxScaleDenominator>"
+        )
+        assert selector == {"op": "<", "args": [{"sysId": "viz.sd"}, 200000]}
+
+    def test_zero_min_is_dropped(self):
+        selector = self._read(
+            min="<se:MinScaleDenominator>0</se:MinScaleDenominator>",
+            max="<se:MaxScaleDenominator>500000</se:MaxScaleDenominator>",
+        )
+        assert selector == {"op": "<", "args": [{"sysId": "viz.sd"}, 500000]}
+
+    def test_merged_ahead_of_ogc_filter(self):
+        selector = self._read(
+            filter=(
+                "<ogc:Filter><ogc:PropertyIsEqualTo>"
+                "<ogc:PropertyName>NAME</ogc:PropertyName>"
+                "<ogc:Literal>NY</ogc:Literal>"
+                "</ogc:PropertyIsEqualTo></ogc:Filter>"
+            ),
+            max="<se:MaxScaleDenominator>20000</se:MaxScaleDenominator>",
+        )
+        assert selector == {
+            "op": "and",
+            "args": [
+                {"op": "<", "args": [{"sysId": "viz.sd"}, 20000]},
+                {"op": "=", "args": [{"property": "NAME"}, "NY"]},
+            ],
+        }
+
+
 class TestReadElseRule:
     def test_nested_rules_populated(self):
         style = _read("5-else-rule.sld")

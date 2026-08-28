@@ -237,6 +237,74 @@ class TestWriteFilter:
         assert root.find(".//ogc:Filter", NS) is None
 
 
+class TestWriteScaleDenominator:
+    def test_viz_sd_upper_bound_becomes_max_scale_denominator(self):
+        root = _write(
+            _rule_style(
+                {"fill": {"color": "red"}},
+                selector={"op": "<", "args": [{"sysId": "viz.sd"}, 200000]},
+            )
+        )
+        rule = root.find(".//se:Rule", NS)
+        assert rule.find("se:MaxScaleDenominator", NS).text == "200000"
+        assert rule.find("se:MinScaleDenominator", NS) is None
+        assert root.find(".//ogc:Filter", NS) is None
+
+    def test_viz_sd_range_and_residual_filter(self):
+        root = _write(
+            _rule_style(
+                {"fill": {"color": "red"}},
+                selector={
+                    "op": "and",
+                    "args": [
+                        {"op": ">=", "args": [{"sysId": "viz.sd"}, 1000]},
+                        {"op": "<", "args": [{"sysId": "viz.sd"}, 50000]},
+                        {"op": "=", "args": [{"property": "CLASS"}, "road"]},
+                    ],
+                },
+            )
+        )
+        rule = root.find(".//se:Rule", NS)
+        assert rule.find("se:MinScaleDenominator", NS).text == "1000"
+        assert rule.find("se:MaxScaleDenominator", NS).text == "50000"
+        filt = root.find(".//ogc:Filter", NS)
+        assert filt is not None
+        assert filt.find(".//ogc:PropertyName", NS).text == "CLASS"
+        # SE RuleType order: Filter, then Min/MaxScaleDenominator, then Symbolizer.
+        kids = [etree.QName(c).localname for c in rule]
+        assert kids == [
+            "Name",
+            "Filter",
+            "MinScaleDenominator",
+            "MaxScaleDenominator",
+            "PolygonSymbolizer",
+        ]
+
+    def test_viz_sd_equality_raises(self):
+        with pytest.raises(NotImplementedError):
+            _write(
+                _rule_style(
+                    {"fill": {"color": "red"}},
+                    selector={"op": "=", "args": [{"sysId": "viz.sd"}, 5000]},
+                )
+            )
+
+    def test_roundtrip_through_read(self):
+        from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
+
+        selector = {
+            "op": "and",
+            "args": [
+                {"op": "<", "args": [{"sysId": "viz.sd"}, 100000]},
+                {"op": "=", "args": [{"property": "NAME"}, "NY"]},
+            ],
+        }
+        style1 = Style.from_dict(_rule_style({"fill": {"color": "red"}}, selector))
+        xml = SldSeWriter().write(style1)
+        style2 = SldSeReader().read(xml)
+        assert style2.styling_rules[0].selector == selector
+
+
 class TestWriteElseRule:
     def test_else_filter_uses_se_namespace(self):
         root = _write(

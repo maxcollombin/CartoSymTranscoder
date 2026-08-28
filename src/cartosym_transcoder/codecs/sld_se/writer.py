@@ -12,17 +12,28 @@ project's lossless-transcoding requirement.
 
 import logging
 from collections import OrderedDict
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from lxml import etree
 
 from ...models.styles import Style, StylingRule
 from ..base import CodecWriter
-from ._filter import extract_feature_type_name, selector_to_filter_xml
+from ._filter import (
+    extract_feature_type_name,
+    extract_scale_denominators,
+    selector_to_filter_xml,
+)
 from ._symbolizer import has_raster_fields, symbolizer_to_elements
 from ._xml_helpers import NSMAP, se_el, sld_el
 
 logger = logging.getLogger(__name__)
+
+
+def _scale_text(value: Union[int, float]) -> str:
+    """Render a scale denominator, dropping a redundant ``.0`` on whole numbers."""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
 
 
 class SldSeWriter(CodecWriter):
@@ -219,9 +230,18 @@ class SldSeWriter(CodecWriter):
         if is_else:
             se_el("ElseFilter", parent=rule_el)
         else:
-            filt = selector_to_filter_xml(remaining_selector)
+            min_sd, max_sd, filter_selector = extract_scale_denominators(
+                remaining_selector
+            )
+            filt = selector_to_filter_xml(filter_selector)
             if filt is not None:
                 rule_el.append(filt)
+            # SE 1.1.0 RuleType order: (Filter|ElseFilter)?, then
+            # MinScaleDenominator?, MaxScaleDenominator?, then Symbolizer*.
+            if min_sd is not None:
+                se_el("MinScaleDenominator", parent=rule_el, text=_scale_text(min_sd))
+            if max_sd is not None:
+                se_el("MaxScaleDenominator", parent=rule_el, text=_scale_text(max_sd))
 
         for sym_el in sym_elements:
             rule_el.append(sym_el)

@@ -51,6 +51,9 @@ _DATALAYER_METADATA_SYSIDS = (
     "dataLayer.featuresGeometryDimensions",
 )
 
+_SCALE_SYSID = "viz.sd"
+_FLIP_OP = {"<": ">", "<=": ">=", ">": "<", ">=": "<=", "=": "=", "!=": "!="}
+
 
 def _is_sysid_eq(expr: Any, sys_id: str) -> bool:
     return (
@@ -146,6 +149,132 @@ def merge_feature_type_name(
     if selector is None:
         return id_eq
     return {"op": "and", "args": [id_eq, selector]}
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _scale_bound(expr: Any) -> Optional[Tuple[str, Any]]:
+    """Classify *expr* as a ``viz.sd`` scale-range bound.
+
+    Returns ``("min", value)`` for a lower bound (``viz.sd > / >= N``),
+    ``("max", value)`` for an upper bound (``viz.sd < / <= N``), or
+    ``None`` if *expr* is not a ``viz.sd`` comparison at all. The operand
+    order may be either way round (``viz.sd < N`` or ``N > viz.sd``).
+
+    Raises
+    ------
+    NotImplementedError
+        If *expr* compares ``viz.sd`` with ``=``/``!=`` — neither can be
+        expressed as an ``se:Min/MaxScaleDenominator`` range
+        (mapping-issues issue #39).
+    """
+    if not (
+        isinstance(expr, dict)
+        and isinstance(expr.get("args"), list)
+        and len(expr["args"]) == 2
+    ):
+        return None
+    left, right = expr["args"]
+    raw_op = expr.get("op")
+    op = raw_op if isinstance(raw_op, str) else ""
+    if (
+        isinstance(left, dict)
+        and left.get("sysId") == _SCALE_SYSID
+        and _is_number(right)
+    ):
+        value = right
+    elif (
+        isinstance(right, dict)
+        and right.get("sysId") == _SCALE_SYSID
+        and _is_number(left)
+    ):
+        op = _FLIP_OP.get(op, "")
+        value = left
+    else:
+        return None
+    if op in ("<", "<="):
+        return "max", value
+    if op in (">", ">="):
+        return "min", value
+    raise NotImplementedError(
+        f"viz.sd {expr.get('op')!r} comparison has no se:ScaleDenominator "
+        "mapping — only <, <=, >, >= define a scale range (mapping-issues "
+        "issue #39)"
+    )
+
+
+def extract_scale_denominators(
+    selector: Optional[dict],
+) -> Tuple[Optional[Any], Optional[Any], Optional[dict]]:
+    """Split ``viz.sd`` scale-range conjuncts out of *selector*.
+
+    ``viz.sd`` (visualization scale denominator) maps 1:1 to SE's
+    ``se:MinScaleDenominator`` / ``se:MaxScaleDenominator`` on
+    ``se:RuleType`` (mapping-issues issue #39). This pulls the ``viz.sd``
+    comparison conjuncts out of an arbitrarily-nested ``and`` chain (same
+    flatten/reassemble pattern as :func:`extract_feature_type_name`) for
+    the caller to emit as those two elements; whatever is left stays for
+    the ``ogc:Filter``.
+
+    Returns ``(min_sd, max_sd, remaining_selector)``.
+
+    Raises
+    ------
+    NotImplementedError
+        If ``viz.sd`` bounds the same side twice, or is compared with an
+        operator that is not a range bound.
+    """
+    if selector is None:
+        return None, None, None
+    min_sd: Optional[Any] = None
+    max_sd: Optional[Any] = None
+    remaining: List[Any] = []
+    for conjunct in _flatten_and_conjuncts(selector):
+        bound = _scale_bound(conjunct)
+        if bound is None:
+            remaining.append(conjunct)
+            continue
+        kind, value = bound
+        if kind == "min":
+            if min_sd is not None:
+                raise NotImplementedError(
+                    "multiple viz.sd lower bounds cannot map to a single "
+                    "se:MinScaleDenominator (mapping-issues issue #39)"
+                )
+            min_sd = value
+        else:
+            if max_sd is not None:
+                raise NotImplementedError(
+                    "multiple viz.sd upper bounds cannot map to a single "
+                    "se:MaxScaleDenominator (mapping-issues issue #39)"
+                )
+            max_sd = value
+    return min_sd, max_sd, _reassemble_and(remaining)
+
+
+def merge_scale_denominators(
+    min_sd: Optional[Any],
+    max_sd: Optional[Any],
+    selector: Optional[dict],
+) -> Optional[dict]:
+    """Reader-side inverse of :func:`extract_scale_denominators`.
+
+    ``se:MinScaleDenominator M`` -> ``viz.sd >= M`` and
+    ``se:MaxScaleDenominator N`` -> ``viz.sd < N`` (SE's rule-applies
+    range is ``M <= scale < N``), AND-merged ahead of any selector parsed
+    from ``ogc:Filter``. A zero lower bound is SE's implicit default and
+    is dropped rather than reconstructed as ``viz.sd >= 0``.
+    """
+    conjuncts: List[Any] = []
+    if min_sd is not None and min_sd != 0:
+        conjuncts.append({"op": ">=", "args": [{"sysId": _SCALE_SYSID}, min_sd]})
+    if max_sd is not None:
+        conjuncts.append({"op": "<", "args": [{"sysId": _SCALE_SYSID}, max_sd]})
+    if selector is not None:
+        conjuncts.append(selector)
+    return _reassemble_and(conjuncts)
 
 
 def _coerce_id_value(value: Any) -> str:
