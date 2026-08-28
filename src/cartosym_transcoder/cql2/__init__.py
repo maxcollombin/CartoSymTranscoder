@@ -5,7 +5,7 @@ selectors (``[ filter ]``) and CS-JSON encodes as ``{"op": …, "args": …}``.
 This package is its designated home in the transcoder:
 
 * :mod:`.vocab` — operator / predicate / function vocabulary, **derived from
-  the Pydantic models** (`models.expressions`) rather than hand-listed.
+  the Pydantic models** (:mod:`.model`) rather than hand-listed.
 * parsing — CQL2-Text / an ANTLR parse tree → expression models.
 * serialisation — expression models → CQL2-JSON dict / CQL2-Text string.
 

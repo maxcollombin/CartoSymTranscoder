@@ -33,9 +33,9 @@ from .ast import Fill
 from .ast import Metadata as AstMetadata
 from .ast import Stroke, StyleSheet, StylingRule, StylingRuleList, Symbolizer
 from .cql2 import vocab as _v
+from .cql2.model import *
 from .grammar.generated import CartoSymCSSGrammar as _G
 from .models.base import BaseCartoSymModel
-from .models.expressions import *
 from .models.styles import Metadata, Style, StylingRule
 from .models.symbolizers import Fill, Marker, Stroke, Symbolizer
 

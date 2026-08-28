@@ -15,8 +15,7 @@ Covers:
 import pytest
 
 from cartosym_transcoder.converter import Converter
-from cartosym_transcoder.expression_parser import ExpressionParser
-from cartosym_transcoder.models.expressions import (
+from cartosym_transcoder.cql2.model import (
     AccentiExpression,
     CaseiExpression,
     ConcatenateExpression,
@@ -32,6 +31,7 @@ from cartosym_transcoder.models.expressions import (
     SubstituteExpression,
     TextOpPredicate,
 )
+from cartosym_transcoder.expression_parser import ExpressionParser
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 

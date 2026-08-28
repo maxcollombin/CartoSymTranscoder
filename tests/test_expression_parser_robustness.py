@@ -15,11 +15,11 @@ Checked both at the parser level and end-to-end through
 import pytest
 
 from cartosym_transcoder.converter import Converter
-from cartosym_transcoder.expression_parser import ExpressionParser
-from cartosym_transcoder.models.expressions import (
+from cartosym_transcoder.cql2.model import (
     BinaryOperationExpression,
     UnaryOperationExpression,
 )
+from cartosym_transcoder.expression_parser import ExpressionParser
 
 
 @pytest.fixture

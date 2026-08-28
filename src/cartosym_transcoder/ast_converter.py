@@ -721,7 +721,7 @@ class AstToPydanticConverter:
             return {}
 
         # NULL literal -> JSON null (checked before the falsy guard below).
-        from .models.expressions import NullLiteral
+        from .cql2.model import NullLiteral
 
         if isinstance(expression, NullLiteral):
             return None

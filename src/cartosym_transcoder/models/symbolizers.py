@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
+from ..cql2.model import BoolExpression, NumericExpression
 from .base import AlterMixin, BaseCartoSymModel, CommentMixin
-from .expressions import BoolExpression, NumericExpression
 from .types import FlexibleAngle, FlexibleColor, FlexibleOpacity, UnitValue
 
 

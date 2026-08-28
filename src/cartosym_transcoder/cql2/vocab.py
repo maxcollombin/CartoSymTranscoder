@@ -5,7 +5,7 @@ The CartoSym-CSS grammar parses every function call as a generic
 transcoder therefore needs its own notion of "which identifier names are
 CQL2 predicates / functions". Rather than hand-maintaining string lists in
 the parser (which drift from the standard), these sets are **derived from
-the Pydantic models** in :mod:`.models.expressions`: every predicate model
+the Pydantic models** in :mod:`.model`: every predicate model
 declares its accepted ``op`` values as a ``typing.Literal``, and those
 models are separately validated against the OGC CS-JSON schema
 (``tests/test_csjson_strictness.py``). The models are thus the reconciled,
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import get_args
 
-from ..models.expressions import (
+from .model import (
     AccentiExpression,
     ArrayPredicate,
     BinaryOperator,
