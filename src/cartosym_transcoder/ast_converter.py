@@ -548,7 +548,20 @@ class AstToPydanticConverter:
                 # Post-process arguments recursively
                 processed_args = []
                 op = selector.get("op", "")
-                is_comparison = op in ["=", "<", "<=", ">", ">=", "!="]
+                # Ops whose args after index 0 are value literals, not
+                # property references (comparisons + CQL2 value predicates).
+                is_comparison = op in [
+                    "=",
+                    "<",
+                    "<=",
+                    ">",
+                    ">=",
+                    "!=",
+                    "like",
+                    "ilike",
+                    "between",
+                    "in",
+                ]
                 for i, arg in enumerate(selector["args"]):
                     # Convert string arguments to property references in comparisons
                     if isinstance(arg, str):
@@ -706,6 +719,13 @@ class AstToPydanticConverter:
         """
         if not expression:
             return {}
+
+        # Nested operand lists (e.g. the value list of an `in` predicate:
+        # inListOperands = [scalarExpression, [scalarExpression, ...]]).
+        if isinstance(expression, list):
+            return [
+                self._convert_expression_to_json_selector(item) for item in expression
+            ]
 
         # Handle ANTLR context objects (from grammar)
         if hasattr(expression, "getRuleIndex"):

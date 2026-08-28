@@ -423,7 +423,7 @@ class Converter:
                 val = self._format_selector_expr(args[0])
                 lo = self._format_selector_expr(args[1])
                 hi = self._format_selector_expr(args[2])
-                return f"{val} BETWEEN {lo} AND {hi}"
+                return f"{val} between {lo} and {hi}"
 
             # --- IN: {"op": "in", "args": [val, [item1, item2, ...]]} ---
             if op_lower == "in" and len(args) >= 2:
@@ -432,18 +432,18 @@ class Converter:
                     items = ", ".join(self._format_selector_expr(i) for i in args[1])
                 else:
                     items = ", ".join(self._format_selector_expr(a) for a in args[1:])
-                return f"{val} IN ({items})"
+                return f"{val} in ({items})"
 
             # --- LIKE / ILIKE: {"op": "like", "args": [val, pattern]} ---
             if op_lower in ("like", "ilike") and len(args) >= 2:
                 val = self._format_selector_expr(args[0])
                 pat = self._format_selector_expr(args[1])
-                return f"{val} {op.upper()} {pat}"
+                return f"{val} {op_lower} {pat}"
 
             # --- IS NULL: {"op": "isNull", "args": [val]} ---
             if op_lower == "isnull" and len(args) == 1:
                 val = self._format_selector_expr(args[0])
-                return f"{val} IS NULL"
+                return f"{val} is null"
 
             # --- NOT: {"op": "not", "args": [inner]} ---
             if op_lower == "not" and len(args) == 1:
@@ -456,7 +456,7 @@ class Converter:
                         val = self._format_selector_expr(inner_args[0])
                         lo = self._format_selector_expr(inner_args[1])
                         hi = self._format_selector_expr(inner_args[2])
-                        return f"{val} NOT BETWEEN {lo} AND {hi}"
+                        return f"{val} not between {lo} and {hi}"
                     if inner_op == "in" and len(inner_args) >= 2:
                         val = self._format_selector_expr(inner_args[0])
                         if isinstance(inner_args[1], list):
@@ -467,15 +467,15 @@ class Converter:
                             items = ", ".join(
                                 self._format_selector_expr(a) for a in inner_args[1:]
                             )
-                        return f"{val} NOT IN ({items})"
+                        return f"{val} not in ({items})"
                     if inner_op in ("like", "ilike") and len(inner_args) >= 2:
                         val = self._format_selector_expr(inner_args[0])
                         pat = self._format_selector_expr(inner_args[1])
-                        return f"{val} NOT {inner_op.upper()} {pat}"
+                        return f"{val} not {inner_op} {pat}"
                     if inner_op == "isnull" and len(inner_args) == 1:
                         val = self._format_selector_expr(inner_args[0])
-                        return f"{val} IS NOT NULL"
-                return f"NOT {self._format_selector_expr(inner)}"
+                        return f"{val} is not null"
+                return f"not {self._format_selector_expr(inner)}"
 
             # Format n-ary ops (like 'and', 'or')
             if op in ("and", "or"):

@@ -36,6 +36,8 @@ from .grammar.generated import (
 from .models import Style
 from .models.expressions import *
 
+logger = logging.getLogger(__name__)
+
 
 class _CollectingErrorListener(ErrorListener):
     """ANTLR error listener that accumulates syntax errors instead of
@@ -766,21 +768,17 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             and ctx.expression()
         ):
             try:
-                # Use the input stream to get the actual source text (with spaces)
+                # Walk the ANTLR ExpressionContext parse tree directly
+                # (ROADMAP §4.2) instead of re-scanning the selector text.
                 expr_ctx = ctx.expression()
-                if expr_ctx:
-                    start = expr_ctx.start.start
-                    stop = expr_ctx.stop.stop
-                    input_stream = expr_ctx.start.getInputStream()
-                    expr_text = input_stream.getText(start, stop)
-                else:
-                    expr_text = ""
-                expr = ExpressionParser.parse_expression(expr_text)
+                expr = ExpressionParser.parse_expression_ctx(expr_ctx)
+                if expr is None:
+                    raise ValueError("empty selector expression")
                 selector.conditions = [expr]
                 conditions_found = True
-            except Exception as e:
-                # Fallback: treat as simple text
+            except Exception:  # noqa: BLE001 - degrade to a plain text identifier
                 expr_text = ctx.expression().getText() if ctx.expression() else ""
+                logger.warning("selector expression parse failed: %r", expr_text)
                 selector.conditions = [IdentifierExpression(name=expr_text)]
                 conditions_found = True
 

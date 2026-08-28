@@ -1,0 +1,1730 @@
+{
+  "expr:(a = 1) or (b = 2)": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "a"
+          },
+          1
+        ],
+        "op": "="
+      },
+      {
+        "args": [
+          {
+            "property": "b"
+          },
+          2
+        ],
+        "op": "="
+      }
+    ],
+    "op": "or"
+  },
+  "expr:CONTAINS(name, 'ville')": {
+    "args": [
+      {
+        "property": "name"
+      },
+      {
+        "property": "ville"
+      }
+    ],
+    "op": "contains"
+  },
+  "expr:S_INTERSECTS(geom, BBOX(0, 0, 10, 10))": {
+    "args": [
+      {
+        "property": "geom"
+      },
+      {
+        "bbox": [
+          0.0,
+          0.0,
+          10.0,
+          10.0
+        ]
+      }
+    ],
+    "op": "s_intersects"
+  },
+  "expr:T_BEFORE(validFrom, DATE('2020-01-01'))": {
+    "args": [
+      {
+        "property": "validFrom"
+      },
+      {
+        "date": "2020-01-01"
+      }
+    ],
+    "op": "t_before"
+  },
+  "expr:a = 1": {
+    "args": [
+      {
+        "property": "a"
+      },
+      1
+    ],
+    "op": "="
+  },
+  "expr:a = 1 and (b = 2 or c = 3)": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "a"
+          },
+          1
+        ],
+        "op": "="
+      },
+      {
+        "args": [
+          {
+            "args": [
+              {
+                "property": "b"
+              },
+              2
+            ],
+            "op": "="
+          },
+          {
+            "args": [
+              {
+                "property": "c"
+              },
+              3
+            ],
+            "op": "="
+          }
+        ],
+        "op": "or"
+      }
+    ],
+    "op": "and"
+  },
+  "expr:a = 1 and b = 2": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "a"
+          },
+          1
+        ],
+        "op": "="
+      },
+      {
+        "args": [
+          {
+            "property": "b"
+          },
+          2
+        ],
+        "op": "="
+      }
+    ],
+    "op": "and"
+  },
+  "expr:a = 1 and b = 2 and c = 3": {
+    "args": [
+      {
+        "args": [
+          {
+            "args": [
+              {
+                "property": "a"
+              },
+              1
+            ],
+            "op": "="
+          },
+          {
+            "args": [
+              {
+                "property": "b"
+              },
+              2
+            ],
+            "op": "="
+          }
+        ],
+        "op": "and"
+      },
+      {
+        "args": [
+          {
+            "property": "c"
+          },
+          3
+        ],
+        "op": "="
+      }
+    ],
+    "op": "and"
+  },
+  "expr:a = 1 or b = 2 or c = 3": {
+    "args": [
+      {
+        "args": [
+          {
+            "args": [
+              {
+                "property": "a"
+              },
+              1
+            ],
+            "op": "="
+          },
+          {
+            "args": [
+              {
+                "property": "b"
+              },
+              2
+            ],
+            "op": "="
+          }
+        ],
+        "op": "or"
+      },
+      {
+        "args": [
+          {
+            "property": "c"
+          },
+          3
+        ],
+        "op": "="
+      }
+    ],
+    "op": "or"
+  },
+  "expr:a.b.c = 1": {
+    "args": [
+      {
+        "property": "a.b.c"
+      },
+      1
+    ],
+    "op": "="
+  },
+  "expr:area = width * height + margin": {
+    "args": [
+      {
+        "property": "area"
+      },
+      {
+        "args": [
+          {
+            "args": [
+              {
+                "property": "width"
+              },
+              {
+                "property": "height"
+              }
+            ],
+            "op": "*"
+          },
+          {
+            "property": "margin"
+          }
+        ],
+        "op": "+"
+      }
+    ],
+    "op": "="
+  },
+  "expr:casei(name) like casei('paris')": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "name"
+          }
+        ],
+        "op": "casei"
+      },
+      {
+        "args": [
+          {
+            "property": "paris"
+          }
+        ],
+        "op": "casei"
+      }
+    ],
+    "op": "like"
+  },
+  "expr:dataLayer.type = vector": {
+    "args": [
+      {
+        "sysId": "dataLayer.type"
+      },
+      "vector"
+    ],
+    "op": "="
+  },
+  "expr:descr is not null": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "descr"
+          }
+        ],
+        "op": "isNull"
+      }
+    ],
+    "op": "not"
+  },
+  "expr:descr is null": {
+    "args": [
+      {
+        "property": "descr"
+      }
+    ],
+    "op": "isNull"
+  },
+  "expr:kind in ('a', 'b', 'c')": {
+    "args": [
+      {
+        "property": "kind"
+      },
+      [
+        "a",
+        "b",
+        "c"
+      ]
+    ],
+    "op": "in"
+  },
+  "expr:kind not in ('a', 'b')": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "kind"
+          },
+          [
+            "a",
+            "b"
+          ]
+        ],
+        "op": "in"
+      }
+    ],
+    "op": "not"
+  },
+  "expr:label like 'A%'": {
+    "args": [
+      {
+        "property": "label"
+      },
+      "A%"
+    ],
+    "op": "like"
+  },
+  "expr:label not like '%z'": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "label"
+          },
+          "%z"
+        ],
+        "op": "like"
+      }
+    ],
+    "op": "not"
+  },
+  "expr:name = 'a and b'": {
+    "args": [
+      {
+        "property": "name"
+      },
+      "a and b"
+    ],
+    "op": "="
+  },
+  "expr:name = 'x or y' or other = 1": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "name"
+          },
+          "x or y"
+        ],
+        "op": "="
+      },
+      {
+        "args": [
+          {
+            "property": "other"
+          },
+          1
+        ],
+        "op": "="
+      }
+    ],
+    "op": "or"
+  },
+  "expr:not (a = 1)": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "a"
+          },
+          1
+        ],
+        "op": "="
+      }
+    ],
+    "op": "not"
+  },
+  "expr:not a = 1": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "a"
+          },
+          1
+        ],
+        "op": "="
+      }
+    ],
+    "op": "not"
+  },
+  "expr:rank = (a + b) * c": {
+    "args": [
+      {
+        "property": "rank"
+      },
+      {
+        "args": [
+          {
+            "args": [
+              {
+                "property": "a"
+              },
+              {
+                "property": "b"
+              }
+            ],
+            "op": "+"
+          },
+          {
+            "property": "c"
+          }
+        ],
+        "op": "*"
+      }
+    ],
+    "op": "="
+  },
+  "expr:viz.sd < 200000": {
+    "args": [
+      {
+        "sysId": "viz.sd"
+      },
+      200000
+    ],
+    "op": "<"
+  },
+  "expr:viz.sd >= 1000 and viz.sd < 5000": {
+    "args": [
+      {
+        "args": [
+          {
+            "sysId": "viz.sd"
+          },
+          1000
+        ],
+        "op": ">="
+      },
+      {
+        "args": [
+          {
+            "sysId": "viz.sd"
+          },
+          5000
+        ],
+        "op": "<"
+      }
+    ],
+    "op": "and"
+  },
+  "expr:x between 1 and 10": {
+    "args": [
+      {
+        "property": "x"
+      },
+      1,
+      10
+    ],
+    "op": "between"
+  },
+  "expr:x not between 1 and 10": {
+    "args": [
+      {
+        "args": [
+          {
+            "property": "x"
+          },
+          1,
+          10
+        ],
+        "op": "between"
+      }
+    ],
+    "op": "not"
+  },
+  "file:0-basic.cscss": [
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "Landuse"
+      ],
+      "op": "="
+    }
+  ],
+  "file:1-core.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Landuse"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.type"
+            },
+            "vector"
+          ],
+          "op": "="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "viz.sd"
+            },
+            200000
+          ],
+          "op": "<"
+        },
+        {
+          "args": [
+            {
+              "sysId": "viz.date"
+            },
+            {
+              "date": "2020-01-01"
+            }
+          ],
+          "op": ">"
+        }
+      ],
+      "op": "and"
+    }
+  ],
+  "file:10-natural_earth_economies.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "ne_10m_admin_0_countries"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.type"
+            },
+            "vector"
+          ],
+          "op": "="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "property": "ECONOMY"
+        },
+        "1. Developed region: G7"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "ECONOMY"
+        },
+        "2. Developed region: nonG7"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "ECONOMY"
+        },
+        "3. Emerging region: BRIC"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "ECONOMY"
+        },
+        "4. Emerging region: MIKT"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "ECONOMY"
+        },
+        "5. Emerging region: G20"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "ECONOMY"
+        },
+        "6. Developing region"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "ECONOMY"
+        },
+        "7. Least developed region"
+      ],
+      "op": "="
+    }
+  ],
+  "file:11-natural_earth_continents.cscss": [
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_admin_0_countries"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "CONTINENT"
+        },
+        "Africa"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "CONTINENT"
+        },
+        "Antartica"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "CONTINENT"
+        },
+        "Asia"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "CONTINENT"
+        },
+        "Europe"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "CONTINENT"
+        },
+        "North America"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "CONTINENT"
+        },
+        "Oceania"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "CONTINENT"
+        },
+        "South America"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_urban_areas"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_graticules_10"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_graticules_30"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_populated_places"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "SCALERANK"
+        },
+        0
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_geography_regions_polys"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_I_2000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_L_0"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_K_200"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_J_1000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_H_3000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_G_4000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_F_5000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_E_6000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_D_7000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_C_8000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_B_9000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_bathymetry_A_10000"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_playas"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_ocean"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_admin_1_states_provinces"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_rivers_lake_centerlines"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_rivers_europe"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_reefs"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_lakes_pluvial"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_lakes_north_america"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_lakes_europe"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_lakes"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_glaciated_areas"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_geography_marine_polys"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "SCALERANK"
+        },
+        0
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "dataLayer.id"
+        },
+        "ne_10m_roads"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "SCALERANK"
+        },
+        3
+      ],
+      "op": "<="
+    }
+  ],
+  "file:12-include.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Landuse"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "args": [
+                {
+                  "sysId": "dataLayer.type"
+                },
+                "vector"
+              ],
+              "op": "="
+            },
+            {
+              "args": [
+                {
+                  "sysId": "dataLayer.featuresGeometryDimensions"
+                },
+                2
+              ],
+              "op": "="
+            }
+          ],
+          "op": "and"
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "args": [
+                {
+                  "sysId": "viz.sd"
+                },
+                200000
+              ],
+              "op": "<"
+            },
+            {
+              "args": [
+                {
+                  "property": "validDate"
+                },
+                {
+                  "sysId": "viz.timeInterval.start.date"
+                }
+              ],
+              "op": ">="
+            }
+          ],
+          "op": "and"
+        },
+        {
+          "args": [
+            {
+              "property": "validDate"
+            },
+            {
+              "sysId": "viz.timeInterval.end.date"
+            }
+          ],
+          "op": "<="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "parking"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "park"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "commercial"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        10000
+      ],
+      "op": "<"
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "parking"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "park"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "commercial"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Elevation"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.type"
+            },
+            "coverage"
+          ],
+          "op": "="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        200000
+      ],
+      "op": "<"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        100000
+      ],
+      "op": "<"
+    }
+  ],
+  "file:2-vector-polygon.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Landuse"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "args": [
+                {
+                  "sysId": "dataLayer.type"
+                },
+                "vector"
+              ],
+              "op": "="
+            },
+            {
+              "args": [
+                {
+                  "sysId": "dataLayer.featuresGeometryDimensions"
+                },
+                2
+              ],
+              "op": "="
+            }
+          ],
+          "op": "and"
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "args": [
+                {
+                  "sysId": "viz.sd"
+                },
+                200000
+              ],
+              "op": "<"
+            },
+            {
+              "args": [
+                {
+                  "property": "validDate"
+                },
+                {
+                  "sysId": "viz.timeInterval.start.date"
+                }
+              ],
+              "op": ">="
+            }
+          ],
+          "op": "and"
+        },
+        {
+          "args": [
+            {
+              "property": "validDate"
+            },
+            {
+              "sysId": "viz.timeInterval.end.date"
+            }
+          ],
+          "op": "<="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "parking"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "park"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "commercial"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        10000
+      ],
+      "op": "<"
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "parking"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "park"
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "FunctionCode"
+        },
+        "commercial"
+      ],
+      "op": "="
+    }
+  ],
+  "file:3-vector-line.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Roads"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "args": [
+                {
+                  "sysId": "dataLayer.type"
+                },
+                "vector"
+              ],
+              "op": "="
+            },
+            {
+              "args": [
+                {
+                  "sysId": "dataLayer.featuresGeometryDimensions"
+                },
+                1
+              ],
+              "op": "="
+            }
+          ],
+          "op": "and"
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "args": [
+                {
+                  "sysId": "viz.sd"
+                },
+                200000
+              ],
+              "op": "<"
+            },
+            {
+              "args": [
+                {
+                  "property": "validDate"
+                },
+                {
+                  "sysId": "viz.timeInterval.start.date"
+                }
+              ],
+              "op": ">="
+            }
+          ],
+          "op": "and"
+        },
+        {
+          "args": [
+            {
+              "property": "validDate"
+            },
+            {
+              "sysId": "viz.timeInterval.end.date"
+            }
+          ],
+          "op": "<="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        10000
+      ],
+      "op": "<"
+    }
+  ],
+  "file:4-vector-point.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Amenities"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "args": [
+                {
+                  "sysId": "dataLayer.type"
+                },
+                "vector"
+              ],
+              "op": "="
+            },
+            {
+              "args": [
+                {
+                  "sysId": "dataLayer.featuresGeometryDimensions"
+                },
+                0
+              ],
+              "op": "="
+            }
+          ],
+          "op": "and"
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "args": [
+                {
+                  "sysId": "viz.sd"
+                },
+                200000
+              ],
+              "op": "<"
+            },
+            {
+              "args": [
+                {
+                  "property": "validDate"
+                },
+                {
+                  "sysId": "viz.timeInterval.start.date"
+                }
+              ],
+              "op": ">="
+            }
+          ],
+          "op": "and"
+        },
+        {
+          "args": [
+            {
+              "property": "validDate"
+            },
+            {
+              "sysId": "viz.timeInterval.end.date"
+            }
+          ],
+          "op": "<="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        10000
+      ],
+      "op": "<"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        5000
+      ],
+      "op": "<"
+    }
+  ],
+  "file:5-coverage-dem.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Elevation"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.type"
+            },
+            "coverage"
+          ],
+          "op": "="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        200000
+      ],
+      "op": "<"
+    }
+  ],
+  "file:6-coverage-sentinel2.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "sentinel2-l2a"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.type"
+            },
+            "coverage"
+          ],
+          "op": "="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        200000
+      ],
+      "op": "<"
+    },
+    {
+      "args": [
+        {
+          "property": "SCL"
+        },
+        8
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "SCL"
+        },
+        9
+      ],
+      "op": "="
+    }
+  ],
+  "file:7-coverage-ndvi.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "sentinel2-l2a"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.type"
+            },
+            "coverage"
+          ],
+          "op": "="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        200000
+      ],
+      "op": "<"
+    },
+    {
+      "args": [
+        {
+          "property": "SCL"
+        },
+        8
+      ],
+      "op": "="
+    },
+    {
+      "args": [
+        {
+          "property": "SCL"
+        },
+        9
+      ],
+      "op": "="
+    }
+  ],
+  "file:8-coverage-hillshading.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Elevation"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.type"
+            },
+            "coverage"
+          ],
+          "op": "="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        200000
+      ],
+      "op": "<"
+    }
+  ],
+  "file:9-coverage-hillshading-opacity.cscss": [
+    {
+      "args": [
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.id"
+            },
+            "Elevation"
+          ],
+          "op": "="
+        },
+        {
+          "args": [
+            {
+              "sysId": "dataLayer.type"
+            },
+            "coverage"
+          ],
+          "op": "="
+        }
+      ],
+      "op": "and"
+    },
+    {
+      "args": [
+        {
+          "sysId": "viz.sd"
+        },
+        200000
+      ],
+      "op": "<"
+    }
+  ]
+}

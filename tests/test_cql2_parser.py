@@ -56,13 +56,13 @@ def writeback(expr_dict: dict) -> str:
 class TestBetween:
 
     def test_between(self):
-        result = parse("age BETWEEN 10 AND 20")
+        result = parse("age between 10 and 20")
         assert isinstance(result, IsBetweenPredicate)
         assert result.op == "between"
         assert len(result.args) == 3
 
     def test_not_between(self):
-        result = parse("age NOT BETWEEN 10 AND 20")
+        result = parse("age not between 10 and 20")
         assert isinstance(result, NotExpression)
         assert isinstance(result.args[0], IsBetweenPredicate)
 
@@ -78,14 +78,14 @@ class TestBetween:
 
     def test_writeback_between(self):
         d = {"op": "between", "args": [{"property": "age"}, 10, 20]}
-        assert writeback(d) == "age BETWEEN 10 AND 20"
+        assert writeback(d) == "age between 10 and 20"
 
     def test_writeback_not_between(self):
         d = {
             "op": "not",
             "args": [{"op": "between", "args": [{"property": "age"}, 10, 20]}],
         }
-        assert writeback(d) == "age NOT BETWEEN 10 AND 20"
+        assert writeback(d) == "age not between 10 and 20"
 
 
 # ── IN / NOT IN ───────────────────────────────────────────────────────────
@@ -94,11 +94,11 @@ class TestBetween:
 class TestIn:
 
     def test_in(self):
-        result = parse("status IN ('a', 'b', 'c')")
+        result = parse("status in ('a', 'b', 'c')")
         assert isinstance(result, IsInListPredicate)
 
     def test_not_in(self):
-        result = parse("status NOT IN ('x', 'y')")
+        result = parse("status not in ('x', 'y')")
         assert isinstance(result, NotExpression)
         assert isinstance(result.args[0], IsInListPredicate)
 
@@ -111,14 +111,14 @@ class TestIn:
 
     def test_writeback_in(self):
         d = {"op": "in", "args": [{"property": "status"}, ["a", "b", "c"]]}
-        assert writeback(d) == "status IN ('a', 'b', 'c')"
+        assert writeback(d) == "status in ('a', 'b', 'c')"
 
     def test_writeback_not_in(self):
         d = {
             "op": "not",
             "args": [{"op": "in", "args": [{"property": "status"}, ["x", "y"]]}],
         }
-        assert writeback(d) == "status NOT IN ('x', 'y')"
+        assert writeback(d) == "status not in ('x', 'y')"
 
 
 # ── LIKE / NOT LIKE / ILIKE ──────────────────────────────────────────────
@@ -143,14 +143,14 @@ class TestLike:
 
     def test_writeback_like(self):
         d = {"op": "like", "args": [{"property": "name"}, "'%park%'"]}
-        assert "LIKE" in writeback(d)
+        assert "like" in writeback(d)
 
     def test_writeback_not_like(self):
         d = {
             "op": "not",
             "args": [{"op": "like", "args": [{"property": "name"}, "'%test%'"]}],
         }
-        assert "NOT LIKE" in writeback(d)
+        assert "not like" in writeback(d)
 
 
 # ── IS NULL / IS NOT NULL ─────────────────────────────────────────────────
@@ -159,24 +159,24 @@ class TestLike:
 class TestIsNull:
 
     def test_is_null(self):
-        result = parse("description IS NULL")
+        result = parse("description is null")
         assert isinstance(result, IsNullPredicate)
 
     def test_is_not_null(self):
-        result = parse("description IS NOT NULL")
+        result = parse("description is not null")
         assert isinstance(result, NotExpression)
         assert isinstance(result.args[0], IsNullPredicate)
 
     def test_writeback_is_null(self):
         d = {"op": "isNull", "args": [{"property": "description"}]}
-        assert writeback(d) == "description IS NULL"
+        assert writeback(d) == "description is null"
 
     def test_writeback_is_not_null(self):
         d = {
             "op": "not",
             "args": [{"op": "isNull", "args": [{"property": "description"}]}],
         }
-        assert writeback(d) == "description IS NOT NULL"
+        assert writeback(d) == "description is not null"
 
 
 # ── Spatial Predicates ────────────────────────────────────────────────────

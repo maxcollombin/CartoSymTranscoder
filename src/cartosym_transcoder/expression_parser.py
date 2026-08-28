@@ -1,26 +1,35 @@
 """
-Text-based expression parser: CartoSym-CSS expression source (or a
-CQL2-ish string) -> Pydantic ``Expression`` models.
+CartoSym-CSS expression parsing -> Pydantic ``Expression`` models.
+
+Two entry points:
+
+* :meth:`ExpressionParser.parse_expression_ctx` — **primary**, used for
+  selector expressions. Walks the ANTLR ``ExpressionContext`` parse tree
+  the grammar already built (``_atom_from_ctx`` / ``_flatten_binary`` /
+  ``_build_precedence``). Chained binary operators are flattened and
+  re-associated under a conventional precedence
+  (``or < and < relational < + - < * / < ^``) rather than the grammar's
+  own left-recursive alternative order.
+* :meth:`ExpressionParser.parse_expression` (str) and the
+  ``_parse_*_text`` / ``_iter_top_level`` helpers — the older text-scan
+  path. Still used for a couple of repair sites in ``ast_converter`` and
+  for standalone-string callers (tests). The scanners are quote- and
+  bracket-aware (``name = 'a and b'`` is not split on the quoted ``and``).
 
 Covers CQL2 spatial / temporal / array predicates, BETWEEN / IN / LIKE /
 IS NULL, WKT and temporal literals, arithmetic, member access, function
 calls, conditionals, and logical / relational operators.
 
-Operator splitting is done by scanning the source text. The scanners go
-through :meth:`ExpressionParser._iter_top_level` /
-:meth:`_find_top_level`, which skip anything inside ``()``/``[]``/``{}``
-nesting **or** inside a single/double-quoted string literal — so
-``name = 'a and b'`` is not split on the quoted ``and``, and
-``a = 1 and (b = 2 or c = 3)`` nests correctly.
-
-Known limitation: this still re-parses text rather than walking the ANTLR
-``ExpressionContext`` parse tree the grammar already built. Replacing the
-text scan with tree traversal is tracked in ``ROADMAP.md`` §4.2.
+Operators are read from the grammar-generated token accessors
+(``op_ctx.AND()``, ``rel_ctx.IN()`` …), never their literal text. The CQL2
+function/predicate vocabulary comes from :mod:`.cql2_vocab` (derived from
+the Pydantic model ``Literal`` fields), not hand-written lists.
 """
 
 import re
 from typing import Any, Dict, List, Optional, Union
 
+from . import cql2_vocab as _v
 from .ast import Fill
 from .ast import Metadata as AstMetadata
 from .ast import Stroke, StyleSheet, StylingRule, StylingRuleList, Symbolizer
@@ -30,92 +39,375 @@ from .models.styles import Metadata, Style, StylingRule
 from .models.symbolizers import Fill, Marker, Stroke, Symbolizer
 
 # ---------------------------------------------------------------------------
-# CQL2 function-name sets (case-insensitive matching)
+# CQL2 vocabulary — derived from the Pydantic models (see cql2_vocab), not
+# hand-listed here.
 # ---------------------------------------------------------------------------
-_SPATIAL_PREDICATES = {
-    "s_intersects",
-    "s_contains",
-    "s_within",
-    "s_touches",
-    "s_crosses",
-    "s_disjoint",
-    "s_overlaps",
-    "s_equals",
-    "s_covers",
-    "s_coveredby",
-}
-_SPATIAL_RELATE = "s_relate"
-_TEMPORAL_PREDICATES = {
-    "t_before",
-    "t_after",
-    "t_meets",
-    "t_metby",
-    "t_overlaps",
-    "t_overlappedby",
-    "t_begins",
-    "t_begunby",
-    "t_during",
-    "t_contains",
-    "t_ends",
-    "t_endedby",
-    "t_equals",
-    "t_intersects",
-    "t_disjoint",
-}
-_ARRAY_PREDICATES = {
-    "a_equals",
-    "a_contains",
-    "a_containedby",
-    "a_overlaps",
-}
-_WKT_TYPES = {
-    "point",
-    "linestring",
-    "polygon",
-    "multipoint",
-    "multilinestring",
-    "multipolygon",
-    "geometrycollection",
-}
-_WKT_TO_GEOJSON = {
-    "point": "Point",
-    "linestring": "LineString",
-    "polygon": "Polygon",
-    "multipoint": "MultiPoint",
-    "multilinestring": "MultiLineString",
-    "multipolygon": "MultiPolygon",
-    "geometrycollection": "GeometryCollection",
-}
-_TEMPORAL_LITERAL_NAMES = {"date", "timestamp", "interval"}
-
-# Character expression function names (CQL2 / CartoSym schema)
-_CHARACTER_FUNCTIONS = {
-    "casei",
-    "accenti",
-    "lowercase",
-    "uppercase",
-    "concatenate",
-    "substitute",
-    "format",
-}
-# CQL2 text operation predicates (return bool)
-_TEXT_OP_PREDICATES = {"contains", "startswith", "endswith"}
-# Geometry manipulation functions
-_GEOM_MANIPULATION_BINARY = {
-    "s_intersection",
-    "s_union",
-    "s_difference",
-    "s_symdifference",
-}
-_GEOM_MANIPULATION_UNARY = {"s_convexhull", "s_envelope"}
-_GEOM_BUFFER = "s_buffer"
-
-# Import ANTLR generated classes - will be used when needed
-# These are loaded dynamically by the main parser
+_SPATIAL_PREDICATES = _v.SPATIAL_PREDICATES
+_SPATIAL_RELATE = _v.SPATIAL_RELATE
+_TEMPORAL_PREDICATES = _v.TEMPORAL_PREDICATES
+_ARRAY_PREDICATES = _v.ARRAY_PREDICATES
+_WKT_TYPES = _v.WKT_TYPES
+_WKT_TO_GEOJSON = _v.WKT_TO_GEOJSON
+_TEMPORAL_LITERAL_NAMES = _v.TEMPORAL_LITERAL_NAMES
+_CHARACTER_FUNCTIONS = _v.CHARACTER_FUNCTIONS
+_TEXT_OP_PREDICATES = _v.TEXT_OP_PREDICATES
+_GEOM_MANIPULATION_BINARY = _v.GEOM_MANIPULATION_BINARY
+_GEOM_MANIPULATION_UNARY = _v.GEOM_MANIPULATION_UNARY
+_GEOM_BUFFER = _v.GEOM_BUFFER
+_KNOWN_CQL2_CALLS = _v.KNOWN_CQL2_CALLS
 
 
 class ExpressionParser:
     """Parser for converting ANTLR expression contexts to Pydantic expressions."""
+
+    # =================================================================
+    # Parse-tree walk (primary path — ROADMAP §4.2 / Phase A1)
+    #
+    # The grammar's left-recursive ``expression`` rule is already an
+    # operator-precedence tree; we walk it instead of re-scanning text.
+    # ``ExpressionContext`` is unlabelled, so alternatives are told apart
+    # by which typed accessors are populated.
+    # =================================================================
+
+    # Operator precedence, low → high. Relational operators all share one
+    # level. This is the SQL / CQL2 convention and matches the historical
+    # text parser; the grammar's own left-recursive alternative order puts
+    # `and`/`or` *above* relational, which we deliberately override.
+    _PREC_OR = 1
+    _PREC_AND = 2
+    _PREC_REL = 3
+    _PREC_ADD = 4
+    _PREC_MUL = 5
+    _PREC_POW = 6
+
+    @staticmethod
+    def parse_expression_ctx(ctx) -> Optional[Expression]:
+        """Convert an ANTLR ``ExpressionContext`` to a Pydantic ``Expression``.
+
+        The grammar's ``expression`` rule is left-recursive and unlabelled,
+        so alternatives are identified by which typed accessors are set.
+        Chained binary operators are flattened and re-associated under
+        conventional precedence (see :attr:`_PREC_*`) rather than trusting
+        the grammar's own alternative ordering.
+        """
+        if ctx is None:
+            return None
+        return ExpressionParser._expr_from_ctx(ctx)
+
+    @staticmethod
+    def _expr_from_ctx(ctx) -> Any:
+        atom = ExpressionParser._atom_from_ctx(ctx)
+        if atom is not None:
+            return atom
+        flat = ExpressionParser._flatten_binary(ctx)
+        if flat and len(flat) >= 3:
+            return ExpressionParser._build_precedence(flat)
+        if flat and len(flat) == 1:
+            return flat[0]
+        return ExpressionParser._parse_expression_text(
+            ExpressionParser._ctx_source_text(ctx)
+        )
+
+    @staticmethod
+    def _atom_from_ctx(ctx) -> Any:
+        """Non-binary forms: leaves, parens, unary, conditional, between…
+
+        Returns ``None`` when *ctx* is a chained binary-operator node (left
+        to :meth:`_flatten_binary`).
+        """
+        if ctx.expString() is not None:
+            return ExpressionParser._parse_string(ctx.expString())
+        if ctx.expCall() is not None:
+            return ExpressionParser._dispatch_call_ctx(ctx.expCall())
+        if ctx.expInstance() is not None:
+            return ExpressionParser._parse_instance_from_text(
+                ExpressionParser._ctx_source_text(ctx.expInstance())
+            )
+        if ctx.variable() is not None:
+            return IdentifierExpression(name=ctx.variable().getText())
+        if ctx.tuple_() is not None:
+            return ExpressionParser._parse_tuple_ctx(ctx.tuple_())
+        if ctx.expArray() is not None:
+            arr = ctx.expArray()
+            elems = ExpressionParser._flatten_left_recursive(
+                arr.arrayElements(), "arrayElements", "expression"
+            )
+            # `(x)` is grouping; `(a, b)` / `[a, b]` is a list.
+            if arr.LPAR() is not None and len(elems) == 1:
+                return ExpressionParser._expr_from_ctx(elems[0])
+            return ArrayExpression(
+                elements=[ExpressionParser._expr_from_ctx(e) for e in elems]
+            )
+        if ctx.idOrConstant() is not None and ctx.getChildCount() == 1:
+            return ExpressionParser._parse_id_or_constant_ctx(ctx.idOrConstant())
+
+        sub = ctx.expression() or []
+
+        if ctx.unaryLogicalOperator() is not None and sub:
+            return UnaryOperationExpression(
+                operator=UnaryOperator.NOT,
+                operand=ExpressionParser._expr_from_ctx(sub[0]),
+            )
+        if ctx.unaryArithmeticOperator() is not None and sub:
+            minus = ctx.unaryArithmeticOperator().MINUS() is not None
+            return UnaryOperationExpression(
+                operator=UnaryOperator.MINUS if minus else UnaryOperator.PLUS,
+                operand=ExpressionParser._expr_from_ctx(sub[0]),
+            )
+        if (
+            ctx.LPAR() is not None
+            and ctx.RPAR() is not None
+            and ctx.expCall() is None
+            and len(sub) == 1
+        ):
+            return ExpressionParser._expr_from_ctx(sub[0])
+        if ctx.QUESTION() is not None and len(sub) >= 3:
+            return ConditionalExpression(
+                condition=ExpressionParser._expr_from_ctx(sub[0]),
+                true_value=ExpressionParser._expr_from_ctx(sub[1]),
+                false_value=ExpressionParser._expr_from_ctx(sub[2]),
+            )
+        if ctx.betweenOperator() is not None and len(sub) >= 3:
+            pred: Any = IsBetweenPredicate(
+                args=[
+                    ExpressionParser._expr_from_ctx(sub[0]),
+                    ExpressionParser._expr_from_ctx(sub[1]),
+                    ExpressionParser._expr_from_ctx(sub[2]),
+                ]
+            )
+            if ctx.betweenOperator().NOT() is not None:
+                return NotExpression(args=[pred])
+            return pred
+        if ctx.LSBR() is not None and ctx.expConstant() is not None and len(sub) == 1:
+            # No dedicated index model; preserve the historical flat text.
+            return IdentifierExpression(name=ctx.getText())
+        if ctx.DOT() is not None and ctx.IDENTIFIER() is not None and len(sub) == 1:
+            return MemberAccessExpression(
+                object=ExpressionParser._expr_from_ctx(sub[0]),
+                member=ctx.IDENTIFIER().getText(),
+            )
+        return None
+
+    @staticmethod
+    def _first_token_op(op_ctx, table: dict) -> Optional[BinaryOperator]:
+        """First ``BinaryOperator`` in *table* whose token accessor is set on
+        *op_ctx* (``table`` is keyed by grammar token name, e.g. ``"IDIV"``)."""
+        for token_name, operator in table.items():
+            if getattr(op_ctx, token_name)() is not None:
+                return operator
+        return None
+
+    @staticmethod
+    def _binary_op_info(ctx):
+        """``(BinaryOperator | None, precedence, relationalOperator ctx | None)``
+        if *ctx* is ``expr OP expr`` — else ``None``.
+
+        Operators are identified via the grammar-generated token accessors
+        (``op_ctx.AND()``, ``op_ctx.IDIV()`` …), never by their literal text,
+        so the mapping tracks the grammar's token *names* not their spelling.
+        """
+        if len(ctx.expression() or []) != 2:
+            return None
+        lg = ctx.binaryLogicalOperator()
+        if lg is not None:
+            if lg.AND() is not None:
+                return (BinaryOperator.AND, ExpressionParser._PREC_AND, None)
+            return (BinaryOperator.OR, ExpressionParser._PREC_OR, None)
+        rel = ctx.relationalOperator()
+        if rel is not None:
+            return (None, ExpressionParser._PREC_REL, rel)
+        if ctx.arithmeticOperatorExp() is not None:
+            return (BinaryOperator.POWER, ExpressionParser._PREC_POW, None)
+        mul = ctx.arithmeticOperatorMul()
+        if mul is not None:
+            op = ExpressionParser._first_token_op(mul, _v.ARITH_MUL_BY_TOKEN)
+            return (op or BinaryOperator.MULTIPLY, ExpressionParser._PREC_MUL, None)
+        add = ctx.arithmeticOperatorAdd()
+        if add is not None:
+            op = ExpressionParser._first_token_op(add, _v.ARITH_ADD_BY_TOKEN)
+            return (op or BinaryOperator.ADD, ExpressionParser._PREC_ADD, None)
+        return None
+
+    @staticmethod
+    def _flatten_binary(ctx):
+        """Flatten a chain of binary operators into ``[expr, opinfo, expr, …]``."""
+        info = ExpressionParser._binary_op_info(ctx)
+        if info is None:
+            atom = ExpressionParser._atom_from_ctx(ctx)
+            return [atom] if atom is not None else None
+        left_ctx, right_ctx = ctx.expression()
+        left = ExpressionParser._flatten_binary(left_ctx) or [
+            ExpressionParser._expr_from_ctx(left_ctx)
+        ]
+        right = ExpressionParser._flatten_binary(right_ctx) or [
+            ExpressionParser._expr_from_ctx(right_ctx)
+        ]
+        return left + [info] + right
+
+    @staticmethod
+    def _build_precedence(flat) -> Any:
+        """Precedence-climb ``[expr, (op, prec, relctx), expr, …]`` (left-assoc)."""
+
+        def climb(pos: int, min_prec: int):
+            result = flat[pos]
+            pos += 1
+            while pos < len(flat):
+                op_enum, prec, rel_ctx = flat[pos]
+                if prec < min_prec:
+                    break
+                pos += 1
+                rhs, pos = climb(pos, prec + 1)
+                result = ExpressionParser._make_binary(
+                    rel_ctx, op_enum, prec, result, rhs
+                )
+            return result, pos
+
+        node, _ = climb(0, 1)
+        return node
+
+    @staticmethod
+    def _make_binary(rel_ctx, op_enum, prec: int, left, right) -> Any:
+        if prec == ExpressionParser._PREC_REL:
+            return ExpressionParser._build_relational(rel_ctx, left, right)
+        return BinaryOperationExpression(left=left, operator=op_enum, right=right)
+
+    # -- parse-tree helpers -----------------------------------------------------
+
+    @staticmethod
+    def _ctx_source_text(ctx) -> str:
+        """Original source slice for *ctx* (with spacing), else ``getText()``."""
+        try:
+            start = ctx.start.start
+            stop = ctx.stop.stop
+            return ctx.start.getInputStream().getText(start, stop)
+        except Exception:  # noqa: BLE001 - fall back to token-joined text
+            return ctx.getText() if hasattr(ctx, "getText") else str(ctx)
+
+    @staticmethod
+    def _parse_id_or_constant_ctx(ctx) -> Any:
+        """``IdOrConstantContext`` -> identifier / number / boolean."""
+        if ctx.expConstant() is not None:
+            return ExpressionParser._parse_constant(ctx.expConstant())
+        text = ctx.getText()
+        low = text.lower()
+        if low in ("true", "false"):
+            return ConstantExpression(value=low == "true")
+        return IdentifierExpression(name=text)
+
+    @staticmethod
+    def _flatten_left_recursive(ctx, self_accessor: str, item_accessor: str) -> list:
+        """Flatten a left-recursive ``rule: items | rule ',' item`` list."""
+        items: list = []
+        while ctx is not None:
+            inner = getattr(ctx, self_accessor)()
+            got = getattr(ctx, item_accessor)()
+            got = got if isinstance(got, list) else ([got] if got is not None else [])
+            if inner is not None:
+                items = got + items
+                ctx = inner
+            else:
+                items = got + items
+                ctx = None
+        return items
+
+    @staticmethod
+    def _parse_tuple_ctx(ctx) -> ArrayExpression:
+        """``TupleContext`` (space-separated values) -> ``ArrayExpression``."""
+        elems = ExpressionParser._flatten_left_recursive(ctx, "tuple_", "idOrConstant")
+        return ArrayExpression(
+            elements=[ExpressionParser._parse_id_or_constant_ctx(e) for e in elems]
+        )
+
+    # relationalOperator token accessor -> comparison BinaryOperator
+    _REL_COMPARISON = {
+        "EQ": BinaryOperator.EQUAL,
+        "LTEQ": BinaryOperator.LESS_EQUAL,
+        "GTEQ": BinaryOperator.GREATER_EQUAL,
+        "LT": BinaryOperator.LESS_THAN,
+        "GT": BinaryOperator.GREATER_THAN,
+    }
+
+    @staticmethod
+    def _build_relational(rel_ctx, left: Any, right: Any) -> Any:
+        """Model for ``expression relationalOperator expression``.
+
+        ``relationalOperator`` folds in ``IN / NOT IN / IS / IS NOT /
+        LIKE / NOT LIKE``. The operator is read from *rel_ctx*'s
+        grammar-generated token accessors (``.IN()``, ``.NOT()`` …); these
+        cases become dedicated predicates rather than a plain
+        :class:`BinaryOperationExpression`.
+        """
+        negated = rel_ctx.NOT() is not None
+
+        if rel_ctx.LIKE() is not None:
+            pred: Any = IsLikePredicate(op="like", args=[left, right])
+            return NotExpression(args=[pred]) if negated else pred
+
+        if rel_ctx.IN() is not None:
+            if isinstance(right, ArrayExpression):
+                items: List[Expression] = list(right.elements)
+            elif isinstance(right, list):
+                items = right
+            else:
+                items = [right]
+            pred = IsInListPredicate(args=[left, items])
+            return NotExpression(args=[pred]) if negated else pred
+
+        if rel_ctx.IS() is not None:
+            is_not = negated
+            # The grammar attaches a bare `not` as a unary operator, so
+            # `x is not null` parses as `x IS (not null)`.
+            if isinstance(right, UnaryOperationExpression) and str(
+                right.operator
+            ).lower().endswith("not"):
+                is_not = True
+                right = right.operand
+            rhs_null = (
+                isinstance(right, IdentifierExpression) and right.name.lower() == "null"
+            )
+            if rhs_null:
+                pred = IsNullPredicate(args=[left])
+                return NotExpression(args=[pred]) if is_not else pred
+            op = BinaryOperator.IS_NOT if is_not else BinaryOperator.IS
+            return BinaryOperationExpression(left=left, operator=op, right=right)
+
+        for token_name, operator in ExpressionParser._REL_COMPARISON.items():
+            if getattr(rel_ctx, token_name)() is not None:
+                return BinaryOperationExpression(
+                    left=left, operator=operator, right=right
+                )
+        return BinaryOperationExpression(
+            left=left, operator=BinaryOperator.EQUAL, right=right
+        )
+
+    @staticmethod
+    def _dispatch_call_ctx(call_ctx) -> Any:
+        """``ExpCallContext`` (``IDENTIFIER '(' arguments ')'``) -> model.
+
+        Known CQL2 functions (spatial / temporal / array predicates, WKT and
+        temporal literals, character/geometry functions) are handed to the
+        text-based :meth:`_try_parse_cql2_function` on the call's source
+        slice — its per-name model construction is already covered by
+        ``test_cql2_*``. Everything else becomes a structural
+        :class:`FunctionCallExpression` built from the argument sub-trees.
+        """
+        func_lower = call_ctx.IDENTIFIER().getText().lower()
+
+        if func_lower in _KNOWN_CQL2_CALLS:
+            model = ExpressionParser._try_parse_cql2_function(
+                ExpressionParser._ctx_source_text(call_ctx)
+            )
+            if model is not None:
+                return model
+
+        func_name = call_ctx.IDENTIFIER().getText()
+        arg_ctxs = ExpressionParser._flatten_left_recursive(
+            call_ctx.arguments(), "arguments", "expression"
+        )
+        return FunctionCallExpression(
+            function_name=func_name,
+            arguments=[ExpressionParser.parse_expression_ctx(a) for a in arg_ctxs],
+        )
 
     @staticmethod
     def parse_expression(ctx) -> Expression:
@@ -429,25 +721,6 @@ class ExpressionParser:
         return IdentifierExpression(name=text)
 
     @staticmethod
-    def _parse_member_access(ctx) -> MemberAccessExpression:
-        """Parse member access like 'object.member'."""
-        # This is complex - we need to handle chains like a.b.c.d
-        parts = ctx.getText().split(".")
-        if len(parts) == 2:
-            obj_name, member = parts
-            return MemberAccessExpression(
-                object=IdentifierExpression(name=obj_name), member=member
-            )
-        elif len(parts) > 2:
-            # Chain of member accesses: a.b.c becomes (a.b).c
-            base = IdentifierExpression(name=parts[0])
-            for i in range(1, len(parts) - 1):
-                base = MemberAccessExpression(object=base, member=parts[i])
-            return MemberAccessExpression(object=base, member=parts[-1])
-        else:
-            return IdentifierExpression(name=parts[0])
-
-    @staticmethod
     def _parse_constant(ctx) -> ConstantExpression:
         """Parse constant value."""
         text = ctx.getText()
@@ -480,148 +753,6 @@ class ExpressionParser:
         elif text.startswith("'") and text.endswith("'"):
             text = text[1:-1]
         return StringExpression(value=text)
-
-    @staticmethod
-    def _parse_function_call(ctx) -> FunctionCallExpression:
-        """Parse function call like Text(...)."""
-        function_name = ""
-        arguments = []
-
-        if hasattr(ctx, "IDENTIFIER") and ctx.IDENTIFIER():
-            function_name = ctx.IDENTIFIER().getText()
-
-        if hasattr(ctx, "arguments") and ctx.arguments():
-            # Parse arguments
-            args_ctx = ctx.arguments()
-            if hasattr(args_ctx, "expression"):
-                if isinstance(args_ctx.expression(), list):
-                    for expr_ctx in args_ctx.expression():
-                        arguments.append(ExpressionParser.parse_expression(expr_ctx))
-                else:
-                    arguments.append(
-                        ExpressionParser.parse_expression(args_ctx.expression())
-                    )
-
-        return FunctionCallExpression(function_name=function_name, arguments=arguments)
-
-    @staticmethod
-    def _parse_instance(ctx) -> InstanceExpression:
-        """Parse instance creation like {color: red; opacity: 0.5}."""
-        class_name = None
-        properties = []
-
-        # Check if it has a class name (like Text {...} vs just {...})
-        if hasattr(ctx, "IDENTIFIER") and ctx.IDENTIFIER():
-            class_name = ctx.IDENTIFIER().getText()
-
-        # Parse property assignments
-        if (
-            hasattr(ctx, "propertyAssignmentInferredList")
-            and ctx.propertyAssignmentInferredList()
-        ):
-            prop_list = ctx.propertyAssignmentInferredList()
-            properties = ExpressionParser._parse_property_assignments(prop_list)
-
-        return InstanceExpression(class_name=class_name, properties=properties)
-
-    @staticmethod
-    def _parse_array(ctx) -> ArrayExpression:
-        """Parse array literal like [a, b, c]."""
-        elements = []
-
-        if hasattr(ctx, "arrayElements") and ctx.arrayElements():
-            elements_ctx = ctx.arrayElements()
-            if hasattr(elements_ctx, "expression"):
-                if isinstance(elements_ctx.expression(), list):
-                    for expr_ctx in elements_ctx.expression():
-                        elements.append(ExpressionParser.parse_expression(expr_ctx))
-                else:
-                    elements.append(
-                        ExpressionParser.parse_expression(elements_ctx.expression())
-                    )
-
-        return ArrayExpression(elements=elements)
-
-    @staticmethod
-    def _parse_binary_operation(ctx) -> BinaryOperationExpression:
-        """Parse binary operation like 'a + b' or 'x = y'."""
-        # Get expressions
-        expressions = []
-        if hasattr(ctx, "expression") and ctx.expression():
-            if isinstance(ctx.expression(), list):
-                expressions = [
-                    ExpressionParser.parse_expression(e) for e in ctx.expression()
-                ]
-            else:
-                expressions = [ExpressionParser.parse_expression(ctx.expression())]
-
-        if len(expressions) < 2:
-            # Not enough expressions for binary operation
-            return (
-                expressions[0] if expressions else ConstantExpression(value="<error>")
-            )
-
-        # Determine operator
-        operator = BinaryOperator.EQUAL  # Default
-
-        if hasattr(ctx, "relationalOperator") and ctx.relationalOperator():
-            op_text = ctx.relationalOperator().getText()
-            operator = ExpressionParser._map_relational_operator(op_text)
-        elif hasattr(ctx, "binaryLogicalOperator") and ctx.binaryLogicalOperator():
-            op_text = ctx.binaryLogicalOperator().getText()
-            operator = (
-                BinaryOperator.AND if op_text.lower() == "and" else BinaryOperator.OR
-            )
-        elif hasattr(ctx, "arithmeticOperatorAdd") and ctx.arithmeticOperatorAdd():
-            op_text = ctx.arithmeticOperatorAdd().getText()
-            operator = BinaryOperator.ADD if op_text == "+" else BinaryOperator.SUBTRACT
-        # Add more operator mappings as needed
-
-        return BinaryOperationExpression(
-            left=expressions[0], operator=operator, right=expressions[1]
-        )
-
-    @staticmethod
-    def _parse_unary_operation(ctx) -> UnaryOperationExpression:
-        """Parse unary operation like 'not x'."""
-        operand = None
-        operator = UnaryOperator.NOT  # Default
-
-        if hasattr(ctx, "expression") and ctx.expression():
-            operand = ExpressionParser.parse_expression(ctx.expression())
-
-        if hasattr(ctx, "unaryLogicalOperator") and ctx.unaryLogicalOperator():
-            op_text = ctx.unaryLogicalOperator().getText().lower()
-            operator = UnaryOperator.NOT
-
-        return UnaryOperationExpression(operator=operator, operand=operand)
-
-    @staticmethod
-    def _parse_conditional(ctx) -> ConditionalExpression:
-        """Parse ternary conditional like 'condition ? true_value : false_value'."""
-        expressions = []
-        if hasattr(ctx, "expression") and ctx.expression():
-            if isinstance(ctx.expression(), list):
-                expressions = [
-                    ExpressionParser.parse_expression(e) for e in ctx.expression()
-                ]
-
-        if len(expressions) >= 3:
-            return ConditionalExpression(
-                condition=expressions[0],
-                true_value=expressions[1],
-                false_value=expressions[2],
-            )
-
-        return ConstantExpression(value="<conditional_error>")
-
-    @staticmethod
-    def _parse_property_assignments(ctx) -> List[PropertyAssignment]:
-        """Parse property assignments within an instance."""
-        assignments = []
-        # This is a simplified version - would need more complex parsing
-        # for the real implementation
-        return assignments
 
     @staticmethod
     def _map_relational_operator(op_text: str) -> BinaryOperator:
@@ -842,21 +973,9 @@ class ExpressionParser:
         if func_lower in _SPATIAL_PREDICATES:
             args = ExpressionParser._split_args(args_str)
             parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
-            # Canonicalise camelCase-sensitive op names
-            _spatial_canonical = {
-                "s_intersects": "s_intersects",
-                "s_contains": "s_contains",
-                "s_within": "s_within",
-                "s_touches": "s_touches",
-                "s_crosses": "s_crosses",
-                "s_disjoint": "s_disjoint",
-                "s_overlaps": "s_overlaps",
-                "s_equals": "s_equals",
-                "s_covers": "s_covers",
-                "s_coveredby": "s_coveredBy",
-            }
-            canonical_op = _spatial_canonical.get(func_lower, func_lower)
-            return SpatialPredicate(op=canonical_op, args=parsed_args)
+            return SpatialPredicate(
+                op=_v.SPATIAL_CANON.get(func_lower, func_lower), args=parsed_args
+            )
 
         # ── S_RELATE(a, b, pattern) ──
         if func_lower == _SPATIAL_RELATE:
@@ -917,15 +1036,8 @@ class ExpressionParser:
         if func_lower in _TEXT_OP_PREDICATES:
             args = ExpressionParser._split_args(args_str)
             parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
-            # Map case-insensitive input to schema-canonical op name
-            _text_op_canonical = {
-                "contains": "contains",
-                "startswith": "startsWith",
-                "endswith": "endsWith",
-            }
             return TextOpPredicate(
-                op=_text_op_canonical[func_lower],
-                args=parsed_args,
+                op=_v.TEXT_OP_CANON.get(func_lower, func_lower), args=parsed_args
             )
 
         # ── Character expression functions ──
@@ -941,10 +1053,8 @@ class ExpressionParser:
         if func_lower in ("lowercase", "uppercase"):
             args = ExpressionParser._split_args(args_str)
             parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
-            _case_canonical = {"lowercase": "lowerCase", "uppercase": "upperCase"}
             return LowerUpperCaseExpression(
-                op=_case_canonical[func_lower],
-                args=parsed_args,
+                op=_v.LOWER_UPPER_CANON.get(func_lower, func_lower), args=parsed_args
             )
 
         # CONCATENATE(a, b, ...)
@@ -967,7 +1077,7 @@ class ExpressionParser:
 
         # ── Geometry manipulation functions ──
         # S_BUFFER(geom, distance)
-        if func_lower == _GEOM_BUFFER:
+        if func_lower in _GEOM_BUFFER:
             args = ExpressionParser._split_args(args_str)
             parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
             return GeometryBuffer(op="s_buffer", args=parsed_args)
@@ -976,29 +1086,16 @@ class ExpressionParser:
         if func_lower in _GEOM_MANIPULATION_UNARY:
             args = ExpressionParser._split_args(args_str)
             parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
-            # Canonicalise: s_convexhull → s_convexHull, s_envelope → s_envelope
-            _unary_canonical = {
-                "s_convexhull": "s_convexHull",
-                "s_envelope": "s_envelope",
-            }
             return GeometryManipulationUnary(
-                op=_unary_canonical[func_lower],
-                args=parsed_args,
+                op=_v.GEOM_UNARY_CANON.get(func_lower, func_lower), args=parsed_args
             )
 
         # S_INTERSECTION(a, b), S_UNION(a, b), S_DIFFERENCE(a, b), S_SYMDIFFERENCE(a, b)
         if func_lower in _GEOM_MANIPULATION_BINARY:
             args = ExpressionParser._split_args(args_str)
             parsed_args = [ExpressionParser._parse_single_expression(a) for a in args]
-            _binary_canonical = {
-                "s_intersection": "s_intersection",
-                "s_union": "s_union",
-                "s_difference": "s_difference",
-                "s_symdifference": "s_symDifference",
-            }
             return GeometryManipulationBinary(
-                op=_binary_canonical[func_lower],
-                args=parsed_args,
+                op=_v.GEOM_BINARY_CANON.get(func_lower, func_lower), args=parsed_args
             )
 
         return None
