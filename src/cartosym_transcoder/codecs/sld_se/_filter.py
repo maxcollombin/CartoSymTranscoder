@@ -28,6 +28,11 @@ _COMPARISON_OPS = {
 }
 _COMPARISON_TAGS = {v: k for k, v in _COMPARISON_OPS.items()}
 
+# CQL2 named spatial-relation predicate -> Filter 1.1.0 spatial operator
+# element (all ogc:BinarySpatialOpType, substitutionGroup ogc:spatialOps).
+# Annex B (3-geometry) maps these to <ogc:Function>, which is wrong — see
+# docs/sld_se_mapping_issues.md issues #41/#42. s_covers/s_coveredBy have
+# no Filter 1.1.0 element (FES 2.0 only) and stay unmapped.
 _SPATIAL_OPS = {
     "s_intersects": "Intersects",
     "s_within": "Within",
@@ -36,6 +41,7 @@ _SPATIAL_OPS = {
     "s_touches": "Touches",
     "s_overlaps": "Overlaps",
     "s_crosses": "Crosses",
+    "s_equals": "Equals",
 }
 _SPATIAL_TAGS = {v: k for k, v in _SPATIAL_OPS.items()}
 
