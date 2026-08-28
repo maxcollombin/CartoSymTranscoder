@@ -714,6 +714,20 @@ class AstToPydanticConverter:
             rule_name = CartoSymCSSGrammar.ruleNames[expression.getRuleIndex()]
             return self._convert_antlr_expression(expression, rule_name)
 
+        # Handle UnaryOperationExpression (`not <expr>`) — check before the
+        # binary branch (unary has `operator` + `operand`, no left/right).
+        if (
+            hasattr(expression, "operand")
+            and hasattr(expression, "operator")
+            and not hasattr(expression, "left")
+        ):
+            op_str = str(expression.operator).lower()
+            op = "not" if "not" in op_str else op_str.rsplit(".", 1)[-1]
+            return {
+                "op": op,
+                "args": [self._convert_expression_to_json_selector(expression.operand)],
+            }
+
         # Handle BinaryOperationExpression (AST objects)
         if (
             hasattr(expression, "left")

@@ -1,8 +1,21 @@
 """
-Enhanced AST to Pydantic converter with Phase A expression support.
+Text-based expression parser: CartoSym-CSS expression source (or a
+CQL2-ish string) -> Pydantic ``Expression`` models.
 
-Extended with CQL2 parsing for spatial, temporal, array predicates,
-BETWEEN / IN / LIKE / IS NULL operators, and WKT / temporal literals.
+Covers CQL2 spatial / temporal / array predicates, BETWEEN / IN / LIKE /
+IS NULL, WKT and temporal literals, arithmetic, member access, function
+calls, conditionals, and logical / relational operators.
+
+Operator splitting is done by scanning the source text. The scanners go
+through :meth:`ExpressionParser._iter_top_level` /
+:meth:`_find_top_level`, which skip anything inside ``()``/``[]``/``{}``
+nesting **or** inside a single/double-quoted string literal — so
+``name = 'a and b'`` is not split on the quoted ``and``, and
+``a = 1 and (b = 2 or c = 3)`` nests correctly.
+
+Known limitation: this still re-parses text rather than walking the ANTLR
+``ExpressionContext`` parse tree the grammar already built. Replacing the
+text scan with tree traversal is tracked in ``ROADMAP.md`` §4.2.
 """
 
 import re
@@ -127,21 +140,30 @@ class ExpressionParser:
         if not original_text:
             original_text = ctx.getText() if hasattr(ctx, "getText") else str(ctx)
 
-        # Check for logical operations with proper spacing (case-insensitive)
-        text_lower = original_text.lower()
-        if " and " in text_lower or " or " in text_lower:
+        # Strip a single pair of parentheses that wraps the *entire*
+        # expression, e.g. `(a = 1 and b = 2)` — otherwise the
+        # function-call branch below would mis-read it as a call.
+        original_text = ExpressionParser._unwrap_parens(original_text.strip())
+
+        # Check for top-level (depth 0, unquoted) logical operations.
+        has_top_or = ExpressionParser._find_top_level(original_text, " or ") != -1
+        has_top_and = ExpressionParser._find_top_level(original_text, " and ") != -1
+        if has_top_or or has_top_and:
             # But not if ' and ' only appears inside a BETWEEN expression
             if not ExpressionParser._only_between_and(original_text):
                 return ExpressionParser._parse_logical_expression(original_text)
+        # Leading unary NOT (no top-level and/or to split on first)
+        if original_text.strip()[:4].lower() == "not ":
+            return ExpressionParser._parse_logical_expression(original_text)
 
         # --- CQL2 postfix operators (before relational so they take priority) ---
         cql2 = ExpressionParser._try_parse_cql2_operator(original_text)
         if cql2 is not None:
             return cql2
 
-        # Check for relational operations with proper spacing
+        # Check for relational operations (top-level, unquoted)
         for op in [">=", "<=", "!=", "=", ">", "<"]:
-            if f" {op} " in original_text:
+            if ExpressionParser._find_top_level(original_text, f" {op} ") != -1:
                 return ExpressionParser._parse_relational_expression(original_text, op)
 
         # Handle member access (contains dots)
@@ -194,7 +216,7 @@ class ExpressionParser:
         return IdentifierExpression(name=original_text)
 
     @staticmethod
-    def _parse_logical_expression(text: str) -> BinaryOperationExpression:
+    def _parse_logical_expression(text: str) -> Expression:
         """Parse logical expressions like 'a and b' or 'x or y'.
 
         Splits at the *last* top-level occurrence of the operator, not the
@@ -203,43 +225,29 @@ class ExpressionParser:
         (vendor/cartosymcss-grammar/CartoSymCSSGrammar.g4). Splitting at the
         first occurrence would instead build a right-associative tree.
         """
-        text_lower = text.lower()
-        # Find the last top-level ' or ' (lowest precedence, so tried first)
-        depth = 0
-        last_or = -1
-        for i in range(len(text)):
-            if text[i] in ("(", "{"):
-                depth += 1
-            elif text[i] in (")", "}"):
-                depth -= 1
-            elif depth == 0 and text_lower[i : i + 4] == " or ":
-                last_or = i
-        if last_or != -1:
-            left = text[:last_or].strip()
-            right = text[last_or + 4 :].strip()
-            return BinaryOperationExpression(
-                left=ExpressionParser.parse_expression(left),
-                operator=BinaryOperator.OR,
-                right=ExpressionParser.parse_expression(right),
+        # Split at the *last* top-level (depth 0, unquoted) ' or ', then
+        # ' and ' — left-associative, matching the ANTLR grammar's own
+        # left-recursive `expression` rule.
+        for needle, op in ((" or ", BinaryOperator.OR), (" and ", BinaryOperator.AND)):
+            pos = ExpressionParser._find_top_level(text, needle, last=True)
+            if pos != -1:
+                return BinaryOperationExpression(
+                    left=ExpressionParser.parse_expression(text[:pos].strip()),
+                    operator=op,
+                    right=ExpressionParser.parse_expression(
+                        text[pos + len(needle) :].strip()
+                    ),
+                )
+
+        # Leading unary NOT: `not <expr>` / `not (<expr>)`
+        stripped = text.strip()
+        inner = stripped[4:].strip() if stripped[:4].lower() == "not " else ""
+        if inner:
+            return UnaryOperationExpression(
+                operator=UnaryOperator.NOT,
+                operand=ExpressionParser.parse_expression(inner),
             )
-        # Find the last top-level ' and '
-        depth = 0
-        last_and = -1
-        for i in range(len(text)):
-            if text[i] in ("(", "{"):
-                depth += 1
-            elif text[i] in (")", "}"):
-                depth -= 1
-            elif depth == 0 and text_lower[i : i + 5] == " and ":
-                last_and = i
-        if last_and != -1:
-            left = text[:last_and].strip()
-            right = text[last_and + 5 :].strip()
-            return BinaryOperationExpression(
-                left=ExpressionParser.parse_expression(left),
-                operator=BinaryOperator.AND,
-                right=ExpressionParser.parse_expression(right),
-            )
+
         # No logical op at top level, parse as relational or single
         return ExpressionParser._parse_single_expression(text)
 
@@ -248,49 +256,18 @@ class ExpressionParser:
         text: str, operator_str: str
     ) -> BinaryOperationExpression:
         """Parse relational expressions like 'a = b' or 'x < 5'."""
-        # Always check for logical operators at the same level first
-        text_lower = text.lower()
-        depth = 0
-        for i in range(len(text) - 4, -1, -1):  # -4 for ' or '
-            if text[i] == ")":
-                depth += 1
-            elif text[i] == "(":
-                depth -= 1
-            elif text[i] == "}":
-                depth += 1
-            elif text[i] == "{":
-                depth -= 1
-            elif depth == 0 and text_lower[i : i + 4] == " or ":
-                left = text[:i].strip()
-                right = text[i + 4 :].strip()
-                return ExpressionParser._parse_logical_expression(text)
-        depth = 0
-        for i in range(len(text) - 5, -1, -1):  # -5 for ' and '
-            if text[i] == ")":
-                depth += 1
-            elif text[i] == "(":
-                depth -= 1
-            elif text[i] == "}":
-                depth += 1
-            elif text[i] == "{":
-                depth -= 1
-            elif depth == 0 and text_lower[i : i + 5] == " and ":
-                left = text[:i].strip()
-                right = text[i + 5 :].strip()
-                return ExpressionParser._parse_logical_expression(text)
+        # A top-level (depth 0, unquoted) logical operator outranks the
+        # relational one — hand back to the logical parser. The guard is
+        # quote-aware so `name = 'a or b'` is *not* treated as an OR.
+        if (
+            ExpressionParser._find_top_level(text, " or ") != -1
+            or ExpressionParser._find_top_level(text, " and ") != -1
+        ):
+            return ExpressionParser._parse_logical_expression(text)
 
         # No logical op at this level, parse as relational
-        op_pos = -1
-        depth = 0
         op_pattern = f" {operator_str} "
-        for i in range(len(text) - len(op_pattern) + 1):
-            if text[i] in ("(", "{"):
-                depth += 1
-            elif text[i] in (")", "}"):
-                depth -= 1
-            elif depth == 0 and text[i : i + len(op_pattern)] == op_pattern:
-                op_pos = i
-                break
+        op_pos = ExpressionParser._find_top_level(text, op_pattern, last=False)
         if op_pos != -1:
             left_part = text[:op_pos].strip()
             right_part = text[op_pos + len(op_pattern) :].strip()
@@ -691,11 +668,10 @@ class ExpressionParser:
         if cql2 is not None:
             return cql2
 
-        # Check for relational operations
+        # Check for relational operations (top-level, unquoted)
         for op in [">=", "<=", "!=", "=", ">", "<"]:
-            if f" {op} " in text:
-                result = ExpressionParser._parse_relational_expression(text, op)
-                return result
+            if ExpressionParser._find_top_level(text, f" {op} ") != -1:
+                return ExpressionParser._parse_relational_expression(text, op)
 
         # Handle string literals
         if (text.startswith('"') and text.endswith('"')) or (
@@ -1140,6 +1116,72 @@ class ExpressionParser:
             elif depth > 0:
                 current.append(ch)
         return groups
+
+    @staticmethod
+    def _unwrap_parens(text: str) -> str:
+        """Strip one pair of parens iff it wraps the whole expression.
+
+        ``(a and b)`` -> ``a and b`` ; ``f(x) = g(y)`` -> unchanged ;
+        ``(a) or (b)`` -> unchanged.
+        """
+        while len(text) >= 2 and text[0] == "(" and text[-1] == ")":
+            depth = 0
+            wraps = True
+            for i, ch in enumerate(text):
+                if ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    if depth == 0 and i != len(text) - 1:
+                        wraps = False
+                        break
+            if not wraps:
+                return text
+            text = text[1:-1].strip()
+        return text
+
+    @staticmethod
+    def _iter_top_level(text: str):
+        """Yield ``(index, char)`` for every character of *text* that sits at
+        bracket depth 0 and outside any single/double-quoted string literal.
+
+        The hand-rolled scanners in this module historically tracked only
+        ``()``/``{}`` nesting, so ``name = 'a and b'`` was mis-split on the
+        ``and`` *inside the string literal*. Routing them through this
+        helper makes them quote-aware.
+        """
+        depth = 0
+        in_single = in_double = False
+        for i, ch in enumerate(text):
+            if ch == "'" and not in_double:
+                in_single = not in_single
+                continue
+            if ch == '"' and not in_single:
+                in_double = not in_double
+                continue
+            if in_single or in_double:
+                continue
+            if ch in "([{":
+                depth += 1
+            elif ch in ")]}":
+                depth -= 1
+            elif depth == 0:
+                yield i, ch
+
+    @staticmethod
+    def _find_top_level(text: str, needle: str, *, last: bool = True) -> int:
+        """Index of *needle* in *text* at bracket depth 0 and outside quotes,
+        or -1. Case-insensitive. ``last=True`` returns the rightmost match
+        (for left-associative operator splitting)."""
+        nl = needle.lower()
+        n = len(needle)
+        found = -1
+        for i, _ in ExpressionParser._iter_top_level(text):
+            if text[i : i + n].lower() == nl:
+                if not last:
+                    return i
+                found = i
+        return found
 
     @staticmethod
     def _split_args(text: str) -> list:
