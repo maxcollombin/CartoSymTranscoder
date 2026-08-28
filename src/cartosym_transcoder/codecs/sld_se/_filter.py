@@ -218,13 +218,15 @@ def extract_scale_denominators(
     the caller to emit as those two elements; whatever is left stays for
     the ``ogc:Filter``.
 
-    Returns ``(min_sd, max_sd, remaining_selector)``.
+    Returns ``(min_sd, max_sd, remaining_selector)``. When a cascade merge
+    leaves several bounds on the same side (``viz.sd < 200000`` from an
+    ancestor and ``viz.sd < 10000`` from the node), the tightest wins.
 
     Raises
     ------
     NotImplementedError
-        If ``viz.sd`` bounds the same side twice, or is compared with an
-        operator that is not a range bound.
+        If ``viz.sd`` is compared with an operator that is not a range
+        bound (``=``/``!=``).
     """
     if selector is None:
         return None, None, None
@@ -238,19 +240,11 @@ def extract_scale_denominators(
             continue
         kind, value = bound
         if kind == "min":
-            if min_sd is not None:
-                raise NotImplementedError(
-                    "multiple viz.sd lower bounds cannot map to a single "
-                    "se:MinScaleDenominator (mapping-issues issue #39)"
-                )
-            min_sd = value
+            if min_sd is None or value > min_sd:
+                min_sd = value
         else:
-            if max_sd is not None:
-                raise NotImplementedError(
-                    "multiple viz.sd upper bounds cannot map to a single "
-                    "se:MaxScaleDenominator (mapping-issues issue #39)"
-                )
-            max_sd = value
+            if max_sd is None or value < max_sd:
+                max_sd = value
     return min_sd, max_sd, _reassemble_and(remaining)
 
 

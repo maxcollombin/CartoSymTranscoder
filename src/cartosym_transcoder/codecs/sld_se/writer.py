@@ -18,6 +18,7 @@ from lxml import etree
 
 from ...models.styles import Style, StylingRule
 from ..base import CodecWriter
+from ._cascade import flatten_cascade_rules
 from ._filter import (
     extract_feature_type_name,
     extract_scale_denominators,
@@ -86,7 +87,21 @@ class SldSeWriter(CodecWriter):
                 "mapping-issues issue #9)"
             )
 
-        groups = self._group_rules_by_feature_type(style.styling_rules)
+        # Resolve CartoSym nested-rule cascades (selector AND-ing +
+        # symbolizer partial-override merge) into a flat list of
+        # independent rules before grouping — SE 1.1.0 has no cascade
+        # (mapping-issues issue #19). Selector-less nestedRules stay
+        # nested and keep their OGC "else" meaning.
+        if any(r.nested_rules for r in style.styling_rules):
+            flat_rules = [
+                StylingRule.from_dict(d)
+                for d in flatten_cascade_rules(
+                    [r.to_dict() for r in style.styling_rules]
+                )
+            ]
+        else:
+            flat_rules = list(style.styling_rules)
+        groups = self._group_rules_by_feature_type(flat_rules)
         emitted = 0
         for feature_type_name, rules in groups.items():
             fts = self._build_feature_type_style(feature_type_name, rules)
@@ -173,14 +188,15 @@ class SldSeWriter(CodecWriter):
         return any(self._rule_has_raster(n) for n in rule.nested_rules or [])
 
     def _flatten_nested_rules(self, rule: StylingRule) -> List[etree._Element]:
-        """Flatten ``StylingRule.nested_rules`` into sibling ``se:Rule``
-        elements carrying ``se:ElseFilter`` (mapping-issues issue #1).
+        """Emit the remaining (selector-less) ``nested_rules`` as sibling
+        ``se:Rule`` elements carrying ``se:ElseFilter`` (mapping-issues
+        issue #1 for the namespace, #19 for the semantics).
 
-        This treats CartoSym's ``nestedRules`` uniformly as OGC's
-        else-rule sibling semantics — it does not implement CartoSym's
-        cascading filter-AND / property-inheritance semantics for nested
-        rules, which is a separate, larger piece of scope left for a
-        follow-up pass (see mapping-issues issue #1's implementation note).
+        By the time this runs, ``flatten_cascade_rules`` has already
+        pulled every *selector-bearing* nested rule out into an
+        independent top-level rule; what is left here is genuine OGC
+        else-rule fallback (no selector), symbolizer already merged onto
+        its ancestors'.
         """
         out = []
         for nested in rule.nested_rules or []:
