@@ -111,11 +111,15 @@ class TestSelectorParsing:
         assert sel["op"] == "="
         assert sel["args"][1] == "Rivers"
 
-    def test_inequality_selector(self):
-        cscss = "[population != 0]\n{ visibility: true; }"
-        result = self.converter.cscss_to_csjson(cscss)
-        sel = result["stylingRules"][0]["selector"]
-        assert sel["op"] == "!="
+    def test_not_equal_operator_is_not_valid_cscss(self):
+        """CartoSym-CSS has no `!=` / `<>` operator — its grammar's
+        `relationalOperator` is EQ | LT | LTEQ | GT | GTEQ | IN | NOT IN |
+        IS | IS NOT | LIKE | NOT LIKE. `!=` must be a hard syntax error,
+        not silently swallowed."""
+        from cartosym_transcoder.exceptions import CartoSymSyntaxError
+
+        with pytest.raises(CartoSymSyntaxError):
+            self.converter.cscss_to_csjson("[population != 0]\n{ visibility: true; }")
 
     def test_less_than_selector(self):
         cscss = "[viz.sd < 50000]\n{ visibility: true; }"

@@ -75,12 +75,8 @@ class TestEmptyAndDegenerateInput:
         assert isinstance(cscss, str)
         assert converter.cscss_to_csjson(cscss) == {"stylingRules": []}
 
-    @pytest.mark.xfail(
-        reason="ANTLR syntax errors are printed to stderr but not raised — "
-        "the parser returns a partial tree instead (ROADMAP §4.2). Remove "
-        "this xfail when parse_string raises on getNumberOfSyntaxErrors() > 0.",
-        strict=True,
-    )
     def test_malformed_cscss_raises(self, converter):
-        with pytest.raises(Exception):
+        from cartosym_transcoder.exceptions import CartoSymSyntaxError
+
+        with pytest.raises(CartoSymSyntaxError):
             converter.cscss_to_csjson("this is definitely not cscss !!!")

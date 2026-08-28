@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Optional, Set, Union
 
 from antlr4 import *
+from antlr4.error.ErrorListener import ErrorListener
 
+from cartosym_transcoder.exceptions import CartoSymSyntaxError
 from cartosym_transcoder.models.symbolizers import Fill as ModelFill
 from cartosym_transcoder.models.symbolizers import Label as ModelLabel
 from cartosym_transcoder.models.symbolizers import Marker as ModelMarker
@@ -33,6 +35,19 @@ from .grammar.generated import (
 )
 from .models import Style
 from .models.expressions import *
+
+
+class _CollectingErrorListener(ErrorListener):
+    """ANTLR error listener that accumulates syntax errors instead of
+    printing them to stderr, so :meth:`CartoSymParser.parse_string` can
+    raise a single :class:`CartoSymSyntaxError`."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.errors: list[str] = []
+
+    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+        self.errors.append(f"line {line}:{column} {msg}")
 
 
 def _strip_inline_comment(s: str) -> str:
@@ -185,17 +200,29 @@ class CartoSymParser:
         return convert_ast_to_pydantic(ast_stylesheet)
 
     def parse_string(self, content: str) -> StyleSheet:
-        """Parse a CartoSym CSS string and return an AST."""
-        # Create input stream
+        """Parse a CartoSym CSS string and return an AST.
+
+        Raises:
+            CartoSymSyntaxError: if the lexer or parser reports any syntax
+                error (rather than returning a partially-built tree).
+        """
+        error_listener = _CollectingErrorListener()
+
         input_stream = InputStream(content)
-        # Create lexer
         lexer = CartoSymCSSLexer(input_stream)
-        # Create token stream
+        lexer.removeErrorListeners()
+        lexer.addErrorListener(error_listener)
+
         stream = CommonTokenStream(lexer)
-        # Create parser
         parser = CartoSymCSSGrammar(stream)
-        # Parse the input
+        parser.removeErrorListeners()
+        parser.addErrorListener(error_listener)
+
         tree = parser.styleSheet()
+
+        if error_listener.errors:
+            raise CartoSymSyntaxError(error_listener.errors)
+
         # Create listener and walk the tree
         listener = CartoSymStyleSheetListener()
         walker = ParseTreeWalker()

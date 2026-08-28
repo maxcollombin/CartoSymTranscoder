@@ -12,11 +12,14 @@ __email__ = "maxime.collombin@example.com"
 # Codec registry (lazy — sub-codecs register on first import of .codecs)
 from .codecs import detect_codec, get_codec, list_codecs  # noqa: F401
 from .converter import Converter
+from .exceptions import CartoSymError, CartoSymSyntaxError
 from .parser import CartoSymParser
 
 __all__ = [
     "CartoSymParser",
     "Converter",
+    "CartoSymError",
+    "CartoSymSyntaxError",
     "get_codec",
     "detect_codec",
     "list_codecs",
