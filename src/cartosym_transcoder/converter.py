@@ -55,9 +55,10 @@ class Converter:
                 style = self.parser.parse_file_to_pydantic(resolved)
             elif (
                 isinstance(cscss_input, str)
+                and cscss_input.strip()
                 and len(cscss_input) < 500
                 and "\n" not in cscss_input
-                and Path(cscss_input).exists()
+                and Path(cscss_input).is_file()
             ):
                 resolved = self._resolve_path(cscss_input)
                 style = self.parser.parse_file_to_pydantic(resolved)
@@ -118,7 +119,7 @@ class Converter:
         if isinstance(csjson_input, Style):
             return csjson_input
         elif isinstance(csjson_input, Path) or (
-            isinstance(csjson_input, str) and Path(csjson_input).exists()
+            isinstance(csjson_input, str) and Path(csjson_input).is_file()
         ):
             file_path = self._resolve_path(csjson_input)
             with open(file_path, "r", encoding="utf-8") as f:
