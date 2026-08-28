@@ -285,14 +285,16 @@ class ExpressionParser:
 
     @staticmethod
     def _parse_id_or_constant_ctx(ctx) -> Any:
-        """``IdOrConstantContext`` -> identifier / number / boolean."""
+        """``IdOrConstantContext`` -> identifier / number / boolean / null."""
         if ctx.expConstant() is not None:
             return ExpressionParser._parse_constant(ctx.expConstant())
-        text = ctx.getText()
-        low = text.lower()
-        if low in ("true", "false"):
-            return ConstantExpression(value=low == "true")
-        return IdentifierExpression(name=text)
+        if ctx.TRUE() is not None:
+            return ConstantExpression(value=True)
+        if ctx.FALSE() is not None:
+            return ConstantExpression(value=False)
+        if ctx.NULL() is not None:
+            return NullLiteral()
+        return IdentifierExpression(name=ctx.getText())
 
     @staticmethod
     def _flatten_left_recursive(ctx, self_accessor: str, item_accessor: str) -> list:
@@ -362,10 +364,7 @@ class ExpressionParser:
             ).lower().endswith("not"):
                 is_not = True
                 right = right.operand
-            rhs_null = (
-                isinstance(right, IdentifierExpression) and right.name.lower() == "null"
-            )
-            if rhs_null:
+            if isinstance(right, NullLiteral):
                 pred = IsNullPredicate(args=[left])
                 return NotExpression(args=[pred]) if is_not else pred
             op = BinaryOperator.IS_NOT if is_not else BinaryOperator.IS

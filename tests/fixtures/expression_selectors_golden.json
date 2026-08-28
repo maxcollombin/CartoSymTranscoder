@@ -212,6 +212,15 @@
     ],
     "op": "="
   },
+  "expr:active = true": {
+    "args": [
+      {
+        "property": "active"
+      },
+      true
+    ],
+    "op": "="
+  },
   "expr:area = width * height + margin": {
     "args": [
       {
@@ -289,6 +298,15 @@
       }
     ],
     "op": "isNull"
+  },
+  "expr:flag = false": {
+    "args": [
+      {
+        "property": "flag"
+      },
+      false
+    ],
+    "op": "="
   },
   "expr:kind in ('a', 'b', 'c')": {
     "args": [
@@ -427,6 +445,15 @@
         ],
         "op": "*"
       }
+    ],
+    "op": "="
+  },
+  "expr:ref = null": {
+    "args": [
+      {
+        "property": "ref"
+      },
+      null
     ],
     "op": "="
   },

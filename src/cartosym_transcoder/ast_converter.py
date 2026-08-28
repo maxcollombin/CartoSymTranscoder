@@ -717,6 +717,15 @@ class AstToPydanticConverter:
         Convert ANTLR expression to CS.JSON selector format.
         Enhanced version based on AST analysis from debug_antlr.py output.
         """
+        if expression is None:
+            return {}
+
+        # NULL literal -> JSON null (checked before the falsy guard below).
+        from .models.expressions import NullLiteral
+
+        if isinstance(expression, NullLiteral):
+            return None
+
         if not expression:
             return {}
 

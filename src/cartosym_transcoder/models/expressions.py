@@ -31,6 +31,7 @@ class ExpressionType(str, Enum):
     CONDITIONAL = "conditional"
     ARRAY = "array"
     INSTANCE = "instance"
+    NULL = "null"
     # Additional types for Phase C
     NUMERIC = "numeric"
     OBJECT = "object"
@@ -107,6 +108,19 @@ class StringExpression(Expression):
 
     type: ExpressionType = ExpressionType.STRING
     value: str
+
+
+class NullLiteral(Expression):
+    """SQL ``NULL`` literal (CQL2 ``x IS NULL``).
+
+    A distinct type so consumers test ``isinstance(expr, NullLiteral)`` rather
+    than sniffing an identifier name. Serialises to JSON ``null``.
+    """
+
+    type: ExpressionType = ExpressionType.NULL
+
+    def to_cql2_json(self) -> None:
+        return None
 
 
 class MemberAccessExpression(Expression):
@@ -919,6 +933,7 @@ __all__ = [
     "IdentifierExpression",
     "ConstantExpression",
     "StringExpression",
+    "NullLiteral",
     "MemberAccessExpression",
     "FunctionCallExpression",
     "BinaryOperationExpression",

@@ -57,6 +57,9 @@ SYNTHETIC_SELECTORS = [
     "label not like '%z'",
     "descr is null",
     "descr is not null",
+    "active = true",
+    "flag = false",
+    "ref = null",
     "area = width * height + margin",
     "rank = (a + b) * c",
     "S_INTERSECTS(geom, BBOX(0, 0, 10, 10))",
@@ -210,6 +213,12 @@ def test_is_not_null_predicate(convert_selector):
     sel = convert_selector("descr is not null")
     assert sel["op"] == "not"
     assert sel["args"][0]["op"] == "isNull"
+
+
+def test_boolean_and_null_literals(convert_selector):
+    assert convert_selector("active = true")["args"][1] is True
+    assert convert_selector("flag = false")["args"][1] is False
+    assert convert_selector("ref = null")["args"][1] is None
 
 
 def test_member_access_chain(convert_selector):
