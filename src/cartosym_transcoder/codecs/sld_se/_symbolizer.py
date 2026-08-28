@@ -941,14 +941,19 @@ def _parse_text_symbolizer(ts_el: etree._Element) -> dict:
     if label_el is None:
         raise NotImplementedError("se:TextSymbolizer without se:Label is not supported")
     prop_el = label_el.find(f"{OGC}PropertyName")
+    literal_el = label_el.find(f"{OGC}Literal")
     if prop_el is not None:
         text: Any = {"property": prop_el.text}
+    elif literal_el is not None and literal_el.text is not None:
+        # se:Label is mixed content; some producers wrap plain text in
+        # <ogc:Literal> rather than as a bare text node.
+        text = literal_el.text.strip()
     elif label_el.text and label_el.text.strip():
         text = label_el.text.strip()
     else:
         raise NotImplementedError(
-            "se:Label with neither literal text nor ogc:PropertyName is "
-            "not supported"
+            "se:Label with neither literal text, ogc:Literal, nor "
+            "ogc:PropertyName is not supported"
         )
 
     result: dict = {"type": "Text", "text": text, "position": {"x": 0, "y": 0}}

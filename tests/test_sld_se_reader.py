@@ -49,6 +49,24 @@ class TestReadBasicSymbolizers:
         assert el.alignment == ["left", "middle"]
         assert el.position.x == 20
 
+    def test_label_ogc_literal_is_read_as_plain_text(self):
+        """se:Label is mixed content; some producers wrap literal text in
+        <ogc:Literal> rather than as a bare text node."""
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se" '
+            'xmlns:ogc="http://www.opengis.net/ogc">'
+            "<NamedLayer><se:Name>x</se:Name><UserStyle>"
+            "<se:FeatureTypeStyle><se:Rule><se:TextSymbolizer>"
+            "<se:Label><ogc:Literal>myText</ogc:Literal></se:Label>"
+            "</se:TextSymbolizer></se:Rule></se:FeatureTypeStyle>"
+            "</UserStyle></NamedLayer></StyledLayerDescriptor>"
+        )
+        style = SldSeReader().read(xml)
+        el = style.styling_rules[0].symbolizer.label.elements[0]
+        assert el.text == "myText"
+
 
 class TestReadFilter:
     def test_and_of_comparisons(self):
