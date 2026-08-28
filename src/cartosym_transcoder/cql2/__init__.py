@@ -27,14 +27,14 @@ __all__ = ["vocab", "parse_text", "parse_tree", "to_cql2_json", "to_cql2_text"]
 
 def parse_text(text: str) -> Any:
     """Parse a CQL2-Text expression string into an expression model."""
-    from ..expression_parser import ExpressionParser
+    from .from_text import ExpressionParser
 
     return ExpressionParser._parse_expression_text(text)
 
 
 def parse_tree(ctx: Any) -> Any:
     """Convert an ANTLR ``expression`` parse-tree node into an expression model."""
-    from ..expression_parser import ExpressionParser
+    from .from_text import ExpressionParser
 
     return ExpressionParser.parse_expression_ctx(ctx)
 

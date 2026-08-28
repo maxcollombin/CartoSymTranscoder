@@ -17,6 +17,7 @@ Covers:
 import pytest
 
 from cartosym_transcoder.converter import Converter
+from cartosym_transcoder.cql2.from_text import ExpressionParser
 from cartosym_transcoder.cql2.model import (
     ArrayPredicate,
     BboxLiteral,
@@ -35,7 +36,6 @@ from cartosym_transcoder.cql2.model import (
     TemporalPredicate,
     UnaryOperationExpression,
 )
-from cartosym_transcoder.expression_parser import ExpressionParser
 
 
 # Helper: parse text as a standalone expression

@@ -614,7 +614,7 @@ class AstToPydanticConverter:
                     "{" in prop and prop.endswith("}")
                 ):
                     try:
-                        from .expression_parser import ExpressionParser
+                        from .cql2.from_text import ExpressionParser
 
                         parsed = ExpressionParser._parse_single_expression(prop)
                         converted = self._convert_expression_to_json_selector(parsed)

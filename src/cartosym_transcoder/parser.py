@@ -27,8 +27,8 @@ from .ast import Metadata
 from .ast import PropertyAssignment as AstPropertyAssignment
 from .ast import Stroke, StyleSheet, StylingRule, StylingRuleList
 from .ast_converter import convert_ast_to_pydantic
+from .cql2.from_text import ExpressionParser
 from .cql2.model import *
-from .expression_parser import ExpressionParser
 from .grammar.generated import (
     CartoSymCSSGrammar,
     CartoSymCSSGrammarListener,
