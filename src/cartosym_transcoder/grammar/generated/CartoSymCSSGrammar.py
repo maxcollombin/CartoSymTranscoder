@@ -961,28 +961,20 @@ class CartoSymCSSGrammar ( Parser ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def idOrConstant(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.IdOrConstantContext,0)
+
+        def getRuleIndex(self):
+            return CartoSymCSSGrammar.RULE_expression
+
+     
+        def copyFrom(self, ctx:ParserRuleContext):
+            super().copyFrom(ctx)
 
 
-        def expString(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpStringContext,0)
+    class MulExprContext(ExpressionContext):
 
-
-        def expCall(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpCallContext,0)
-
-
-        def expArray(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpArrayContext,0)
-
-
-        def expInstance(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpInstanceContext,0)
-
-
-        def LPAR(self):
-            return self.getToken(CartoSymCSSGrammar.LPAR, 0)
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
 
         def expression(self, i:int=None):
             if i is None:
@@ -990,85 +982,419 @@ class CartoSymCSSGrammar ( Parser ):
             else:
                 return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,i)
 
-
-        def RPAR(self):
-            return self.getToken(CartoSymCSSGrammar.RPAR, 0)
-
-        def unaryLogicalOperator(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.UnaryLogicalOperatorContext,0)
+        def arithmeticOperatorMul(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ArithmeticOperatorMulContext,0)
 
 
-        def unaryArithmeticOperator(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.UnaryArithmeticOperatorContext,0)
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterMulExpr" ):
+                listener.enterMulExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitMulExpr" ):
+                listener.exitMulExpr(self)
 
 
-        def tuple_(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.TupleContext,0)
+    class StringExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expString(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpStringContext,0)
 
 
-        def variable(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.VariableContext,0)
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterStringExpr" ):
+                listener.enterStringExpr(self)
 
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitStringExpr" ):
+                listener.exitStringExpr(self)
+
+
+    class InstanceExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expInstance(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpInstanceContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterInstanceExpr" ):
+                listener.enterInstanceExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitInstanceExpr" ):
+                listener.exitInstanceExpr(self)
+
+
+    class BetweenExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expression(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(CartoSymCSSGrammar.ExpressionContext)
+            else:
+                return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,i)
+
+        def betweenOperator(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.BetweenOperatorContext,0)
+
+        def AND(self):
+            return self.getToken(CartoSymCSSGrammar.AND, 0)
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterBetweenExpr" ):
+                listener.enterBetweenExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitBetweenExpr" ):
+                listener.exitBetweenExpr(self)
+
+
+    class PowExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expression(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(CartoSymCSSGrammar.ExpressionContext)
+            else:
+                return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,i)
 
         def arithmeticOperatorExp(self):
             return self.getTypedRuleContext(CartoSymCSSGrammar.ArithmeticOperatorExpContext,0)
 
 
-        def arithmeticOperatorMul(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.ArithmeticOperatorMulContext,0)
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterPowExpr" ):
+                listener.enterPowExpr(self)
 
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitPowExpr" ):
+                listener.exitPowExpr(self)
+
+
+    class AddExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expression(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(CartoSymCSSGrammar.ExpressionContext)
+            else:
+                return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,i)
 
         def arithmeticOperatorAdd(self):
             return self.getTypedRuleContext(CartoSymCSSGrammar.ArithmeticOperatorAddContext,0)
 
 
-        def binaryLogicalOperator(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.BinaryLogicalOperatorContext,0)
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterAddExpr" ):
+                listener.enterAddExpr(self)
 
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitAddExpr" ):
+                listener.exitAddExpr(self)
+
+
+    class RelationalExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expression(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(CartoSymCSSGrammar.ExpressionContext)
+            else:
+                return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,i)
 
         def relationalOperator(self):
             return self.getTypedRuleContext(CartoSymCSSGrammar.RelationalOperatorContext,0)
 
 
-        def betweenOperator(self):
-            return self.getTypedRuleContext(CartoSymCSSGrammar.BetweenOperatorContext,0)
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterRelationalExpr" ):
+                listener.enterRelationalExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitRelationalExpr" ):
+                listener.exitRelationalExpr(self)
 
 
-        def AND(self):
-            return self.getToken(CartoSymCSSGrammar.AND, 0)
+    class ConditionalExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expression(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(CartoSymCSSGrammar.ExpressionContext)
+            else:
+                return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,i)
 
         def QUESTION(self):
             return self.getToken(CartoSymCSSGrammar.QUESTION, 0)
-
         def COLON(self):
             return self.getToken(CartoSymCSSGrammar.COLON, 0)
 
-        def DOT(self):
-            return self.getToken(CartoSymCSSGrammar.DOT, 0)
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterConditionalExpr" ):
+                listener.enterConditionalExpr(self)
 
-        def IDENTIFIER(self):
-            return self.getToken(CartoSymCSSGrammar.IDENTIFIER, 0)
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitConditionalExpr" ):
+                listener.exitConditionalExpr(self)
+
+
+    class TupleExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def tuple_(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.TupleContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterTupleExpr" ):
+                listener.enterTupleExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitTupleExpr" ):
+                listener.exitTupleExpr(self)
+
+
+    class IndexExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expression(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,0)
 
         def LSBR(self):
             return self.getToken(CartoSymCSSGrammar.LSBR, 0)
-
         def expConstant(self):
             return self.getTypedRuleContext(CartoSymCSSGrammar.ExpConstantContext,0)
-
 
         def RSBR(self):
             return self.getToken(CartoSymCSSGrammar.RSBR, 0)
 
-        def getRuleIndex(self):
-            return CartoSymCSSGrammar.RULE_expression
-
         def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterExpression" ):
-                listener.enterExpression(self)
+            if hasattr( listener, "enterIndexExpr" ):
+                listener.enterIndexExpr(self)
 
         def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitExpression" ):
-                listener.exitExpression(self)
+            if hasattr( listener, "exitIndexExpr" ):
+                listener.exitIndexExpr(self)
+
+
+    class ArrayExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expArray(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpArrayContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterArrayExpr" ):
+                listener.enterArrayExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitArrayExpr" ):
+                listener.exitArrayExpr(self)
+
+
+    class PrimaryExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def idOrConstant(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.IdOrConstantContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterPrimaryExpr" ):
+                listener.enterPrimaryExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitPrimaryExpr" ):
+                listener.exitPrimaryExpr(self)
+
+
+    class CallExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expCall(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpCallContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterCallExpr" ):
+                listener.enterCallExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitCallExpr" ):
+                listener.exitCallExpr(self)
+
+
+    class VariableExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def variable(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.VariableContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterVariableExpr" ):
+                listener.enterVariableExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitVariableExpr" ):
+                listener.exitVariableExpr(self)
+
+
+    class ParenExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def LPAR(self):
+            return self.getToken(CartoSymCSSGrammar.LPAR, 0)
+        def expression(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,0)
+
+        def RPAR(self):
+            return self.getToken(CartoSymCSSGrammar.RPAR, 0)
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterParenExpr" ):
+                listener.enterParenExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitParenExpr" ):
+                listener.exitParenExpr(self)
+
+
+    class UnaryLogicalExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def unaryLogicalOperator(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.UnaryLogicalOperatorContext,0)
+
+        def expression(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterUnaryLogicalExpr" ):
+                listener.enterUnaryLogicalExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitUnaryLogicalExpr" ):
+                listener.exitUnaryLogicalExpr(self)
+
+
+    class MemberAccessExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expression(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,0)
+
+        def DOT(self):
+            return self.getToken(CartoSymCSSGrammar.DOT, 0)
+        def IDENTIFIER(self):
+            return self.getToken(CartoSymCSSGrammar.IDENTIFIER, 0)
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterMemberAccessExpr" ):
+                listener.enterMemberAccessExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitMemberAccessExpr" ):
+                listener.exitMemberAccessExpr(self)
+
+
+    class UnaryArithExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def unaryArithmeticOperator(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.UnaryArithmeticOperatorContext,0)
+
+        def expression(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterUnaryArithExpr" ):
+                listener.enterUnaryArithExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitUnaryArithExpr" ):
+                listener.exitUnaryArithExpr(self)
+
+
+    class LogicalExprContext(ExpressionContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CartoSymCSSGrammar.ExpressionContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expression(self, i:int=None):
+            if i is None:
+                return self.getTypedRuleContexts(CartoSymCSSGrammar.ExpressionContext)
+            else:
+                return self.getTypedRuleContext(CartoSymCSSGrammar.ExpressionContext,i)
+
+        def binaryLogicalOperator(self):
+            return self.getTypedRuleContext(CartoSymCSSGrammar.BinaryLogicalOperatorContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterLogicalExpr" ):
+                listener.enterLogicalExpr(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitLogicalExpr" ):
+                listener.exitLogicalExpr(self)
 
 
 
@@ -1085,31 +1411,50 @@ class CartoSymCSSGrammar ( Parser ):
             self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,11,self._ctx)
             if la_ == 1:
+                localctx = CartoSymCSSGrammar.PrimaryExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
+
                 self.state = 149
                 self.idOrConstant()
                 pass
 
             elif la_ == 2:
+                localctx = CartoSymCSSGrammar.StringExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 150
                 self.expString()
                 pass
 
             elif la_ == 3:
+                localctx = CartoSymCSSGrammar.CallExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 151
                 self.expCall()
                 pass
 
             elif la_ == 4:
+                localctx = CartoSymCSSGrammar.ArrayExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 152
                 self.expArray()
                 pass
 
             elif la_ == 5:
+                localctx = CartoSymCSSGrammar.InstanceExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 153
                 self.expInstance()
                 pass
 
             elif la_ == 6:
+                localctx = CartoSymCSSGrammar.ParenExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 154
                 self.match(CartoSymCSSGrammar.LPAR)
                 self.state = 155
@@ -1119,6 +1464,9 @@ class CartoSymCSSGrammar ( Parser ):
                 pass
 
             elif la_ == 7:
+                localctx = CartoSymCSSGrammar.UnaryLogicalExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 158
                 self.unaryLogicalOperator()
                 self.state = 159
@@ -1126,6 +1474,9 @@ class CartoSymCSSGrammar ( Parser ):
                 pass
 
             elif la_ == 8:
+                localctx = CartoSymCSSGrammar.UnaryArithExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 161
                 self.unaryArithmeticOperator()
                 self.state = 162
@@ -1133,11 +1484,17 @@ class CartoSymCSSGrammar ( Parser ):
                 pass
 
             elif la_ == 9:
+                localctx = CartoSymCSSGrammar.TupleExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 164
                 self.tuple_(0)
                 pass
 
             elif la_ == 10:
+                localctx = CartoSymCSSGrammar.VariableExprContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 165
                 self.variable()
                 pass
@@ -1156,7 +1513,7 @@ class CartoSymCSSGrammar ( Parser ):
                     self._errHandler.sync(self)
                     la_ = self._interp.adaptivePredict(self._input,12,self._ctx)
                     if la_ == 1:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.PowExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 168
                         if not self.precpred(self._ctx, 11):
@@ -1169,7 +1526,7 @@ class CartoSymCSSGrammar ( Parser ):
                         pass
 
                     elif la_ == 2:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.MulExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 172
                         if not self.precpred(self._ctx, 10):
@@ -1182,7 +1539,7 @@ class CartoSymCSSGrammar ( Parser ):
                         pass
 
                     elif la_ == 3:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.AddExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 176
                         if not self.precpred(self._ctx, 9):
@@ -1195,7 +1552,7 @@ class CartoSymCSSGrammar ( Parser ):
                         pass
 
                     elif la_ == 4:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.LogicalExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 180
                         if not self.precpred(self._ctx, 8):
@@ -1208,7 +1565,7 @@ class CartoSymCSSGrammar ( Parser ):
                         pass
 
                     elif la_ == 5:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.RelationalExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 184
                         if not self.precpred(self._ctx, 7):
@@ -1221,7 +1578,7 @@ class CartoSymCSSGrammar ( Parser ):
                         pass
 
                     elif la_ == 6:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.BetweenExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 188
                         if not self.precpred(self._ctx, 6):
@@ -1238,7 +1595,7 @@ class CartoSymCSSGrammar ( Parser ):
                         pass
 
                     elif la_ == 7:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.ConditionalExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 194
                         if not self.precpred(self._ctx, 5):
@@ -1255,7 +1612,7 @@ class CartoSymCSSGrammar ( Parser ):
                         pass
 
                     elif la_ == 8:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.MemberAccessExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 200
                         if not self.precpred(self._ctx, 18):
@@ -1268,7 +1625,7 @@ class CartoSymCSSGrammar ( Parser ):
                         pass
 
                     elif la_ == 9:
-                        localctx = CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState)
+                        localctx = CartoSymCSSGrammar.IndexExprContext(self, CartoSymCSSGrammar.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 203
                         if not self.precpred(self._ctx, 12):

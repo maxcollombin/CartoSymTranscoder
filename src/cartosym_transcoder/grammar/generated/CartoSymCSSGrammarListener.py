@@ -98,12 +98,174 @@ class CartoSymCSSGrammarListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CartoSymCSSGrammar#expression.
-    def enterExpression(self, ctx:CartoSymCSSGrammar.ExpressionContext):
+    # Enter a parse tree produced by CartoSymCSSGrammar#MulExpr.
+    def enterMulExpr(self, ctx:CartoSymCSSGrammar.MulExprContext):
         pass
 
-    # Exit a parse tree produced by CartoSymCSSGrammar#expression.
-    def exitExpression(self, ctx:CartoSymCSSGrammar.ExpressionContext):
+    # Exit a parse tree produced by CartoSymCSSGrammar#MulExpr.
+    def exitMulExpr(self, ctx:CartoSymCSSGrammar.MulExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#StringExpr.
+    def enterStringExpr(self, ctx:CartoSymCSSGrammar.StringExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#StringExpr.
+    def exitStringExpr(self, ctx:CartoSymCSSGrammar.StringExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#InstanceExpr.
+    def enterInstanceExpr(self, ctx:CartoSymCSSGrammar.InstanceExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#InstanceExpr.
+    def exitInstanceExpr(self, ctx:CartoSymCSSGrammar.InstanceExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#BetweenExpr.
+    def enterBetweenExpr(self, ctx:CartoSymCSSGrammar.BetweenExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#BetweenExpr.
+    def exitBetweenExpr(self, ctx:CartoSymCSSGrammar.BetweenExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#PowExpr.
+    def enterPowExpr(self, ctx:CartoSymCSSGrammar.PowExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#PowExpr.
+    def exitPowExpr(self, ctx:CartoSymCSSGrammar.PowExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#AddExpr.
+    def enterAddExpr(self, ctx:CartoSymCSSGrammar.AddExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#AddExpr.
+    def exitAddExpr(self, ctx:CartoSymCSSGrammar.AddExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#RelationalExpr.
+    def enterRelationalExpr(self, ctx:CartoSymCSSGrammar.RelationalExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#RelationalExpr.
+    def exitRelationalExpr(self, ctx:CartoSymCSSGrammar.RelationalExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#ConditionalExpr.
+    def enterConditionalExpr(self, ctx:CartoSymCSSGrammar.ConditionalExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#ConditionalExpr.
+    def exitConditionalExpr(self, ctx:CartoSymCSSGrammar.ConditionalExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#TupleExpr.
+    def enterTupleExpr(self, ctx:CartoSymCSSGrammar.TupleExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#TupleExpr.
+    def exitTupleExpr(self, ctx:CartoSymCSSGrammar.TupleExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#IndexExpr.
+    def enterIndexExpr(self, ctx:CartoSymCSSGrammar.IndexExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#IndexExpr.
+    def exitIndexExpr(self, ctx:CartoSymCSSGrammar.IndexExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#ArrayExpr.
+    def enterArrayExpr(self, ctx:CartoSymCSSGrammar.ArrayExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#ArrayExpr.
+    def exitArrayExpr(self, ctx:CartoSymCSSGrammar.ArrayExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#PrimaryExpr.
+    def enterPrimaryExpr(self, ctx:CartoSymCSSGrammar.PrimaryExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#PrimaryExpr.
+    def exitPrimaryExpr(self, ctx:CartoSymCSSGrammar.PrimaryExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#CallExpr.
+    def enterCallExpr(self, ctx:CartoSymCSSGrammar.CallExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#CallExpr.
+    def exitCallExpr(self, ctx:CartoSymCSSGrammar.CallExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#VariableExpr.
+    def enterVariableExpr(self, ctx:CartoSymCSSGrammar.VariableExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#VariableExpr.
+    def exitVariableExpr(self, ctx:CartoSymCSSGrammar.VariableExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#ParenExpr.
+    def enterParenExpr(self, ctx:CartoSymCSSGrammar.ParenExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#ParenExpr.
+    def exitParenExpr(self, ctx:CartoSymCSSGrammar.ParenExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#UnaryLogicalExpr.
+    def enterUnaryLogicalExpr(self, ctx:CartoSymCSSGrammar.UnaryLogicalExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#UnaryLogicalExpr.
+    def exitUnaryLogicalExpr(self, ctx:CartoSymCSSGrammar.UnaryLogicalExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#MemberAccessExpr.
+    def enterMemberAccessExpr(self, ctx:CartoSymCSSGrammar.MemberAccessExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#MemberAccessExpr.
+    def exitMemberAccessExpr(self, ctx:CartoSymCSSGrammar.MemberAccessExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#UnaryArithExpr.
+    def enterUnaryArithExpr(self, ctx:CartoSymCSSGrammar.UnaryArithExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#UnaryArithExpr.
+    def exitUnaryArithExpr(self, ctx:CartoSymCSSGrammar.UnaryArithExprContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#LogicalExpr.
+    def enterLogicalExpr(self, ctx:CartoSymCSSGrammar.LogicalExprContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#LogicalExpr.
+    def exitLogicalExpr(self, ctx:CartoSymCSSGrammar.LogicalExprContext):
         pass
 
 

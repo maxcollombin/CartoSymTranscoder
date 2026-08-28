@@ -33,6 +33,7 @@ from . import cql2_vocab as _v
 from .ast import Fill
 from .ast import Metadata as AstMetadata
 from .ast import Stroke, StyleSheet, StylingRule, StylingRuleList, Symbolizer
+from .grammar.generated import CartoSymCSSGrammar as _G
 from .models.base import BaseCartoSymModel
 from .models.expressions import *
 from .models.styles import Metadata, Style, StylingRule
@@ -65,8 +66,9 @@ class ExpressionParser:
     #
     # The grammar's left-recursive ``expression`` rule is already an
     # operator-precedence tree; we walk it instead of re-scanning text.
-    # ``ExpressionContext`` is unlabelled, so alternatives are told apart
-    # by which typed accessors are populated.
+    # Its alternatives are labelled (``LogicalExprContext`` …), so the
+    # dispatch is a plain ``isinstance`` chain — see ``_atom_from_ctx`` /
+    # ``_binary_op_info``.
     # =================================================================
 
     # Operator precedence, low → high. Relational operators all share one
@@ -84,11 +86,11 @@ class ExpressionParser:
     def parse_expression_ctx(ctx) -> Optional[Expression]:
         """Convert an ANTLR ``ExpressionContext`` to a Pydantic ``Expression``.
 
-        The grammar's ``expression`` rule is left-recursive and unlabelled,
-        so alternatives are identified by which typed accessors are set.
-        Chained binary operators are flattened and re-associated under
-        conventional precedence (see :attr:`_PREC_*`) rather than trusting
-        the grammar's own alternative ordering.
+        Dispatches on the grammar's labelled ``expression`` alternatives
+        (``PrimaryExprContext``, ``LogicalExprContext`` …). Chained binary
+        operators are flattened and re-associated under conventional
+        precedence (see :attr:`_PREC_*`) rather than trusting the grammar's
+        own left-recursive alternative ordering.
         """
         if ctx is None:
             return None
@@ -112,22 +114,24 @@ class ExpressionParser:
     def _atom_from_ctx(ctx) -> Any:
         """Non-binary forms: leaves, parens, unary, conditional, between…
 
-        Returns ``None`` when *ctx* is a chained binary-operator node (left
-        to :meth:`_flatten_binary`).
+        Dispatches on the grammar's *labelled* alternative context types
+        (``PrimaryExprContext``, ``ParenExprContext`` …). Returns ``None``
+        when *ctx* is a chained binary-operator node (left to
+        :meth:`_flatten_binary`).
         """
-        if ctx.expString() is not None:
+        if isinstance(ctx, _G.StringExprContext):
             return ExpressionParser._parse_string(ctx.expString())
-        if ctx.expCall() is not None:
+        if isinstance(ctx, _G.CallExprContext):
             return ExpressionParser._dispatch_call_ctx(ctx.expCall())
-        if ctx.expInstance() is not None:
+        if isinstance(ctx, _G.InstanceExprContext):
             return ExpressionParser._parse_instance_from_text(
                 ExpressionParser._ctx_source_text(ctx.expInstance())
             )
-        if ctx.variable() is not None:
+        if isinstance(ctx, _G.VariableExprContext):
             return IdentifierExpression(name=ctx.variable().getText())
-        if ctx.tuple_() is not None:
+        if isinstance(ctx, _G.TupleExprContext):
             return ExpressionParser._parse_tuple_ctx(ctx.tuple_())
-        if ctx.expArray() is not None:
+        if isinstance(ctx, _G.ArrayExprContext):
             arr = ctx.expArray()
             elems = ExpressionParser._flatten_left_recursive(
                 arr.arrayElements(), "arrayElements", "expression"
@@ -138,52 +142,42 @@ class ExpressionParser:
             return ArrayExpression(
                 elements=[ExpressionParser._expr_from_ctx(e) for e in elems]
             )
-        if ctx.idOrConstant() is not None and ctx.getChildCount() == 1:
+        if isinstance(ctx, _G.PrimaryExprContext):
             return ExpressionParser._parse_id_or_constant_ctx(ctx.idOrConstant())
-
-        sub = ctx.expression() or []
-
-        if ctx.unaryLogicalOperator() is not None and sub:
+        if isinstance(ctx, _G.UnaryLogicalExprContext):
             return UnaryOperationExpression(
                 operator=UnaryOperator.NOT,
-                operand=ExpressionParser._expr_from_ctx(sub[0]),
+                operand=ExpressionParser._expr_from_ctx(ctx.expression()),
             )
-        if ctx.unaryArithmeticOperator() is not None and sub:
+        if isinstance(ctx, _G.UnaryArithExprContext):
             minus = ctx.unaryArithmeticOperator().MINUS() is not None
             return UnaryOperationExpression(
                 operator=UnaryOperator.MINUS if minus else UnaryOperator.PLUS,
-                operand=ExpressionParser._expr_from_ctx(sub[0]),
+                operand=ExpressionParser._expr_from_ctx(ctx.expression()),
             )
-        if (
-            ctx.LPAR() is not None
-            and ctx.RPAR() is not None
-            and ctx.expCall() is None
-            and len(sub) == 1
-        ):
-            return ExpressionParser._expr_from_ctx(sub[0])
-        if ctx.QUESTION() is not None and len(sub) >= 3:
+        if isinstance(ctx, _G.ParenExprContext):
+            return ExpressionParser._expr_from_ctx(ctx.expression())
+        if isinstance(ctx, _G.ConditionalExprContext):
+            sub = ctx.expression()
             return ConditionalExpression(
                 condition=ExpressionParser._expr_from_ctx(sub[0]),
                 true_value=ExpressionParser._expr_from_ctx(sub[1]),
                 false_value=ExpressionParser._expr_from_ctx(sub[2]),
             )
-        if ctx.betweenOperator() is not None and len(sub) >= 3:
+        if isinstance(ctx, _G.BetweenExprContext):
+            sub = ctx.expression()
             pred: Any = IsBetweenPredicate(
-                args=[
-                    ExpressionParser._expr_from_ctx(sub[0]),
-                    ExpressionParser._expr_from_ctx(sub[1]),
-                    ExpressionParser._expr_from_ctx(sub[2]),
-                ]
+                args=[ExpressionParser._expr_from_ctx(e) for e in sub[:3]]
             )
             if ctx.betweenOperator().NOT() is not None:
                 return NotExpression(args=[pred])
             return pred
-        if ctx.LSBR() is not None and ctx.expConstant() is not None and len(sub) == 1:
+        if isinstance(ctx, _G.IndexExprContext):
             # No dedicated index model; preserve the historical flat text.
             return IdentifierExpression(name=ctx.getText())
-        if ctx.DOT() is not None and ctx.IDENTIFIER() is not None and len(sub) == 1:
+        if isinstance(ctx, _G.MemberAccessExprContext):
             return MemberAccessExpression(
-                object=ExpressionParser._expr_from_ctx(sub[0]),
+                object=ExpressionParser._expr_from_ctx(ctx.expression()),
                 member=ctx.IDENTIFIER().getText(),
             )
         return None
@@ -200,31 +194,28 @@ class ExpressionParser:
     @staticmethod
     def _binary_op_info(ctx):
         """``(BinaryOperator | None, precedence, relationalOperator ctx | None)``
-        if *ctx* is ``expr OP expr`` — else ``None``.
+        for a labelled binary-operator alternative — else ``None``.
 
-        Operators are identified via the grammar-generated token accessors
-        (``op_ctx.AND()``, ``op_ctx.IDIV()`` …), never by their literal text,
-        so the mapping tracks the grammar's token *names* not their spelling.
+        Operators are identified via the generated token accessors
+        (``op_ctx.AND()``, ``op_ctx.IDIV()`` …), never by their literal text.
         """
-        if len(ctx.expression() or []) != 2:
-            return None
-        lg = ctx.binaryLogicalOperator()
-        if lg is not None:
-            if lg.AND() is not None:
+        if isinstance(ctx, _G.LogicalExprContext):
+            if ctx.binaryLogicalOperator().AND() is not None:
                 return (BinaryOperator.AND, ExpressionParser._PREC_AND, None)
             return (BinaryOperator.OR, ExpressionParser._PREC_OR, None)
-        rel = ctx.relationalOperator()
-        if rel is not None:
-            return (None, ExpressionParser._PREC_REL, rel)
-        if ctx.arithmeticOperatorExp() is not None:
+        if isinstance(ctx, _G.RelationalExprContext):
+            return (None, ExpressionParser._PREC_REL, ctx.relationalOperator())
+        if isinstance(ctx, _G.PowExprContext):
             return (BinaryOperator.POWER, ExpressionParser._PREC_POW, None)
-        mul = ctx.arithmeticOperatorMul()
-        if mul is not None:
-            op = ExpressionParser._first_token_op(mul, _v.ARITH_MUL_BY_TOKEN)
+        if isinstance(ctx, _G.MulExprContext):
+            op = ExpressionParser._first_token_op(
+                ctx.arithmeticOperatorMul(), _v.ARITH_MUL_BY_TOKEN
+            )
             return (op or BinaryOperator.MULTIPLY, ExpressionParser._PREC_MUL, None)
-        add = ctx.arithmeticOperatorAdd()
-        if add is not None:
-            op = ExpressionParser._first_token_op(add, _v.ARITH_ADD_BY_TOKEN)
+        if isinstance(ctx, _G.AddExprContext):
+            op = ExpressionParser._first_token_op(
+                ctx.arithmeticOperatorAdd(), _v.ARITH_ADD_BY_TOKEN
+            )
             return (op or BinaryOperator.ADD, ExpressionParser._PREC_ADD, None)
         return None
 
@@ -235,7 +226,7 @@ class ExpressionParser:
         if info is None:
             atom = ExpressionParser._atom_from_ctx(ctx)
             return [atom] if atom is not None else None
-        left_ctx, right_ctx = ctx.expression()
+        left_ctx, right_ctx = ctx.expression()[:2]
         left = ExpressionParser._flatten_binary(left_ctx) or [
             ExpressionParser._expr_from_ctx(left_ctx)
         ]

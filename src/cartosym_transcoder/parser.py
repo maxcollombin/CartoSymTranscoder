@@ -429,17 +429,14 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
 
     @staticmethod
     def _find_exp_instance(expr_ctx):
-        """Find the ExpInstanceContext child of an ExpressionContext."""
+        """Find the ExpInstanceContext under a (labelled) expression alternative."""
         if expr_ctx is None:
             return None
-        ei = expr_ctx.expInstance()
-        if ei is not None:
-            return ei
-        # Sometimes the expression wraps another expression (e.g. parenthesised)
-        if hasattr(expr_ctx, "expression"):
-            sub = expr_ctx.expression()
-            if sub and not isinstance(sub, list):
-                return CartoSymStyleSheetListener._find_exp_instance(sub)
+        if isinstance(expr_ctx, CartoSymCSSGrammar.InstanceExprContext):
+            return expr_ctx.expInstance()
+        # Parenthesised wrapper: `( <instance> )`
+        if isinstance(expr_ctx, CartoSymCSSGrammar.ParenExprContext):
+            return CartoSymStyleSheetListener._find_exp_instance(expr_ctx.expression())
         return None
 
     @staticmethod
@@ -540,7 +537,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             if pa.lhValue().getText() == "elements":
                 # Get the array expression
                 arr_expr = pa.expression()
-                if arr_expr is None:
+                if not isinstance(arr_expr, CartoSymCSSGrammar.ArrayExprContext):
                     continue
                 exp_arr = arr_expr.expArray()
                 if exp_arr is None:
