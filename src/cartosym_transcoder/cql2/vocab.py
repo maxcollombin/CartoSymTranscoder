@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import get_args
 
-from .models.expressions import (
+from ..models.expressions import (
     AccentiExpression,
     ArrayPredicate,
     BinaryOperator,

@@ -22,17 +22,17 @@ calls, conditionals, and logical / relational operators.
 
 Operators are read from the grammar-generated token accessors
 (``op_ctx.AND()``, ``rel_ctx.IN()`` …), never their literal text. The CQL2
-function/predicate vocabulary comes from :mod:`.cql2_vocab` (derived from
+function/predicate vocabulary comes from :mod:`.cql2.vocab` (derived from
 the Pydantic model ``Literal`` fields), not hand-written lists.
 """
 
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from . import cql2_vocab as _v
 from .ast import Fill
 from .ast import Metadata as AstMetadata
 from .ast import Stroke, StyleSheet, StylingRule, StylingRuleList, Symbolizer
+from .cql2 import vocab as _v
 from .grammar.generated import CartoSymCSSGrammar as _G
 from .models.base import BaseCartoSymModel
 from .models.expressions import *
@@ -40,7 +40,7 @@ from .models.styles import Metadata, Style, StylingRule
 from .models.symbolizers import Fill, Marker, Stroke, Symbolizer
 
 # ---------------------------------------------------------------------------
-# CQL2 vocabulary — derived from the Pydantic models (see cql2_vocab), not
+# CQL2 vocabulary — derived from the Pydantic models (see cql2.vocab), not
 # hand-listed here.
 # ---------------------------------------------------------------------------
 _SPATIAL_PREDICATES = _v.SPATIAL_PREDICATES
