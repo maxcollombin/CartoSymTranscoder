@@ -197,6 +197,30 @@ class TestReadMetadata:
         )
 
 
+class TestReadSymbolizerGeometry:
+    """se:Geometry (symbolizer geometry, 3-geometry) has no CartoSym
+    conceptual-model representation yet — the reader must raise, not drop
+    it silently (docs/sld_se_mapping_issues.md issue #43)."""
+
+    def test_se_geometry_child_raises(self):
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se" '
+            'xmlns:ogc="http://www.opengis.net/ogc">'
+            "<NamedLayer><se:Name>L</se:Name><UserStyle><se:Name>S</se:Name>"
+            "<se:FeatureTypeStyle><se:Rule><se:LineSymbolizer>"
+            "<se:Geometry><ogc:PropertyName>centerline</ogc:PropertyName>"
+            "</se:Geometry>"
+            '<se:Stroke><se:SvgParameter name="stroke">#000000</se:SvgParameter>'
+            "</se:Stroke></se:LineSymbolizer>"
+            "</se:Rule></se:FeatureTypeStyle></UserStyle></NamedLayer>"
+            "</StyledLayerDescriptor>"
+        )
+        with pytest.raises(NotImplementedError, match="issue #43"):
+            SldSeReader().read(xml)
+
+
 class TestReadOutOfScopeRaises:
     def test_raster_symbolizer_contrast_enhancement_raises(self):
         with pytest.raises(NotImplementedError):

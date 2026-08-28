@@ -664,6 +664,20 @@ def elements_to_symbolizer(sym_elements: List[etree._Element]) -> dict:
 
     for el in sym_elements:
         tag = local_name(el)
+        if find_se_direct(el, "Geometry") is not None:
+            # SE 1.1.0 "symbolizer geometry" — an optional <se:Geometry>
+            # <ogc:PropertyName> selecting which geometry property to
+            # render. CartoSym's 3-geometry "Symbolizer Geometry"
+            # requirements class is not yet defined in the conceptual
+            # model (empty rc-symbolizer-geometry.adoc, no `geometry`
+            # field on the CS-JSON `symbolizer`), so there is nothing to
+            # map it to — raise rather than silently drop it, per the
+            # lossless-transcoding requirement (mapping-issues issue #43).
+            raise NotImplementedError(
+                f"se:{tag}/se:Geometry (symbolizer geometry) has no CartoSym "
+                "conceptual-model representation yet — see "
+                "docs/sld_se_mapping_issues.md issue #43"
+            )
         if tag == "PolygonSymbolizer":
             fill_el = find_se_direct(el, "Fill")
             stroke_el = find_se_direct(el, "Stroke")
