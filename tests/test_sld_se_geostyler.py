@@ -1,15 +1,16 @@
 """Exercise the SLD/SE codec against the vendored third-party GeoStyler
 SLD 1.1 corpus (``tests/fixtures/geostyler-sld-1.1/``, see its README).
 
-The corpus is split into two explicit lists:
+The corpus is split by **directory**:
 
-* ``IN_SCOPE`` — must ``read`` -> ``write`` -> XSD-validate -> ``read`` to a
+* ``in-scope/`` — must ``read`` -> ``write`` -> XSD-validate -> ``read`` to a
   Pydantic-model fixed point.
-* ``OUT_OF_SCOPE`` — must raise ``NotImplementedError`` (a clean rejection,
+* ``out-of-scope/`` — must raise ``NotImplementedError`` (a clean rejection,
   never another exception type) on ``read`` or ``write``.
 
-A file that changes category is a deliberate change: this test fails loudly
-if a code change shifts one silently.
+Moving a file between the two directories is a deliberate act: the wrong
+behaviour then fails loudly. ``test_corpus_layout`` guards the split sizes
+and that no fixture is left uncategorised in the corpus root.
 """
 
 from pathlib import Path
@@ -22,78 +23,30 @@ from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
 from ._xsd import assert_sld_valid
 
 CORPUS = Path(__file__).resolve().parent / "fixtures" / "geostyler-sld-1.1"
+IN_SCOPE_DIR = CORPUS / "in-scope"
+OUT_OF_SCOPE_DIR = CORPUS / "out-of-scope"
 
-IN_SCOPE = [
-    "empty_filter",
-    "function_nested",
-    "line_groundUnitWidth",
-    "line_perpendicularOffset",
-    "line_pixelWidth",
-    "line_simpleline",
-    "multi_simplelineLabel",
-    "point_externalgraphic",
-    "point_externalgraphic_floatingPoint",
-    "point_externalgraphic_svg",
-    "point_externalgraphic_svg_displacement",
-    "point_simpleLabel",
-    "point_simpleLabel2",
-    "point_simplepoint",
-    "point_simplepoint_displacement",
-    "point_simplepoint_filter",
-    "point_simplepoint_nestedLogicalFilters",
-    "point_simplepoint_oneline",
-    "point_styledLabel_elementOrder",
-    "point_styledLabel_literalPlaceholder",
-    "point_styledlabel",
-    "polygon_transparentpolygon",
-    "text_newLine_expression",
-    "text_pointplacement",
-    "text_pointplacement_anchor",
-    "unsupported_properties",
-    "zero_values",
-]
+IN_SCOPE = sorted(p.stem for p in IN_SCOPE_DIR.glob("*.sld"))
+OUT_OF_SCOPE = sorted(p.stem for p in OUT_OF_SCOPE_DIR.glob("*.sld"))
 
-OUT_OF_SCOPE = [
-    "function_filter",
-    "function_filter_property_to_property",
-    "function_label_round",
-    "function_markSymbolizer",
-    "line_graphicFill",
-    "line_graphicFill_externalGraphic",
-    "line_graphicStroke",
-    "line_graphicStroke_externalGraphic",
-    "point_externalgraphic_inlineContent",
-    "point_fontglyph",
-    "point_simplecross",
-    "point_simplepoint_categorizefunctionfilter",
-    "point_simplepoint_functionfilter",
-    "point_simpleslash",
-    "point_simplesquare",
-    "point_simplestar",
-    "point_simpletriangle",
-    "point_simplex",
-    "polygon_graphicFill",
-    "polygon_graphicFill_externalGraphic",
-    "raster_complexRaster",
-    "raster_simpleRaster",
-    "text_lineplacement",
-    "text_lineplacement_offset",
-    "text_lineplacement_repeat",
-]
+# Upstream corpus is 52 files; this split is asserted so an accidental
+# add/remove/miscategorisation is caught (see the fixtures README).
+_EXPECTED_IN_SCOPE = 27
+_EXPECTED_OUT_OF_SCOPE = 25
 
 
-def test_corpus_fully_categorised():
-    """Every .sld file in the corpus is in exactly one list."""
-    on_disk = {p.stem for p in CORPUS.glob("*.sld")}
-    listed = set(IN_SCOPE) | set(OUT_OF_SCOPE)
-    assert on_disk == listed, f"uncategorised: {on_disk ^ listed}"
+def test_corpus_layout():
+    assert len(IN_SCOPE) == _EXPECTED_IN_SCOPE, IN_SCOPE
+    assert len(OUT_OF_SCOPE) == _EXPECTED_OUT_OF_SCOPE, OUT_OF_SCOPE
     assert not (set(IN_SCOPE) & set(OUT_OF_SCOPE))
+    # nothing left loose in the corpus root
+    assert not list(CORPUS.glob("*.sld"))
 
 
 @pytest.mark.parametrize("stem", IN_SCOPE)
 def test_in_scope_round_trips_and_validates(stem):
     reader, writer = SldSeReader(), SldSeWriter()
-    fixture = CORPUS / f"{stem}.sld"
+    fixture = IN_SCOPE_DIR / f"{stem}.sld"
 
     style1 = reader.read(fixture)
     xml = writer.write(style1)
@@ -105,7 +58,7 @@ def test_in_scope_round_trips_and_validates(stem):
 @pytest.mark.parametrize("stem", OUT_OF_SCOPE)
 def test_out_of_scope_raises_not_implemented(stem):
     reader, writer = SldSeReader(), SldSeWriter()
-    fixture = CORPUS / f"{stem}.sld"
+    fixture = OUT_OF_SCOPE_DIR / f"{stem}.sld"
     with pytest.raises(NotImplementedError):
         style = reader.read(fixture)
         writer.write(style)
