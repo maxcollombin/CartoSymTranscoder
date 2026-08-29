@@ -30,7 +30,7 @@ OUT_OF_SCOPE = {
     "default_point.sld": "Mark/WellKnownName 'square' (only 'circle'/Dot supported)",
     "grass_poly.sld": "Fill/GraphicFill (pattern fill)",
     "pattern_polygon.sld": "VendorOption 'graphic-margin' + Fill/GraphicFill",
-    "poi.sld": "TextSymbolizer/Halo (label halo)",
+    "poi.sld": "Graphic/Displacement on a point Mark (not in the SLD 1.0.0 schema)",
     "pophatch.sld": "Fill/GraphicFill (hatch) + WellKnownName 'shape://slash'",
     "poly_landmarks.sld": "VendorOption 'group' / 'autoWrap' (GeoServer)",
     "raster.sld": "RasterSymbolizer with only Opacity (no channels / colour map)",
