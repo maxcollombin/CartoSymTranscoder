@@ -12,7 +12,7 @@ from ..base import CodecWriter
 class CscssWriter(CodecWriter):
     """Write a Style model as ``.cscss`` text."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._converter = Converter()
 
     def write(self, style: Style) -> str:

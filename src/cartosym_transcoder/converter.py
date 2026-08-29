@@ -15,7 +15,7 @@ from .parser import CartoSymParser
 class Converter:
     """Main converter class for format transformations using Pydantic models."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.parser = CartoSymParser()
 
     def _resolve_path(self, path: Union[str, Path]) -> Path:

@@ -16,7 +16,7 @@ from ..base import CodecWriter
 class CsjsonWriter(CodecWriter):
     """Write a Style model as a CS-JSON dict (or JSON string)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._converter = Converter()
 
     def write(self, style: Style, *, as_string: bool = False) -> Union[dict, str]:

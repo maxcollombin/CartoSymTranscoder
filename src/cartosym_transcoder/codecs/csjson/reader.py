@@ -15,7 +15,7 @@ from ..base import CodecReader
 class CsjsonReader(CodecReader):
     """Read ``.cs.json`` files (or raw JSON strings / dicts) into a Style model."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._converter = Converter()
 
     def read(self, source: Union[str, Path, dict]) -> Style:
