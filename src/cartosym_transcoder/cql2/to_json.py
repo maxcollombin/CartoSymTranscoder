@@ -19,12 +19,18 @@ __all__ = [
 ]
 
 
-def post_process_selector(selector: Any) -> Dict[str, Any]:
-    """Post-process selector to fix parsing issues and ensure proper JSON structure."""
+def post_process_selector(selector: Any) -> Any:
+    """Post-process a selector: fix parsing issues, ensure proper JSON structure.
+
+    Returns a dict for well-formed selectors, but may also pass through
+    ``None`` / strings / lists unchanged.
+    """
+    left_arg: Any
+    right_arg: Any
     if isinstance(selector, dict):
         if "op" in selector and "args" in selector:
             # Post-process arguments recursively
-            processed_args = []
+            processed_args: list = []
             op = selector.get("op", "")
             # Ops whose args after index 0 are value literals, not
             # property references (comparisons + CQL2 value predicates).
@@ -152,6 +158,8 @@ def post_process_selector(selector: Any) -> Dict[str, Any]:
 
 def convert_string_to_json_selector(selector_str: str) -> Dict[str, Any]:
     """Convert string selector to proper JSON structure."""
+    left_arg: Any
+    right_arg: Any
     # Handle expressions embedded in strings
     for op in [">=", "<=", "!=", "=", ">", "<"]:
         if op in selector_str and not (
@@ -457,8 +465,10 @@ def convert_antlr_expression(expr_ctx: Any, rule_name: str) -> Any:
     return convert_identifier(expr_ctx.getText())
 
 
-def convert_identifier(name: str) -> Union[Dict[str, Any], str, int, float]:
+def convert_identifier(name: str) -> Any:
     """Convert an identifier to a JSON selector part, mapping system properties."""
+    left_arg: Any
+    right_arg: Any
     # Handle embedded operators first
     for op in [">=", "<=", "!=", "=", ">", "<"]:
         if f"{op}" in name and not (name.startswith('"') or name.startswith("'")):
@@ -517,9 +527,7 @@ def _map_system_property(prop: str) -> str:
     return prop
 
 
-def convert_literal_value(
-    value: Union[str, int, float],
-) -> Union[str, int, float, list]:
+def convert_literal_value(value: Union[str, int, float]) -> Any:
     """Convert literal value to appropriate JSON type with proper CS.JSON formatting."""
     if isinstance(value, (int, float)):
         return value
