@@ -10,8 +10,8 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from cartosym_transcoder.codecs.sld_se._symbolizer import symbolizer_to_elements
-from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
+from cartosym_transcoder.codecs.sld._symbolizer import symbolizer_to_elements
+from cartosym_transcoder.codecs.sld.writer import SldSeWriter
 from cartosym_transcoder.converter import Converter
 from cartosym_transcoder.models.styles import Style
 
@@ -291,7 +291,7 @@ class TestWriteScaleDenominator:
             )
 
     def test_roundtrip_through_read(self):
-        from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
+        from cartosym_transcoder.codecs.sld.reader import SldSeReader
 
         selector = {
             "op": "and",
@@ -915,7 +915,7 @@ class TestSymbolizerOpacity:
         op = root.find(".//se:RasterSymbolizer/se:Opacity", NS)
         assert op is not None and op.text == "0.5"
 
-        from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
+        from cartosym_transcoder.codecs.sld.reader import SldSeReader
 
         back = SldSeReader().read(xml)
         assert back.styling_rules[0].symbolizer.opacity == 0.5

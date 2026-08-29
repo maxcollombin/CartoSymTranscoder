@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
-from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
+from cartosym_transcoder.codecs.sld.reader import SldSeReader
+from cartosym_transcoder.codecs.sld.writer import SldSeWriter
 from cartosym_transcoder.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent

@@ -9,8 +9,8 @@ into independent ``se:Rule``s.
 
 from lxml import etree
 
-from cartosym_transcoder.codecs.sld_se._cascade import flatten_cascade_rules
-from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
+from cartosym_transcoder.codecs.sld._cascade import flatten_cascade_rules
+from cartosym_transcoder.codecs.sld.writer import SldSeWriter
 from cartosym_transcoder.models.styles import Style
 
 NS = {
