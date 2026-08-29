@@ -5,6 +5,8 @@ This module provides conversion capabilities between CartoSym CSS and other form
 using Pydantic models for robust validation and serialization.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 

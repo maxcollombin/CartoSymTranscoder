@@ -28,6 +28,8 @@ has no construct distinguishing CartoSym's separate marker-text vs
 label-text concepts — see mapping-issues issue on this asymmetry).
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from lxml import etree

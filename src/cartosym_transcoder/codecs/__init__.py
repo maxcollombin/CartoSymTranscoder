@@ -5,6 +5,8 @@ Each sub-package (``cscss``, ``csjson``, ``sld_se``, ``maplibre``) registers
 its codec here so the CLI and public API can route conversions transparently.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from .base import Codec, CodecReader, CodecWriter

@@ -4,9 +4,11 @@ Supports complex expressions, conditions, function calls, and JSON Schema
 expression types.
 """
 
+from __future__ import annotations
+
 from abc import ABC
 from enum import Enum
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -128,7 +130,7 @@ class MemberAccessExpression(Expression):
     """Member access like 'dataLayer.type' or 'viz.timeInterval.start.date'."""
 
     type: ExpressionType = ExpressionType.MEMBER_ACCESS
-    object: "Expression"
+    object: Expression
     member: str
 
 
@@ -137,16 +139,16 @@ class FunctionCallExpression(Expression):
 
     type: ExpressionType = ExpressionType.FUNCTION_CALL
     function_name: str
-    arguments: list["Expression"]
+    arguments: list[Expression]
 
 
 class BinaryOperationExpression(Expression):
     """Binary operation like 'a + b' or 'x = y'."""
 
     type: ExpressionType = ExpressionType.BINARY_OP
-    left: "Expression"
+    left: Expression
     operator: BinaryOperator
-    right: "Expression"
+    right: Expression
 
 
 class UnaryOperationExpression(Expression):
@@ -154,30 +156,30 @@ class UnaryOperationExpression(Expression):
 
     type: ExpressionType = ExpressionType.UNARY_OP
     operator: UnaryOperator
-    operand: "Expression"
+    operand: Expression
 
 
 class ConditionalExpression(Expression):
     """Ternary conditional like 'condition ? true_value : false_value'."""
 
     type: ExpressionType = ExpressionType.CONDITIONAL
-    condition: "Expression"
-    true_value: "Expression"
-    false_value: "Expression"
+    condition: Expression
+    true_value: Expression
+    false_value: Expression
 
 
 class ArrayExpression(Expression):
     """Array literal like '[a, b, c]'."""
 
     type: ExpressionType = ExpressionType.ARRAY
-    elements: list["Expression"]
+    elements: list[Expression]
 
 
 class PropertyAssignment(BaseModel):
     """Property assignment within an instance."""
 
     property: str
-    value: "Expression"
+    value: Expression
 
 
 class InstanceExpression(Expression):
@@ -216,7 +218,7 @@ class StylingRuleExpression(BaseModel):
 
     selectors: list[Selector] = []
     properties: dict[str, Expression] = {}  # property_name -> expression
-    nested_rules: list["StylingRuleExpression"] = []
+    nested_rules: list[StylingRuleExpression] = []
 
 
 # Update forward reference
@@ -277,7 +279,7 @@ class ScalarOperands(Expression):
     """Scalar operands for various operations on single values."""
 
     op: str
-    args: list[Union[NumericExpression, "ScalarExpression"]] = Field(min_length=1)
+    args: list[NumericExpression | ScalarExpression] = Field(min_length=1)
 
 
 class BitwiseLogical(NumericExpression):
@@ -312,9 +314,7 @@ class BinaryComparisonPredicate(ComparisonPredicate):
     """Binary comparison: {"op": "=|!=|<|<=|>|>=", "args": [...]}"""
 
     op: Literal["=", "!=", "<", "<=", ">", ">="]
-    args: list[Union[NumericExpression, "ScalarExpression"]] = Field(
-        min_length=2, max_length=2
-    )
+    args: list[NumericExpression | ScalarExpression] = Field(min_length=2, max_length=2)
 
 
 class IsNullPredicate(ComparisonPredicate):
@@ -654,7 +654,7 @@ class GeometryLiteral(GeometryExpression):
         "GeometryCollection",
     ]
     coordinates: list[Any] | None = None
-    geometries: list["GeometryLiteral"] | None = None  # For GeometryCollection
+    geometries: list[GeometryLiteral] | None = None  # For GeometryCollection
     crs: str | None = None
 
     def to_geojson(self) -> dict[str, Any]:
@@ -667,7 +667,7 @@ class GeometryLiteral(GeometryExpression):
         return result
 
     @classmethod
-    def from_geojson(cls, data: dict[str, Any]) -> "GeometryLiteral":
+    def from_geojson(cls, data: dict[str, Any]) -> GeometryLiteral:
         """Deserialise from a GeoJSON geometry dict."""
         geom_type = data["type"]
         if geom_type == "GeometryCollection":
@@ -713,7 +713,7 @@ class TemporalLiteral(TemporalExpression):
         return {}
 
     @classmethod
-    def from_cql2_json(cls, data: dict[str, Any]) -> "TemporalLiteral":
+    def from_cql2_json(cls, data: dict[str, Any]) -> TemporalLiteral:
         """Deserialise from a CQL2-JSON temporal literal."""
         if "date" in data:
             return cls(temporal_type="date", value=data["date"])
@@ -1374,7 +1374,7 @@ class TransformationMatrix(Expression):
         """Generate CSS transform matrix() function."""
         return f"matrix({','.join(map(str, self.matrix))})"
 
-    def compose(self, other: "TransformationMatrix") -> "TransformationMatrix":
+    def compose(self, other: TransformationMatrix) -> TransformationMatrix:
         """Compose this transformation with another transformation."""
         a1, b1, c1, d1, e1, f1 = self.matrix
         a2, b2, c2, d2, e2, f2 = other.matrix
@@ -1849,7 +1849,7 @@ class MeasureExpression(Expression):
 
     def convert_to(
         self, target_unit: UnitType, context_size: float = 16.0
-    ) -> "MeasureExpression":
+    ) -> MeasureExpression:
         """Convert to target unit."""
         if self.unit == target_unit:
             return self

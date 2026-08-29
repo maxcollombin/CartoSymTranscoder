@@ -9,6 +9,8 @@ on write (documented as a known gap, see ``docs/sld_se_mapping_issues.md``
 issue #10).
 """
 
+from __future__ import annotations
+
 import math
 import re
 from typing import Any

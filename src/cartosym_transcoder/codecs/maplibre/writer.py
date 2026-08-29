@@ -6,6 +6,8 @@ style JSON.
    This is a **stub**. Implementation is tracked in ROADMAP §3.4.
 """
 
+from __future__ import annotations
+
 from ...models.styles import Style
 from ..base import CodecWriter
 

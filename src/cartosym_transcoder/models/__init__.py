@@ -5,6 +5,8 @@ This module contains the complete data model based on the OGC CartoSym specifica
 implemented using Pydantic for validation, serialization, and documentation.
 """
 
+from __future__ import annotations
+
 from .base import AlterMixin, BaseCartoSymModel, CommentMixin
 from .styles import Metadata, Style, StylingRule
 from .symbolizers import (

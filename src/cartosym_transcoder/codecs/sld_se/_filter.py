@@ -12,6 +12,8 @@ Scope, and the mapping-issues entries each boundary is logged under, are
 documented in ``docs/sld_se_mapping_issues.md``.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from lxml import etree

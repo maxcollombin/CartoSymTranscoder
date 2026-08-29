@@ -18,6 +18,8 @@ ancestors') for the writer's ``_flatten_nested_rules`` to emit as an
 ``se:ElseFilter`` sibling.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 _GRAPHIC_CONTAINER_KEYS = ("marker", "label")

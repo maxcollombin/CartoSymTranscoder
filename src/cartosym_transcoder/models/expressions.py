@@ -9,6 +9,8 @@ This module re-exports every public name so existing
 ``from ...models.expressions import X`` imports keep working.
 """
 
+from __future__ import annotations
+
 from ..cql2 import model as _model
 from ..cql2.model import *  # noqa: F401,F403
 

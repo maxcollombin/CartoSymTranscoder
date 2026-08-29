@@ -21,6 +21,8 @@ OGC standards:
   - OGC 21-065 (CQL2) — spatial predicates ``s_intersects``, ``s_relate`` etc.
 """
 
+from __future__ import annotations
+
 # ---------------------------------------------------------------------------
 # DE-9IM predicate → pattern(s) lookup table
 # ---------------------------------------------------------------------------

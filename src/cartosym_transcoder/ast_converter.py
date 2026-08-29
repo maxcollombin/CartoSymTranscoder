@@ -4,6 +4,8 @@ AST to Pydantic converter for CartoSym CSS.
 This module converts ANTLR-generated AST nodes to Pydantic models.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from .ast import StyleSheet as AstStyleSheet

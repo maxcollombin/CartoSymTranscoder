@@ -4,6 +4,8 @@ Abstract base class for format codecs.
 Each codec provides a reader (format → Style) and a writer (Style → format).
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any

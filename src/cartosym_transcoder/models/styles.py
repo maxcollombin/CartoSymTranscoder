@@ -4,6 +4,8 @@ Core style and rule models for CartoSym.
 Based on the JSON Schema definitions for style, stylingRule, and metadata.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
@@ -64,7 +66,7 @@ class StylingRule(BaseCartoSymModel, CommentMixin):
     symbolizer: Symbolizer | dict[str, Any] | None = Field(
         None, description="Symbolizer for this rule"
     )
-    nested_rules: list["StylingRule"] | None = Field(
+    nested_rules: list[StylingRule] | None = Field(
         None, alias="nestedRules", description="Nested rules within this rule"
     )
 

@@ -5,6 +5,8 @@ Delegates to :meth:`~cartosym_transcoder.converter.Converter.cscss_to_csjson`
 (which accepts a Style model directly and produces a validated dict).
 """
 
+from __future__ import annotations
+
 import json
 
 from ...converter import Converter

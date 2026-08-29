@@ -5,6 +5,8 @@ MapLibre / MapBox GL Style reader — parse MapLibre style JSON into Style model
    This is a **stub**. Implementation is tracked in ROADMAP §3.4.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from ...models.styles import Style

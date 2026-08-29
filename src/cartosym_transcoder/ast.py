@@ -4,8 +4,10 @@ Abstract Syntax Tree (AST) classes for CartoSym CSS.
 This module contains the data structures representing parsed CartoSym CSS.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -21,9 +23,9 @@ class Variable:
 class StyleSheet:
     """Root node of a CartoSym CSS stylesheet."""
 
-    metadata: list["Metadata"] = field(default_factory=list)
-    styling_rules: Optional["StylingRuleList"] = None
-    variables: list["Variable"] = field(default_factory=list)
+    metadata: list[Metadata] = field(default_factory=list)
+    styling_rules: StylingRuleList | None = None
+    variables: list[Variable] = field(default_factory=list)
 
 
 @dataclass
@@ -38,7 +40,7 @@ class Metadata:
 class StylingRuleList:
     """Collection of styling rules."""
 
-    rules: list["StylingRule"]
+    rules: list[StylingRule]
 
     def __post_init__(self):
         if self.rules is None:
@@ -51,11 +53,11 @@ class StylingRule:
 
     name: str | None = None
     styling_rule_name: str | None = None  # New: explicit stylingRuleName from grammar
-    selector: Optional["Selector"] = None
+    selector: Selector | None = None
     # all selectors (for nested rules)
     selectors: list = field(default_factory=list)
-    symbolizer: Optional["Symbolizer"] = None
-    nested_rules: list["StylingRule"] = field(default_factory=list)
+    symbolizer: Symbolizer | None = None
+    nested_rules: list[StylingRule] = field(default_factory=list)
     # all property assignments, for post-processing
     property_assignments: list = field(default_factory=list)
 
@@ -64,7 +66,7 @@ class StylingRule:
 class Selector:
     """Selector for filtering features."""
 
-    expression: Optional["Expression"] = None
+    expression: Expression | None = None
 
 
 @dataclass
@@ -77,10 +79,10 @@ class Symbolizer:
     z_order: int | None = None
 
     # Vector symbolizers
-    fill: Optional["Fill"] = None
-    stroke: Optional["Stroke"] = None
-    marker: Optional["Marker"] = None
-    label: Optional["Label"] = None
+    fill: Fill | None = None
+    stroke: Stroke | None = None
+    marker: Marker | None = None
+    label: Label | None = None
 
     # Coverage/Raster properties (Phase B Priority 1)
     single_channel: str | None = None  # e.g., "elevation"
