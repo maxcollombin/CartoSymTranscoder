@@ -70,8 +70,12 @@ from .maplibre import codec as _maplibre_codec  # noqa: E402, F401
 # SLD/SE and MapLibre are registered only if their modules are importable
 # (they may raise NotImplementedError but the codec objects exist).
 from .sld import codec as _sld_codec  # noqa: E402, F401
+from .sld import codec_sld_1_0_0 as _sld10_codec  # noqa: E402
+from .sld import codec_sld_1_1_0 as _sld11_codec  # noqa: E402
 
 register(_sld_codec)
+register(_sld11_codec)
+register(_sld10_codec)
 register(_maplibre_codec)
 
 __all__ = [
