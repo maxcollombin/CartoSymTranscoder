@@ -1,5 +1,6 @@
-"""CartoSym ``Symbolizer`` <-> SLD/SE ``{Point,Line,Polygon,Text,Raster}Symbolizer``
-mapping, both directions.
+"""CartoSym ``Symbolizer`` <-> SLD/SE symbolizer-element mapping, both ways.
+
+Covers ``{Point,Line,Polygon,Text,Raster}Symbolizer``.
 
 Scope: vector symbolizers plus basic Part-1 raster/coverage styling
 (channels, color map, shaded relief). ``Fill.hatch/dotpattern/stipple``,
@@ -116,8 +117,7 @@ def _opacity_float(value: Any) -> float | None:
 
 
 def _combine_opacity(base: float | None, own: Any) -> str | None:
-    """Formatted product of a symbolizer-level opacity *base* and an
-    element's *own* opacity.
+    """Formatted product of a symbolizer-level *base* and an element's *own* opacity.
 
     SE 1.1.0 has no whole-symbolizer opacity — ``Symbolizer.opacity`` is
     folded into each leaf opacity the symbolizer emits (``fill-opacity``,
@@ -274,9 +274,10 @@ def _build_line_symbolizer(
 
 
 def _g2(obj: Any, snake: str, camel: str, default: Any = None) -> Any:
-    """Like :func:`_g`, but for raster sub-dicts (``hillShading``, ...)
-    that are always raw ``Any``-typed dicts with camelCase JSON keys —
-    never alias-normalized by Pydantic — so both spellings must be tried.
+    """Like :func:`_g`, but for raster sub-dicts (``hillShading``, ...).
+
+    Those are always raw ``Any``-typed dicts with camelCase JSON keys —
+    never alias-normalised by Pydantic — so both spellings must be tried.
     """
     if obj is None:
         return default
@@ -286,10 +287,12 @@ def _g2(obj: Any, snake: str, camel: str, default: Any = None) -> Any:
 
 
 def _channel_source_name(channel_expr: Any, field_label: str) -> str:
-    """Return the plain band/property name for one ``colorChannels``/
-    ``singleChannel`` entry. Only a bare ``{"property": X}`` reference
-    maps to ``se:SourceChannelName`` — a plain-string XSD type, unable to
-    hold an arithmetic expression (e.g. an NDVI formula) at all.
+    """Return the plain band/property name for one channel entry.
+
+    Applies to ``colorChannels`` / ``singleChannel`` entries. Only a bare
+    ``{"property": X}`` reference maps to ``se:SourceChannelName`` — a
+    plain-string XSD type, unable to hold an arithmetic expression (e.g.
+    an NDVI formula) at all.
     """
     if isinstance(channel_expr, dict) and set(channel_expr) == {"property"}:
         return str(channel_expr["property"])
@@ -637,8 +640,10 @@ def _build_text_symbolizer(
 
 
 def elements_to_symbolizer(sym_elements: list[etree._Element]) -> dict:
-    """Convert the SLD/SE symbolizer elements of one ``se:Rule`` into a
-    CartoSym ``symbolizer`` dict (CS-JSON shape, ready for ``Style.from_dict``).
+    """Convert one ``se:Rule``'s symbolizer elements into a CartoSym symbolizer.
+
+    Returns a CS-JSON-shaped ``symbolizer`` dict, ready for
+    ``Style.from_dict``.
     """
     result: dict = {}
     marker_elements: list[dict] = []

@@ -1,5 +1,4 @@
-"""MapLibre / MapBox GL Style writer — serialise Style models to MapLibre
-style JSON.
+"""MapLibre / MapBox GL Style writer — Style models to MapLibre style JSON.
 
 .. note::
    This is a **stub** — not yet implemented.

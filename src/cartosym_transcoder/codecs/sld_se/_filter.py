@@ -78,10 +78,11 @@ def _is_datalayer_id_eq(expr: Any) -> bool:
 
 
 def _flatten_and_conjuncts(selector: Any) -> list[Any]:
-    """Flatten an arbitrarily-nested (left- or right-nested, or flat
-    n-ary) chain of ``{"op": "and", "args": [...]}`` into one flat list of
-    leaf conjuncts. Only ``and`` is descended into — ``or``/``not``/
-    comparisons flatten to a single-element list containing themselves.
+    """Flatten a nested ``{"op": "and", ...}`` chain into a list of conjuncts.
+
+    Handles left-nested, right-nested and flat n-ary ``and`` chains. Only
+    ``and`` is descended into — ``or``/``not``/comparisons flatten to a
+    single-element list containing themselves.
     """
     if (
         isinstance(selector, dict)
@@ -106,10 +107,12 @@ def _reassemble_and(conjuncts: list[Any]) -> Any | None:
 def extract_feature_type_name(
     selector: dict | None,
 ) -> tuple[str | None, dict | None]:
-    """Split ``dataLayer.id``/``dataLayer.type``/
-    ``dataLayer.featuresGeometryDimensions`` conjuncts out of *selector*,
-    from anywhere in an arbitrarily-nested ``and`` chain (real generated
-    CS-JSON right-nests these three conjuncts, not a flat 3-ary ``and``).
+    """Split the ``dataLayer.*`` conjuncts out of *selector*.
+
+    Pulls ``dataLayer.id`` / ``dataLayer.type`` /
+    ``dataLayer.featuresGeometryDimensions`` from anywhere in an
+    arbitrarily-nested ``and`` chain (real generated CS-JSON right-nests
+    these three conjuncts, not a flat 3-ary ``and``).
 
     ``dataLayer.id`` is captured and returned for the caller to emit as
     ``<se:FeatureTypeName>``. ``dataLayer.type``/

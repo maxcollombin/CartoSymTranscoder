@@ -1,5 +1,4 @@
-"""SLD/SE reader — parse OGC Styled Layer Descriptor / Symbology Encoding XML
-into Style models.
+"""SLD/SE reader — parse OGC SLD / Symbology Encoding XML into Style models.
 
 Scope: vector symbolizers plus basic Part-1 raster/coverage styling; see
 ``writer.py``'s module docstring for the exact scope boundary. Out-of-scope

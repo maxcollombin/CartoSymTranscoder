@@ -1,5 +1,4 @@
-"""SLD/SE writer — serialise Style models to OGC Styled Layer Descriptor /
-Symbology Encoding XML.
+"""SLD/SE writer — serialise Style models to OGC SLD / Symbology Encoding XML.
 
 Scope: vector symbolizers (Point/Line/Polygon/Text) plus basic Part-1
 raster/coverage styling. GeoServer vendor extensions and advanced/Part-4
@@ -184,9 +183,10 @@ class SldSeWriter(CodecWriter):
         return any(self._rule_has_raster(n) for n in rule.nested_rules or [])
 
     def _flatten_nested_rules(self, rule: StylingRule) -> list[etree._Element]:
-        """Emit the remaining (selector-less) ``nested_rules`` as sibling
-        ``se:Rule`` elements carrying ``se:ElseFilter`` (the SE 1.1.0
-        namespace form, not the SLD 1.0.0 ``ogc:ElseFilter``).
+        """Emit the selector-less ``nested_rules`` as sibling ``se:Rule`` elements.
+
+        Each carries ``se:ElseFilter`` (the SE 1.1.0 namespace form, not
+        the SLD 1.0.0 ``ogc:ElseFilter``).
 
         By the time this runs, ``flatten_cascade_rules`` has already
         pulled every *selector-bearing* nested rule out into an

@@ -228,8 +228,9 @@ class ExpressionParser:
     def _first_token_op(
         op_ctx, table: dict[str, BinaryOperator]
     ) -> BinaryOperator | None:
-        """First ``BinaryOperator`` in *table* whose token accessor is set on
-        *op_ctx* (``table`` is keyed by grammar token name, e.g. ``"IDIV"``).
+        """First ``BinaryOperator`` in *table* whose token accessor is set on *op_ctx*.
+
+        *table* is keyed by grammar token name, e.g. ``"IDIV"``.
         """
         for token_name, operator in table.items():
             if getattr(op_ctx, token_name)() is not None:
@@ -238,8 +239,11 @@ class ExpressionParser:
 
     @staticmethod
     def _binary_op_info(ctx):
-        """``(BinaryOperator | None, precedence, relationalOperator ctx | None)``
-        for a labelled binary-operator alternative — else ``None``.
+        """Classify a labelled binary-operator alternative.
+
+        Returns ``(BinaryOperator | None, precedence, relationalOperator
+        ctx | None)`` for a labelled binary-operator alternative, else
+        ``None``.
 
         Operators are identified via the generated token accessors
         (``op_ctx.AND()``, ``op_ctx.IDIV()`` …), never by their literal text.
@@ -1274,8 +1278,10 @@ class ExpressionParser:
 
     @staticmethod
     def _iter_top_level(text: str) -> Iterator[tuple[int, str]]:
-        """Yield ``(index, char)`` for every character of *text* that sits at
-        bracket depth 0 and outside any single/double-quoted string literal.
+        """Yield ``(index, char)`` for top-level characters of *text*.
+
+        "Top level" means bracket depth 0 and outside any
+        single/double-quoted string literal.
 
         The hand-rolled scanners in this module historically tracked only
         ``()``/``{}`` nesting, so ``name = 'a and b'`` was mis-split on the
@@ -1302,9 +1308,10 @@ class ExpressionParser:
 
     @staticmethod
     def _find_top_level(text: str, needle: str, *, last: bool = True) -> int:
-        """Index of *needle* in *text* at bracket depth 0 and outside quotes,
-        or -1. Case-insensitive. ``last=True`` returns the rightmost match
-        (for left-associative operator splitting).
+        """Index of *needle* in *text* at bracket depth 0 and outside quotes, or -1.
+
+        Case-insensitive. ``last=True`` returns the rightmost match (for
+        left-associative operator splitting).
         """
         nl = needle.lower()
         n = len(needle)

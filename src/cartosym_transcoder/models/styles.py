@@ -41,7 +41,6 @@ class Variable(BaseCartoSymModel):
 
 class StylingRule(BaseCartoSymModel, CommentMixin):
     """Individual styling rule with optional selector and symbolizer.
-    Now supports explicit stylingRuleName.
 
     Field order matters: Pydantic serializes in declaration order,
     so the JSON output follows: name → stylingRuleName → selector →
@@ -83,9 +82,7 @@ class StylingRule(BaseCartoSymModel, CommentMixin):
 
 
 class Style(BaseCartoSymModel, CommentMixin):
-    """Root CartoSym style definition.
-    Now supports explicit variable objects.
-    """
+    """Root CartoSym style definition."""
 
     include: str | list[str] | None = Field(
         None, alias="$include", description="Included style files"

@@ -21,8 +21,9 @@ class Converter:
         self.parser = CartoSymParser()
 
     def _resolve_path(self, path: str | Path) -> Path:
-        """Résout le chemin relatif par rapport à la racine du projet
-        (là où se trouve pyproject.toml).
+        """Resolve *path* relative to the project root (the ``pyproject.toml`` dir).
+
+        Absolute or already-existing paths are returned unchanged.
         """
         p = Path(path)
         if p.is_absolute() or p.exists():
@@ -212,6 +213,7 @@ class Converter:
 
     def _selector_to_cscss(self, selector) -> str:
         """Convert a selector (dict, list, or str) to a CSCSS selector string.
+
         Handles:
         - Landuse
         - Landuse[other filter]
@@ -658,6 +660,7 @@ class Converter:
 
     def _format_color(self, color) -> str:
         """Format a color value for CSCSS output.
+
         - [r, g, b] integer array → '#rrggbb' hex
         - {r, g, b} object → '#rrggbb' hex
         - named color string → as-is

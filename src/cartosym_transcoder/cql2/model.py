@@ -1,4 +1,5 @@
-"""Complete Expression System for CartoSym CSS and JSON Schema
+"""Expression system for CartoSym-CSS and the CartoSym-JSON schema.
+
 Supports complex expressions, conditions, function calls, and JSON Schema
 expression types.
 """
@@ -1068,6 +1069,7 @@ __all__ = [
 
 class AnyExpressionWrapper(Expression):
     """Wrapper for AnyExpression with proper Pydantic handling.
+
     This allows storing any expression type polymorphically.
     """
 
@@ -1084,6 +1086,7 @@ class AnyExpressionWrapper(Expression):
 
 class TypedArray(Expression):
     """Typed array with validation constraints.
+
     Provides strict validation of array elements with type checking.
     """
 
@@ -1120,6 +1123,7 @@ class TypedArray(Expression):
 
 class IdOrFnExpressionWrapper(Expression):
     """Wrapper for identifier or function call expressions.
+
     Provides flexible syntax for identifiants vs function calls.
     """
 
@@ -1192,6 +1196,7 @@ IdOrFnExpression = IdentifierExpression | FunctionCallExpression
 
 class FontFamily(Expression):
     """Font family specification for text rendering.
+
     Supports system fonts, web fonts, and fallback chains.
     """
 
@@ -1212,6 +1217,7 @@ class FontFamily(Expression):
 
 class FontSize(Expression):
     """Font size specification with unit support.
+
     Supports absolute (px, pt, pc) and relative (em, rem, %) units.
     """
 
@@ -1238,6 +1244,7 @@ class FontSize(Expression):
 
 class FontWeight(Expression):
     """Font weight specification.
+
     Supports numeric weights (100-900) and named weights.
     """
 
@@ -1274,6 +1281,7 @@ class FontWeight(Expression):
 
 class FontStyle(Expression):
     """Font style specification.
+
     Supports italic, oblique, and normal styles.
     """
 
@@ -1292,6 +1300,7 @@ class FontStyle(Expression):
 
 class FontExpression(Expression):
     """Complete font specification combining family, size, weight, and style.
+
     Provides comprehensive font definition for text rendering.
     """
 
@@ -1345,6 +1354,7 @@ class FontExpression(Expression):
 
 class TransformationMatrix(Expression):
     """2D transformation matrix for geometric operations.
+
     Represents affine transformations with 6-parameter matrix [a,b,c,d,e,f].
     """
 
@@ -1387,6 +1397,7 @@ class TransformationMatrix(Expression):
 
 class RotationTransform(Expression):
     """Rotation transformation around a point.
+
     Supports angle in degrees or radians with optional center point.
     """
 
@@ -1444,6 +1455,7 @@ class RotationTransform(Expression):
 
 class ScaleTransform(Expression):
     """Scale transformation with independent X and Y scaling.
+
     Supports uniform and non-uniform scaling with optional center point.
     """
 
@@ -1489,6 +1501,7 @@ class ScaleTransform(Expression):
 
 class TranslationTransform(Expression):
     """Translation transformation.
+
     Moves geometry by specified X and Y offsets.
     """
 
@@ -1510,6 +1523,7 @@ class TranslationTransform(Expression):
 
 class GeometryTransformation(Expression):
     """Complete geometry transformation combining multiple operations.
+
     Supports composition of rotation, scaling, and translation transforms.
     """
 
@@ -1576,6 +1590,7 @@ class GeometryTransformation(Expression):
 
 class CalendarField(Expression):
     """Calendar field extraction from date/time values.
+
     Supports year, month, day, hour, minute, second, day of week, etc.
     """
 
@@ -1614,6 +1629,7 @@ class CalendarField(Expression):
 
 class DateTimeFormat(Expression):
     """DateTime formatting expression with pattern support.
+
     Supports ICU/Java style date format patterns.
     """
 
@@ -1648,6 +1664,7 @@ class DateTimeFormat(Expression):
 
 class CalendarInterval(Expression):
     """Calendar interval for date range operations.
+
     Supports various interval types (days, months, years, etc.).
     """
 
@@ -1817,6 +1834,7 @@ class UnitConversion:
 
 class MeasureExpression(Expression):
     """Measurement expression with unit support.
+
     Provides value with associated unit and conversion capabilities.
     """
 
@@ -1891,6 +1909,7 @@ class MeasureExpression(Expression):
 
 class UnitRange(Expression):
     """Range of measurements with min/max constraints.
+
     Useful for responsive design and adaptive styling.
     """
 
@@ -1942,6 +1961,7 @@ class UnitRange(Expression):
 
 class ResponsiveUnit(Expression):
     """Responsive unit that adapts based on context (viewport, container, etc.).
+
     Supports fluid scaling between breakpoints.
     """
 
