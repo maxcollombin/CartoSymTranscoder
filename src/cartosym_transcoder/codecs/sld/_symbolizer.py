@@ -9,7 +9,11 @@ Scope: vector symbolizers plus basic Part-1 raster/coverage styling
 ``HillShading.sun``/``colorMap``/``opacityMap`` are all out of scope and
 raise :exc:`NotImplementedError` naming the field — per this project's
 lossless-transcoding requirement, out-of-scope content must fail loudly
-rather than silently drop data.
+rather than silently drop data. On read, an unmapped
+``SvgParameter``/``CssParameter`` (``stroke-linecap`` / ``-linejoin`` /
+``-dashoffset`` / ...) and ``se:Halo`` likewise raise. Still silently
+dropped, pending a mapping decision: graphic-level ``se:Rotation`` /
+``se:Displacement`` / ``se:Opacity`` on a point ``se:Graphic``.
 
 Every function here is dialect-agnostic: the caller passes a
 :class:`~cartosym_transcoder.codecs.sld._dialect.SldDialect` (``d``) and all
