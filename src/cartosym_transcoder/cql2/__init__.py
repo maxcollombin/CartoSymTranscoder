@@ -6,14 +6,15 @@ This package is its designated home in the transcoder:
 
 * :mod:`.vocab` — operator / predicate / function vocabulary, **derived from
   the Pydantic models** (:mod:`.model`) rather than hand-listed.
-* parsing — CQL2-Text / an ANTLR parse tree → expression models.
-* serialisation — expression models → CQL2-JSON dict / CQL2-Text string.
+* :mod:`.model` — Pydantic models for the expression AST.
+* :mod:`.from_text` — CQL2-Text / an ANTLR parse tree → expression models.
+* :mod:`.to_json` — expression models → CQL2-JSON selector dict.
+* :mod:`.to_text` — CQL2-JSON selector dict → CartoSym-CSS filter text.
 
-The parsing and serialisation logic still physically lives in
-``expression_parser`` / ``converter`` / ``ast_converter``; the functions
-below are the stable entry points and will absorb that code over the
-Palier 2 refactor (see ROADMAP). Import them from here, not from the
-implementation modules.
+The functions below are the stable entry points; import them from here
+rather than from the implementation submodules. ``ast_converter`` and
+``converter`` still call into ``to_json`` / ``to_text`` directly for the
+pipeline's internal wiring.
 """
 
 from __future__ import annotations
@@ -41,16 +42,15 @@ def parse_tree(ctx: Any) -> Any:
 
 def to_cql2_json(expr: Any) -> Any:
     """Serialise an expression model (or selector dict) to CQL2-JSON."""
-    from ..ast_converter import AstToPydanticConverter
+    from .to_json import expression_to_json, post_process_selector
 
     if isinstance(expr, dict):
         return expr
-    conv = AstToPydanticConverter()
-    return conv._post_process_selector(conv._convert_expression_to_json_selector(expr))
+    return post_process_selector(expression_to_json(expr))
 
 
 def to_cql2_text(expr: Any) -> str:
     """Serialise a CQL2-JSON-shaped selector dict to CQL2-Text."""
-    from ..converter import Converter
+    from .to_text import expression_to_text
 
-    return Converter._format_selector_expr(Converter.__new__(Converter), expr)
+    return expression_to_text(expr)
