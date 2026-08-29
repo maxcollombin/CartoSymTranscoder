@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Set, Union
+from typing import Optional, Set, Union
 
 from antlr4 import CommonTokenStream, InputStream, ParseTreeWalker
 from antlr4.error.ErrorListener import ErrorListener
@@ -236,6 +236,8 @@ class CartoSymParser:
         listener = CartoSymStyleSheetListener()
         walker = ParseTreeWalker()
         walker.walk(listener, tree)
+        # enterStyleSheet always assigns listener.stylesheet during the walk.
+        assert listener.stylesheet is not None
         # Post-process AST to merge orphaned marker.elements[N] assignments
         self._merge_marker_elements(listener.stylesheet)
         return listener.stylesheet
@@ -261,7 +263,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             content = content[1:-1].strip()
         else:
             content = content.strip()
-        properties = {}
+        properties: dict = {}
         if content:
             # Split by semicolon, but be careful with nested structures
             parts = []
@@ -396,13 +398,13 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                     pass
         element_dict[key] = v
 
-    def __init__(self):
-        self.stylesheet = None
-        self.current_rule = None
-        self.current_assignments = []
-        self.rule_stack = []  # Stack for nested rules
-        self.current_selectors = []  # Current selectors being processed
-        self._in_object_assignment_stack = []
+    def __init__(self) -> None:
+        self.stylesheet: Optional[StyleSheet] = None
+        self.current_rule: Optional[StylingRule] = None
+        self.current_assignments: list = []
+        self.rule_stack: list = []  # Stack for nested rules
+        self.current_selectors: list = []  # Current selectors being processed
+        self._in_object_assignment_stack: list = []
 
     # -- ANTLR tree traversal helpers for structured extraction --
 
@@ -871,7 +873,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         # Resolve @variable references before processing
         if isinstance(prop_value, str) and prop_value.startswith("@"):
             var_name = prop_value[1:]
-            if hasattr(self, "stylesheet") and self.stylesheet.variables:
+            if self.stylesheet is not None and self.stylesheet.variables:
                 for v in self.stylesheet.variables:
                     if v.name == var_name:
                         prop_value = (
@@ -988,7 +990,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             content = content[1:-1].strip()
         else:
             content = content.strip()
-        properties = {}
+        properties: dict = {}
         if content:
             # Split by semicolon, but be careful with nested structures
             parts = []
@@ -1057,7 +1059,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 if content:
                     # Split by commas first
                     segments = [seg.strip() for seg in content.split(",")]
-                    parsed_segments = []
+                    parsed_segments: list = []
                     for seg in segments:
                         # Each segment is "value r g b" or "value colorName"
                         parts = seg.strip().split()
@@ -1092,7 +1094,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 if content:
                     # Split by commas first
                     segments = [seg.strip() for seg in content.split(",")]
-                    parsed_segments = []
+                    parsed_segments: list = []
                     for seg in segments:
                         # Each segment is "value opacity"
                         parts = seg.strip().split()
@@ -1112,7 +1114,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
 
     def _parse_hill_shading_object(self, properties: dict):
         """Parse hill shading object from properties."""
-        result = {}
+        result: dict = {}
         for key, value in properties.items():
             if key == "sun":
                 # Handle nested sun object: {azimuth: 45.0; elevation: 60.0}
@@ -1122,7 +1124,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                     and value.endswith("}")
                 ):
                     sun_content = value.strip("{}").strip()
-                    sun_props = {}
+                    sun_props: dict = {}
                     if sun_content:
                         for part in sun_content.split(";"):
                             if ":" in part:
