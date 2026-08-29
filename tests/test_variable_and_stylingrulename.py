@@ -74,9 +74,7 @@ def test_variable_and_stylingrulename_combined():
 
 
 def test_name_absent_when_not_in_source():
-    """1.2 — With no .name in the cscss, the CS-JSON must NOT contain
-    'stylingRuleName'.
-    """
+    """With no ``.name`` in the cscss, CS-JSON must not contain ``stylingRuleName``."""
     cscss = """
     Roads[type = 'highway']
     {
@@ -98,9 +96,7 @@ def test_name_absent_when_not_in_source():
 
 
 def test_name_present_when_in_source():
-    """1.2 — With .name 'X' in the cscss, the CS-JSON must contain
-    'stylingRuleName': 'X'.
-    """
+    """With ``.name 'X'`` in the cscss, CS-JSON must contain that stylingRuleName."""
     cscss = """
     Roads[type = 'highway']
     {
@@ -119,9 +115,7 @@ def test_name_present_when_in_source():
 
 
 def test_field_order_in_serialized_json():
-    """1.1 — JSON key order: name → stylingRuleName → selector →
-    symbolizer → nestedRules.
-    """
+    """JSON key order: name → stylingRuleName → selector → symbolizer → nestedRules."""
     cscss = """
     Landuse[type = 'forest']
     {
@@ -153,9 +147,7 @@ def test_field_order_in_serialized_json():
 
 
 def test_stylingrulename_roundtrip():
-    """2.3 — stylingRuleName must survive a full round-trip:
-    .cscss → CS-JSON → .cscss.
-    """
+    """A ``stylingRuleName`` must survive a .cscss → CS-JSON → .cscss round-trip."""
     from cartosym_transcoder.converter import Converter
 
     cscss_src = """

@@ -197,9 +197,7 @@ def convert_string_to_json_selector(selector_str: str) -> dict[str, Any]:
 
 
 def expression_to_json(expression: Any) -> Any:
-    """Convert ANTLR expression to CS.JSON selector format.
-    Enhanced version based on AST analysis from debug_antlr.py output.
-    """
+    """Convert an ANTLR expression to CS-JSON selector format."""
     if expression is None:
         return {}
 
@@ -369,9 +367,10 @@ def expression_to_json(expression: Any) -> Any:
 
 
 def convert_antlr_expression(expr_ctx: Any, rule_name: str) -> Any:
-    """Convert ANTLR expression context based on the actual AST structure.
-    Based on detailed AST analysis showing binary expressions as:
-    expression -> expression + operator + expression
+    """Convert an ANTLR expression context, following the parse-tree structure.
+
+    Binary expressions appear as ``expression -> expression operator
+    expression``.
     """
     if rule_name == "expression":
         if hasattr(expr_ctx, "getChildCount"):

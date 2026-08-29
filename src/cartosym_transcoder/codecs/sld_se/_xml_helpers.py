@@ -1,5 +1,7 @@
-"""XML namespace constants and small ``lxml`` element-building helpers shared
-by :mod:`_filter`, :mod:`_symbolizer`, :mod:`reader`, and :mod:`writer`.
+"""XML namespace constants and small ``lxml`` element-building helpers.
+
+Shared by :mod:`_filter`, :mod:`_symbolizer`, :mod:`reader`, and
+:mod:`writer`.
 """
 
 from __future__ import annotations

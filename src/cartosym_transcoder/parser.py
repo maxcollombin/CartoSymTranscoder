@@ -44,9 +44,11 @@ logger = logging.getLogger(__name__)
 
 
 class _CollectingErrorListener(ErrorListener):
-    """ANTLR error listener that accumulates syntax errors instead of
-    printing them to stderr, so :meth:`CartoSymParser.parse_string` can
-    raise a single :class:`CartoSymSyntaxError`.
+    """ANTLR error listener that accumulates syntax errors.
+
+    Errors are collected instead of printed to stderr, so
+    :meth:`CartoSymParser.parse_string` can raise a single
+    :class:`CartoSymSyntaxError`.
     """
 
     def __init__(self) -> None:
@@ -58,8 +60,9 @@ class _CollectingErrorListener(ErrorListener):
 
 
 def _strip_inline_comment(s: str) -> str:
-    """Strip a ``//`` line comment from *s*, but only outside single/double-quoted
-    string literals so that URLs like ``'http://...'`` are preserved intact.
+    """Strip a ``//`` line comment from *s*, outside quoted string literals.
+
+    Quoted literals are skipped so URLs like ``'http://...'`` stay intact.
     """
     result = []
     i = 0
@@ -242,9 +245,11 @@ class CartoSymParser:
         return listener.stylesheet
 
     def _merge_marker_elements(self, stylesheet):
-        """No-op: marker.elements[N] overrides are now kept in their own rule
-        as indexed Markers and written back as 'marker.elements[N]: Type
-        { ... }' by the CSCSS writer.
+        """No-op hook for ``marker.elements[N]`` overrides.
+
+        Such overrides are now kept in their own rule as indexed Markers
+        and written back as ``marker.elements[N]: Type { ... }`` by the
+        CSCSS writer.
         """
         return
 
@@ -415,8 +420,10 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
 
     @staticmethod
     def _collect_inferred_assignments(pai_list_ctx):
-        """Flatten a left-recursive PropertyAssignmentInferredListContext into
-        a list of PropertyAssignmentInferredContext nodes (in source order).
+        """Flatten a left-recursive ``PropertyAssignmentInferredListContext``.
+
+        Returns the ``PropertyAssignmentInferredContext`` nodes in source
+        order.
         """
         if pai_list_ctx is None:
             return []
@@ -432,8 +439,9 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
 
     @staticmethod
     def _collect_array_elements(array_elements_ctx):
-        """Flatten a left-recursive ArrayElementsContext into a list of
-        ExpressionContext nodes (in source order).
+        """Flatten a left-recursive ``ArrayElementsContext``.
+
+        Returns the ``ExpressionContext`` nodes in source order.
         """
         if array_elements_ctx is None:
             return []
@@ -479,8 +487,9 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
 
     @classmethod
     def _extract_element_from_instance(cls, exp_instance_ctx) -> dict:
-        """Extract a single element dict from an ExpInstanceContext like
-        ``Dot { size: 10 px; color: white }``.
+        """Extract a single element dict from an ``ExpInstanceContext``.
+
+        For example ``Dot { size: 10 px; color: white }``.
         """
         ident = exp_instance_ctx.IDENTIFIER()
         result = {"type": ident.getText()} if ident else {}
@@ -625,8 +634,10 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         self.stylesheet.variables.append(var)
 
     def enterStylingRuleName(self, ctx):
-        """Called when entering a stylingRuleName (.name 'value').
-        This fires AFTER enterStylingRule, so self.current_rule already exists.
+        """Handle entering a ``stylingRuleName`` (``.name 'value'``).
+
+        Fires after ``enterStylingRule``, so ``self.current_rule`` already
+        exists.
         """
         if ctx.CHARACTER_LITERAL() and self.current_rule:
             self.current_rule.styling_rule_name = (

@@ -179,8 +179,10 @@ def _format_number(value: float) -> str:
 
 
 def format_number(value: Any) -> str:
-    """Public wrapper around :func:`_format_number` for bare (unit-less)
-    numeric values — used by raster ``se:Threshold``/``se:ReliefFactor``.
+    """Format a bare (unit-less) numeric value for SLD/SE output.
+
+    Public wrapper around :func:`_format_number`, used by raster
+    ``se:Threshold`` / ``se:ReliefFactor``.
     """
     return _format_number(value)
 
@@ -346,12 +348,13 @@ def format_color(value: Any) -> str:
 
 
 def parse_color(text: str | None) -> list | None:
-    """Parse an SLD ``#rrggbb`` hex color string, or a known CSS color
-    name, into a CartoSym ``[r, g, b]`` array — schema-valid form,
-    matching the same hex-to-array convention used by
-    ``ast_converter.py::_parse_color_value`` for CSCSS hex literals (the
-    CartoSym-JSON schema's ``color`` definition does not accept a bare hex
-    string, only named colors, RGB objects, or ``[r, g, b]`` arrays).
+    """Parse an SLD hex color string or CSS color name into ``[r, g, b]``.
+
+    This is the schema-valid form, matching the same hex-to-array
+    convention used by ``ast_converter.py::_parse_color_value`` for CSCSS
+    hex literals (the CartoSym-JSON schema's ``color`` definition does not
+    accept a bare hex string, only named colors, RGB objects, or
+    ``[r, g, b]`` arrays).
 
     A named color (e.g. ``se:Value`` text inside ``se:Categorize`` may
     legitimately be a plain CSS name — SE's ``ParameterValueType`` is just

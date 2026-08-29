@@ -27,8 +27,9 @@ from .models import (
 
 
 def _strip_inline_comment(s: str) -> str:
-    """Strip a ``//`` line comment from *s*, but only outside single/double-quoted
-    string literals so that URLs like ``'http://...'`` are preserved intact.
+    """Strip a ``//`` line comment from *s*, outside quoted string literals.
+
+    Quoted literals are skipped so URLs like ``'http://...'`` stay intact.
     """
     result = []
     i = 0
@@ -53,8 +54,10 @@ def _strip_inline_comment(s: str) -> str:
 
 
 def _parse_resource_string(inner: str) -> dict:
-    """Parse ``uri: 'val'; path: 'val'; ...`` (content inside ``{}``) into a
-    resource dict, stripping surrounding quotes from each value.
+    """Parse ``uri: 'val'; path: 'val'; ...`` content into a resource dict.
+
+    Operates on the text inside ``{}`` and strips surrounding quotes from
+    each value.
     """
     result = {}
     for part in inner.split(";"):
@@ -71,8 +74,9 @@ def _parse_resource_string(inner: str) -> dict:
 
 
 def _parse_hotspot_string(s: str) -> Any:
-    """Convert ``'N unit N unit'`` (e.g. ``'50 pc 50 pc'``) to a unitPoint
-    array ``[{unit: N}, {unit: N}]`` as expected by the CS.JSON schema.
+    """Convert ``'N unit N unit'`` (e.g. ``'50 pc 50 pc'``) to a unitPoint array.
+
+    Produces ``[{unit: N}, {unit: N}]`` as expected by the CS-JSON schema.
     """
     parts = s.strip().split()
     if len(parts) == 4:
@@ -215,8 +219,7 @@ def _coerce_outline_dict(outline: dict) -> None:
 
 
 def _normalize_graphic_element(el: dict) -> None:
-    """Normalize a raw graphic-element dict in-place so it validates against
-    the CartoSym JSON schema.
+    """Normalise a graphic-element dict in-place to match the CartoSym JSON schema.
 
     Handles:
     * ``opacity`` / ``bold`` / ``italic`` strings → proper Python types
@@ -410,8 +413,7 @@ class AstToPydanticConverter:
             raise ValueError(f"Failed to convert AST stylesheet: {e}") from e
 
     def _resolve_ast_variables(self, ast_node, var_lookup: dict):
-        """Recursively resolve @variable references in AST nodes before
-        Pydantic model conversion.
+        """Recursively resolve ``@variable`` references before model conversion.
 
         Walks all attributes of the AST node. String values like
         ``"@baseColor"`` are replaced with the variable's value.  The
