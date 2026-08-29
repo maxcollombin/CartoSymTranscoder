@@ -9,6 +9,8 @@ Filter Encoding element factory (FE 1.0 and FE 1.1 share a namespace).
 
 from __future__ import annotations
 
+from typing import cast
+
 from lxml import etree
 
 SLD_NS = "http://www.opengis.net/sld"
@@ -23,11 +25,8 @@ GML = f"{{{GML_NS}}}"
 SLD = f"{{{SLD_NS}}}"
 XLINK = f"{{{XLINK_NS}}}"
 
-# Full namespace map declared on a detached ``ogc:Filter`` / ``ogc:BBOX``
-# root before it is appended into the document tree. lxml drops the
-# declarations already in scope at the insertion point, so this keeps the
-# serialised output identical to declaring the prefixes only on the
-# document root.
+# Namespace map for the SE 1.1.0 document root (also SldDialect.nsmap for
+# SE_1_1_0). Kept as a named constant so both uses stay in sync.
 NSMAP = {
     None: SLD_NS,
     "se": SE_NS,
@@ -35,6 +34,13 @@ NSMAP = {
     "gml": GML_NS,
     "xlink": XLINK_NS,
 }
+
+# Namespace map declared on a detached ``ogc:Filter`` / ``ogc:BBOX`` root
+# before it is appended into the document tree. Only the prefixes a Filter
+# Encoding fragment can actually use — lxml drops whichever are already in
+# scope at the insertion point, so the serialised output is unchanged, and
+# an SLD 1.0.0 document (whose root has no ``se`` prefix) stays clean.
+_FILTER_NSMAP = {"ogc": OGC_NS, "gml": GML_NS, "xlink": XLINK_NS}
 
 
 def ogc_el(
@@ -46,7 +52,7 @@ def ogc_el(
     el = (
         etree.SubElement(parent, f"{OGC}{tag}")
         if parent is not None
-        else etree.Element(f"{OGC}{tag}", nsmap=NSMAP)
+        else etree.Element(f"{OGC}{tag}", nsmap=_FILTER_NSMAP)
     )
     if text is not None:
         el.text = text
@@ -56,3 +62,22 @@ def ogc_el(
 def local_name(elem: etree._Element) -> str:
     """Return the local (unprefixed) tag name of *elem*."""
     return str(etree.QName(elem).localname)
+
+
+def element_text(elem: etree._Element | None) -> str | None:
+    """Return *elem*'s value, unwrapping a single wrapping ``<ogc:Literal>``.
+
+    SLD lets a parameter or scalar element hold either bare text
+    (``<Size>6</Size>``) or an expression; GeoServer very often writes the
+    constant case as ``<Size><ogc:Literal>6</ogc:Literal></Size>`` /
+    ``<CssParameter name="fill"><ogc:Literal>#abc</ogc:Literal></CssParameter>``.
+    Both spell the same constant, so they read back identically.
+    """
+    if elem is None:
+        return None
+    if elem.text is not None and elem.text.strip():
+        return cast("str", elem.text)
+    literal = elem.find(f"{OGC}Literal")
+    if literal is not None and literal.text is not None:
+        return cast("str", literal.text)
+    return cast("str | None", elem.text)

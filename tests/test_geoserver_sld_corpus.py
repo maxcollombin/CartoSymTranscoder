@@ -1,9 +1,11 @@
 """Guard the vendored GeoServer SLD corpus (``tests/fixtures/geoserver-sld/``).
 
-There is no GeoServer codec yet — these checks just keep the vendored
-files honest (count, SLD version, the handful that carry a
-``<VendorOption>``) so the codec work has a stable, described starting
-point. See the fixtures README.
+These checks keep the vendored files honest (count, SLD version, the
+handful that carry a ``<VendorOption>``). The SLD 1.0.0 dialect of the
+``sld`` codec reads and writes these — ``tests/test_sld10_corpus.py``
+covers the round trip; the four ``<VendorOption>`` files are still
+out of scope (a GeoServer vendor-extension follow-up). See the fixtures
+README.
 """
 
 from pathlib import Path

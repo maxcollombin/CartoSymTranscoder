@@ -2,8 +2,8 @@
 
 This directory holds a **local, self-contained copy** of the OGC schema graph
 needed to XML-Schema-validate SLD *style documents* produced (and consumed) by
-`cartosym_transcoder.codecs.sld_se`. Used only by the test suite
-(`tests/_xsd.py`, `tests/test_sld_se_xsd.py`) — it is not imported at runtime
+`cartosym_transcoder.codecs.sld` (SE 1.1.0 dialect). Used only by the test
+suite (`tests/_xsd.py`, `tests/test_sld_xsd.py`) — it is not imported at runtime
 and not part of the distributed package.
 
 ## Provenance

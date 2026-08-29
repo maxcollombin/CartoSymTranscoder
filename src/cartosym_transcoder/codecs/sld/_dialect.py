@@ -10,6 +10,10 @@ XML surface differs:
   (SLD 1.0.0);
 * the styling-parameter element — ``se:SvgParameter`` vs. ``CssParameter``;
 * the raster colour-map form — ``se:Categorize`` vs. ``<ColorMapEntry>``;
+* whether style ``Title``/``Abstract`` sit inside a ``se:Description``
+  wrapper (SE 1.1.0) or directly under ``UserStyle`` (SLD 1.0.0);
+* whether a raster group maps to ``se:CoverageStyle`` (SE 1.1.0 only) or
+  stays a plain ``FeatureTypeStyle`` (SLD 1.0.0 has no ``CoverageStyle``);
 * the root ``version`` attribute and the namespace map.
 
 A :class:`SldDialect` captures those points of variation plus the
@@ -29,7 +33,7 @@ from typing import Literal, cast
 
 from lxml import etree
 
-from ._xml_helpers import NSMAP, OGC_NS, SE_NS, SLD_NS, XLINK_NS
+from ._xml_helpers import NSMAP, OGC_NS, SE_NS, SLD_NS, XLINK_NS, element_text
 
 # SE 1.1.0 shares the module-level NSMAP (also used for detached ogc:Filter
 # roots). SLD 1.0.0 needs no ``se`` prefix.
@@ -57,6 +61,13 @@ class SldDialect:
         raster_colormap: Which raster colour-map encoding this dialect uses
             — ``"categorize"`` (``se:ColorMap/se:Categorize``, SE 1.1.0) or
             ``"entry"`` (``ColorMap/ColorMapEntry``, SLD 1.0.0).
+        description_element: ``True`` if style ``Title``/``Abstract`` are
+            wrapped in a ``se:Description`` element (SE 1.1.0); ``False`` if
+            they are direct ``UserStyle`` children (SLD 1.0.0).
+        coverage_style: ``True`` if a raster group maps to
+            ``se:CoverageStyle`` / ``se:CoverageName`` (SE 1.1.0); ``False``
+            if raster stays in a plain ``FeatureTypeStyle`` (SLD 1.0.0 has
+            no ``CoverageStyle``).
         nsmap: Namespace map for the document root element.
     """
 
@@ -64,6 +75,8 @@ class SldDialect:
     symbology_ns: str
     param_tag: str
     raster_colormap: Literal["categorize", "entry"]
+    description_element: bool
+    coverage_style: bool
     nsmap: dict[str | None, str]
 
     # -- element factories -------------------------------------------------
@@ -129,10 +142,14 @@ class SldDialect:
         return elem.find(f".//{{{self.symbology_ns}}}{tag}")
 
     def get_param(self, elem: etree._Element, name: str) -> str | None:
-        """Return the text of the ``<SvgParameter name=...>`` child, if present."""
+        """Return the value of the ``<SvgParameter name=...>`` child, if present.
+
+        Unwraps a ``<ogc:Literal>``-wrapped constant (a common GeoServer
+        SLD 1.0.0 spelling).
+        """
         for param in self.findall(elem, self.param_tag):
             if param.get("name") == name:
-                return cast("str | None", param.text)
+                return element_text(param)
         return None
 
 
@@ -141,6 +158,8 @@ SE_1_1_0 = SldDialect(
     symbology_ns=SE_NS,
     param_tag="SvgParameter",
     raster_colormap="categorize",
+    description_element=True,
+    coverage_style=True,
     nsmap=_SE_NSMAP,
 )
 
@@ -149,6 +168,8 @@ SLD_1_0_0 = SldDialect(
     symbology_ns=SLD_NS,
     param_tag="CssParameter",
     raster_colormap="entry",
+    description_element=False,
+    coverage_style=False,
     nsmap=_SLD10_NSMAP,
 )
 

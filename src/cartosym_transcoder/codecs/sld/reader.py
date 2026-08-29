@@ -19,7 +19,7 @@ from lxml import etree
 
 from ...models.styles import Style
 from ..base import CodecReader
-from ._dialect import SE_1_1_0, SldDialect
+from ._dialect import SE_1_1_0, SLD_1_0_0, SldDialect
 from ._filter import (
     filter_xml_to_selector,
     merge_feature_type_name,
@@ -53,9 +53,21 @@ def _scale_denominator_value(
 class SldReader(CodecReader):
     """Read ``.sld`` / ``.se`` XML files (or raw XML strings) into a Style model."""
 
-    def __init__(self, dialect: SldDialect = SE_1_1_0) -> None:
-        """Bind the reader to an SLD/SE dialect (SE 1.1.0 by default)."""
-        self.d = dialect
+    def __init__(self, dialect: SldDialect | None = None) -> None:
+        """Bind the reader to an SLD/SE dialect.
+
+        Pass ``SE_1_1_0`` / ``SLD_1_0_0`` to pin one. The default
+        (``None``) picks the dialect per document from the root
+        ``version`` attribute — ``"1.0.0"`` selects SLD 1.0.0, anything
+        else (including a missing attribute) selects SE 1.1.0.
+        """
+        self._pinned = dialect
+        self.d = dialect or SE_1_1_0
+
+    def _dialect_for(self, root: etree._Element) -> SldDialect:
+        if self._pinned is not None:
+            return self._pinned
+        return SLD_1_0_0 if root.get("version") == "1.0.0" else SE_1_1_0
 
     def read(self, source: str | Path) -> Style:
         """Parse *source* and return a validated Style.
@@ -83,6 +95,12 @@ class SldReader(CodecReader):
         return self._parse_sld(root)
 
     def _parse_sld(self, root: etree._Element) -> Style:
+        self.d = self._dialect_for(root)
+        if root.find(f".//{SLD}VendorOption") is not None:
+            raise NotImplementedError(
+                "GeoServer <VendorOption> is a vendor extension with no "
+                "CartoSym mapping in this codec's scope"
+            )
         named_layer = root.find(f"{SLD}NamedLayer")
         if named_layer is None:
             raise NotImplementedError(
@@ -97,10 +115,15 @@ class SldReader(CodecReader):
 
     def _parse_user_style(self, user_style: etree._Element) -> Style:
         metadata: dict = {}
-        description = self.d.find(user_style, "Description")
-        if description is not None:
-            title_el = self.d.find(description, "Title")
-            abstract_el = self.d.find(description, "Abstract")
+        # SE 1.1.0 wraps Title/Abstract in se:Description; SLD 1.0.0 puts
+        # them directly under UserStyle.
+        if self.d.description_element:
+            desc = self.d.find(user_style, "Description")
+        else:
+            desc = user_style
+        if desc is not None:
+            title_el = self.d.find(desc, "Title")
+            abstract_el = self.d.find(desc, "Abstract")
             if title_el is not None and title_el.text:
                 metadata["title"] = title_el.text
             if abstract_el is not None and abstract_el.text:
@@ -179,7 +202,11 @@ class SldReader(CodecReader):
                 "se:Min/MaxScaleDenominator in this codec's scope"
             )
 
-        sym_children = [c for c in rule_el if local_name(c).endswith("Symbolizer")]
+        sym_children = [
+            c
+            for c in rule_el
+            if isinstance(c.tag, str) and local_name(c).endswith("Symbolizer")
+        ]
         if sym_children:
             rule_dict["symbolizer"] = elements_to_symbolizer(self.d, sym_children)
 
