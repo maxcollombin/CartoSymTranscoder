@@ -25,10 +25,12 @@ from .test_geoserver_sld_corpus import CORPUS, FILES
 
 # Why each out-of-scope fixture is out of scope (all raise NotImplementedError).
 OUT_OF_SCOPE = {
+    "Lakes.sld": "unmapped CssParameter 'stroke-linecap' / '-linejoin' / '-dashoffset'",
     "default_generic.sld": "<ogc:Function> in filter + VendorOption (GeoServer)",
     "default_point.sld": "Mark/WellKnownName 'square' (only 'circle'/Dot supported)",
     "grass_poly.sld": "Fill/GraphicFill (pattern fill)",
     "pattern_polygon.sld": "VendorOption 'graphic-margin' + Fill/GraphicFill",
+    "poi.sld": "TextSymbolizer/Halo (label halo)",
     "pophatch.sld": "Fill/GraphicFill (hatch) + WellKnownName 'shape://slash'",
     "poly_landmarks.sld": "VendorOption 'group' / 'autoWrap' (GeoServer)",
     "raster.sld": "RasterSymbolizer with only Opacity (no channels / colour map)",
@@ -36,8 +38,8 @@ OUT_OF_SCOPE = {
 }
 IN_SCOPE = sorted(set(FILES) - set(OUT_OF_SCOPE))
 
-_EXPECTED_IN_SCOPE = 16
-_EXPECTED_OUT_OF_SCOPE = 8
+_EXPECTED_IN_SCOPE = 14
+_EXPECTED_OUT_OF_SCOPE = 10
 
 
 def test_corpus_split_is_exhaustive():

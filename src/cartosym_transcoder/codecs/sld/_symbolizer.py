@@ -9,7 +9,11 @@ Scope: vector symbolizers plus basic Part-1 raster/coverage styling
 ``HillShading.sun``/``colorMap``/``opacityMap`` are all out of scope and
 raise :exc:`NotImplementedError` naming the field — per this project's
 lossless-transcoding requirement, out-of-scope content must fail loudly
-rather than silently drop data.
+rather than silently drop data. On read, an unmapped
+``SvgParameter``/``CssParameter`` (``stroke-linecap`` / ``-linejoin`` /
+``-dashoffset`` / ...) and ``se:Halo`` likewise raise. Still silently
+dropped, pending a mapping decision: graphic-level ``se:Rotation`` /
+``se:Displacement`` / ``se:Opacity`` on a point ``se:Graphic``.
 
 Every function here is dialect-agnostic: the caller passes a
 :class:`~cartosym_transcoder.codecs.sld._dialect.SldDialect` (``d``) and all
@@ -718,12 +722,32 @@ def elements_to_symbolizer(d: SldDialect, sym_elements: list[etree._Element]) ->
     return result
 
 
+def _reject_unknown_params(
+    d: SldDialect, el: etree._Element, known: set[str], ctx: str
+) -> None:
+    """Fail loudly on a styling parameter this codec has no mapping for.
+
+    Silently dropping e.g. ``stroke-linecap`` / ``stroke-linejoin`` /
+    ``stroke-dashoffset`` would break the lossless-transcoding guarantee,
+    so an unrecognised ``CssParameter`` / ``SvgParameter`` name makes the
+    whole document out of scope.
+    """
+    for param in d.findall(el, d.param_tag):
+        name = param.get("name")
+        if name not in known:
+            raise NotImplementedError(
+                f"{ctx} style parameter {name!r} has no CartoSym mapping in "
+                "this codec's scope"
+            )
+
+
 def _parse_fill_element(d: SldDialect, fill_el: etree._Element) -> dict:
     if d.find(fill_el, "GraphicFill") is not None:
         raise NotImplementedError(
             "se:Fill/se:GraphicFill (hatch/pattern fills) is out of scope "
             "for this codec"
         )
+    _reject_unknown_params(d, fill_el, {"fill", "fill-opacity"}, "Fill")
     result: dict = {}
     color = d.get_param(fill_el, "fill")
     opacity = d.get_param(fill_el, "fill-opacity")
@@ -742,6 +766,12 @@ def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
         raise NotImplementedError(
             "se:Stroke graphic-fill/-stroke patterns are out of scope for this codec"
         )
+    _reject_unknown_params(
+        d,
+        stroke_el,
+        {"stroke", "stroke-width", "stroke-opacity", "stroke-dasharray"},
+        "Stroke",
+    )
     result: dict = {}
     color = d.get_param(stroke_el, "stroke")
     width = d.get_param(stroke_el, "stroke-width")
@@ -1006,6 +1036,11 @@ def _parse_text_symbolizer(d: SldDialect, ts_el: etree._Element) -> dict:
     label_el = d.find(ts_el, "Label")
     if label_el is None:
         raise NotImplementedError("se:TextSymbolizer without se:Label is not supported")
+    if d.find(ts_el, "Halo") is not None:
+        raise NotImplementedError(
+            "se:TextSymbolizer/se:Halo (label halo/buffer) has no CartoSym "
+            "mapping in this codec's scope"
+        )
     prop_el = label_el.find(f"{OGC}PropertyName")
     literal_el = label_el.find(f"{OGC}Literal")
     if prop_el is not None:
@@ -1027,6 +1062,12 @@ def _parse_text_symbolizer(d: SldDialect, ts_el: etree._Element) -> dict:
     font_el = d.find(ts_el, "Font")
     font: dict = {}
     if font_el is not None:
+        _reject_unknown_params(
+            d,
+            font_el,
+            {"font-family", "font-size", "font-weight", "font-style"},
+            "Font",
+        )
         face = d.get_param(font_el, "font-family")
         size = d.get_param(font_el, "font-size")
         weight = d.get_param(font_el, "font-weight")
