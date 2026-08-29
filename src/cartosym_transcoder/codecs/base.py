@@ -76,6 +76,7 @@ class Codec:
         reader: CodecReader | None = None,
         writer: CodecWriter | None = None,
     ):
+        """Store the codec's format name, extensions and reader/writer pair."""
         self.format_name = format_name
         self.extensions = extensions
         self.reader = reader
@@ -98,6 +99,7 @@ class Codec:
         return self.writer.write(style)
 
     def __repr__(self) -> str:
+        """Return a short ``<Codec name [R][W]>`` representation."""
         r = "R" if self.reader else "-"
         w = "W" if self.writer else "-"
         return f"<Codec '{self.format_name}' [{r}{w}] {self.extensions}>"

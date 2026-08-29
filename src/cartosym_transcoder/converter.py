@@ -17,6 +17,7 @@ class Converter:
     """Main converter class for format transformations using Pydantic models."""
 
     def __init__(self) -> None:
+        """Create the converter with a fresh :class:`CartoSymParser`."""
         self.parser = CartoSymParser()
 
     def _resolve_path(self, path: str | Path) -> Path:

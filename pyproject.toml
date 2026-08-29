@@ -94,23 +94,23 @@ extend-exclude = ["src/cartosym_transcoder/grammar/generated"]
 # E/F/W: flake8 parity. I: isort parity. UP: pyupgrade (safe on the
 # >=3.10 floor — PEP 604/585 syntax). FIX/TD: no stray TODO/FIXME/HACK
 # left in the tree — a known gap raises NotImplementedError with an inline
-# reason instead. D: pydocstyle (google convention) — docstring layout
-# only for now. These are still staged in as follow-ups:
-#   - undocumented-public-* (D100/D101/D102/D103/D105/D107) — ~440 missing
-#     docstrings, their own pass;
-#   - D205 (blank line after summary) / D415 (terminal punctuation) /
-#     D403 (first-word case) — need a sentence-aware manual pass (a naive
-#     autofix splits wrapped summaries and mangles identifiers like
-#     `stylingRuleName`).
-# ERA (commented-out code) is a separate follow-up.
+# reason instead. D: pydocstyle (google convention). The undocumented-*
+# rules are enforced in `src/` (real public API) but not in `tests/` —
+# a test's name is its spec (per-file-ignores below). Still staged in as
+# a follow-up: D205 (blank line after summary) / D415 (terminal
+# punctuation) / D403 (first-word case) — a naive autofix splits wrapped
+# summaries and mangles identifiers like `stylingRuleName`, so these need
+# a sentence-aware manual pass. ERA (commented-out code) is a separate
+# follow-up.
 select = ["E", "F", "W", "I", "UP", "FIX", "TD", "D"]
-ignore = [
-    "D100", "D101", "D102", "D103", "D105", "D107",
-    "D205", "D400", "D401", "D403", "D415",
-]
+ignore = ["D205", "D400", "D401", "D403", "D415"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Test names document the behaviour under test; no docstring mandate.
+"tests/**" = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["cartosym_transcoder"]

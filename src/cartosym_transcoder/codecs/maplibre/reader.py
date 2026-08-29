@@ -19,4 +19,5 @@ class MaplibreReader(CodecReader):
     """
 
     def read(self, source: str | Path) -> Style:
+        """Parse MapLibre style JSON into a Style model (not yet implemented)."""
         raise NotImplementedError("MapLibre reader is not yet implemented")

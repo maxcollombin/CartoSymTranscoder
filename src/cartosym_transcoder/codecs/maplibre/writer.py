@@ -18,4 +18,5 @@ class MaplibreWriter(CodecWriter):
     """
 
     def write(self, style: Style) -> dict:
+        """Serialise a Style model to MapLibre style JSON (not yet implemented)."""
         raise NotImplementedError("MapLibre writer is not yet implemented")

@@ -22,6 +22,7 @@ class CartoSymSyntaxError(CartoSymError, ValueError):
     """
 
     def __init__(self, errors: list[str]) -> None:
+        """Build the error from the list of ``"line L:C message"`` strings."""
         self.errors = list(errors)
         n = len(self.errors)
         joined = "\n  ".join(self.errors)

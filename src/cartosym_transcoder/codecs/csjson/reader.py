@@ -16,6 +16,7 @@ class CsjsonReader(CodecReader):
     """Read ``.cs.json`` files (or raw JSON strings / dicts) into a Style model."""
 
     def __init__(self) -> None:
+        """Create the reader with a fresh :class:`Converter`."""
         self._converter = Converter()
 
     def read(self, source: str | Path | dict) -> Style:
