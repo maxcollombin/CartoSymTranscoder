@@ -6,7 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from antlr4 import CommonTokenStream, FileStream
 from jsonschema import ValidationError
@@ -239,6 +239,8 @@ def convert_command(args) -> int:
         if has_errors:
             return 1
         # If no errors, proceed with conversion
+        # result is a dict for *→csjson and a str for *→cscss
+        result: Any
         if from_format == "cscss" and to_format == "csjson":
             result = converter.cscss_to_csjson(args.input_file)
             if args.print:

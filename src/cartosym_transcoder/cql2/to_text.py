@@ -37,7 +37,7 @@ def expression_to_text(expr, quote_bare_strings: bool = True) -> str:
         return f"'{s}'"
     # Handle bare property reference (e.g., {"property": "viz.date"})
     if "property" in expr and len(expr) == 1:
-        return expr["property"]
+        return str(expr["property"])
     # Handle date literal (e.g., {"date": "2020-01-01"} → DATE('2020-01-01'))
     if "date" in expr and len(expr) == 1:
         return f"DATE('{expr['date']}')"
@@ -247,9 +247,9 @@ def expression_to_text(expr, quote_bare_strings: bool = True) -> str:
             return f"{left} {op} {right}"
     # Handle sysId
     if "sysId" in expr:
-        return expr["sysId"]
+        return str(expr["sysId"])
     if "property" in expr:
-        return expr["property"]
+        return str(expr["property"])
     return str(expr)
 
 

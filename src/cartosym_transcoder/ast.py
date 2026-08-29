@@ -4,7 +4,7 @@ Abstract Syntax Tree (AST) classes for CartoSym CSS.
 This module contains the data structures representing parsed CartoSym CSS.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 
@@ -21,15 +21,9 @@ class Variable:
 class StyleSheet:
     """Root node of a CartoSym CSS stylesheet."""
 
-    metadata: Optional[List["Metadata"]] = None
+    metadata: List["Metadata"] = field(default_factory=list)
     styling_rules: Optional["StylingRuleList"] = None
-    variables: Optional[List["Variable"]] = None
-
-    def __post_init__(self):
-        if self.metadata is None:
-            self.metadata = []
-        if self.variables is None:
-            self.variables = []
+    variables: List["Variable"] = field(default_factory=list)
 
 
 @dataclass
@@ -60,22 +54,12 @@ class StylingRule:
         None  # New: explicit stylingRuleName from grammar
     )
     selector: Optional["Selector"] = None
-    selectors: Optional[list] = (
-        None  # <-- Add this line to store all selectors (for nested rules)
-    )
+    # all selectors (for nested rules)
+    selectors: list = field(default_factory=list)
     symbolizer: Optional["Symbolizer"] = None
-    nested_rules: Optional[List["StylingRule"]] = None
-    property_assignments: Optional[list] = (
-        None  # <-- Store all property assignments for post-processing
-    )
-
-    def __post_init__(self):
-        if self.nested_rules is None:
-            self.nested_rules = []
-        if self.selectors is None:
-            self.selectors = []
-        if self.property_assignments is None:
-            self.property_assignments = []
+    nested_rules: List["StylingRule"] = field(default_factory=list)
+    # all property assignments, for post-processing
+    property_assignments: list = field(default_factory=list)
 
 
 @dataclass
