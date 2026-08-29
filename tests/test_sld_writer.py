@@ -586,23 +586,46 @@ class TestWriteImage:
                 )
             )
 
-    def test_image_non_zero_position_raises(self):
-        with pytest.raises(NotImplementedError):
-            _write(
-                _rule_style(
-                    {
-                        "marker": {
-                            "elements": [
-                                {
-                                    "type": "Image",
-                                    "image": {"uri": "http://example.com/x.png"},
-                                    "position": {"x": 10, "y": 0},
-                                }
-                            ]
-                        }
+    def test_image_non_zero_position_emits_displacement(self):
+        root = _write(
+            _rule_style(
+                {
+                    "marker": {
+                        "elements": [
+                            {
+                                "type": "Image",
+                                "image": {"uri": "http://example.com/x.png"},
+                                "position": {"x": 10, "y": 0},
+                            }
+                        ]
                     }
-                )
+                }
             )
+        )
+        disp = root.find(".//se:Graphic/se:Displacement", NS)
+        assert disp is not None
+        assert disp.find("se:DisplacementX", NS).text == "10"
+
+    def test_image_non_zero_position_raises_for_sld_1_0_0(self):
+        from cartosym_transcoder.codecs.sld._dialect import SLD_1_0_0
+
+        style = Style.from_dict(
+            _rule_style(
+                {
+                    "marker": {
+                        "elements": [
+                            {
+                                "type": "Image",
+                                "image": {"uri": "http://example.com/x.png"},
+                                "position": {"x": 10, "y": 0},
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter(SLD_1_0_0).write(style)
 
 
 class TestWriteRaster:

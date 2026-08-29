@@ -68,6 +68,9 @@ class SldDialect:
             ``se:CoverageStyle`` / ``se:CoverageName`` (SE 1.1.0); ``False``
             if raster stays in a plain ``FeatureTypeStyle`` (SLD 1.0.0 has
             no ``CoverageStyle``).
+        graphic_placement: ``True`` if a point ``Graphic`` may carry an
+            ``AnchorPoint`` / ``Displacement`` child (SE 1.1.0 ``GraphicType``);
+            ``False`` for SLD 1.0.0, whose ``Graphic`` stops at ``Rotation``.
         nsmap: Namespace map for the document root element.
     """
 
@@ -77,6 +80,7 @@ class SldDialect:
     raster_colormap: Literal["categorize", "entry"]
     description_element: bool
     coverage_style: bool
+    graphic_placement: bool
     nsmap: dict[str | None, str]
 
     # -- element factories -------------------------------------------------
@@ -160,6 +164,7 @@ SE_1_1_0 = SldDialect(
     raster_colormap="categorize",
     description_element=True,
     coverage_style=True,
+    graphic_placement=True,
     nsmap=_SE_NSMAP,
 )
 
@@ -170,6 +175,7 @@ SLD_1_0_0 = SldDialect(
     raster_colormap="entry",
     description_element=False,
     coverage_style=False,
+    graphic_placement=False,
     nsmap=_SLD10_NSMAP,
 )
 

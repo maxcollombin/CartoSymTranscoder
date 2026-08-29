@@ -11,9 +11,14 @@ raise :exc:`NotImplementedError` naming the field — per this project's
 lossless-transcoding requirement, out-of-scope content must fail loudly
 rather than silently drop data. On read, an unmapped
 ``SvgParameter``/``CssParameter`` (``stroke-linecap`` / ``-linejoin`` /
-``-dashoffset`` / ...) and ``se:Halo`` likewise raise. Still silently
-dropped, pending a mapping decision: graphic-level ``se:Rotation`` /
-``se:Displacement`` / ``se:Opacity`` on a point ``se:Graphic``.
+``-dashoffset`` / ...) likewise raises.
+
+``se:Halo`` maps to ``font.outline`` (``{size, opacity, color}``); a
+point ``se:Graphic``'s ``se:Opacity`` and ``se:Displacement`` map to the
+graphic's ``opacity`` / ``position`` (SE 1.1.0 only — SLD 1.0.0's
+``Graphic`` has no ``Displacement`` child, so a non-zero offset raises
+there). A point ``se:Graphic``'s ``se:Rotation`` has no CartoSym field
+and is still silently dropped, pending a mapping decision.
 
 Every function here is dialect-agnostic: the caller passes a
 :class:`~cartosym_transcoder.codecs.sld._dialect.SldDialect` (``d``) and all
@@ -485,15 +490,31 @@ def _build_point_symbolizer(
     if size is not None:
         d.el("Size", parent=graphic, text=format_unit_value(size))
 
-    position = _g(dot, "position")
-    if position is not None:
-        px, py = _unit_point_xy(position)
-        if (px or 0) != 0 or (py or 0) != 0:
-            raise NotImplementedError(
-                "Non-zero Dot.position (offset) has no verified SLD/SE "
-                "PointSymbolizer displacement mapping in this codec"
-            )
+    _build_graphic_displacement(d, graphic, _g(dot, "position"), "Dot")
     return ps
+
+
+def _build_graphic_displacement(
+    d: SldDialect, graphic: etree._Element, position: Any, ctx: str
+) -> None:
+    """Emit ``se:Displacement`` for a non-zero point-graphic offset.
+
+    SLD 1.0.0's ``Graphic`` has no ``Displacement`` child (it stops at
+    ``Rotation``), so a non-zero offset is out of scope there.
+    """
+    if position is None:
+        return
+    px, py = _unit_point_xy(position)
+    if (px or 0) == 0 and (py or 0) == 0:
+        return
+    if not d.graphic_placement:
+        raise NotImplementedError(
+            f"Non-zero {ctx}.position (offset) has no SLD 1.0.0 Graphic "
+            "mapping (Graphic has no Displacement child before Rotation)"
+        )
+    disp = d.el("Displacement", parent=graphic)
+    d.el("DisplacementX", parent=disp, text=format_unit_value(px or 0))
+    d.el("DisplacementY", parent=disp, text=format_unit_value(py or 0))
 
 
 def _percent_to_fraction(value: Any) -> float:
@@ -558,24 +579,23 @@ def _build_image_symbolizer(
     if combined is not None:
         d.el("Opacity", parent=graphic, text=combined)
 
-    position = _g(image_graphic, "position")
-    if position is not None:
-        px, py = _unit_point_xy(position)
-        if (px or 0) != 0 or (py or 0) != 0:
-            raise NotImplementedError(
-                "Non-zero ImageGraphic.position (offset) has no verified "
-                "SLD/SE PointSymbolizer displacement mapping in this codec"
-            )
-
     hot_spot = _g(image_graphic, "hotSpot")
     if hot_spot is not None:
         fx, fy = _hot_spot_to_anchor_fraction(hot_spot)
+        if not d.graphic_placement:
+            raise NotImplementedError(
+                "ImageGraphic.hotSpot has no SLD 1.0.0 Graphic mapping "
+                "(Graphic has no AnchorPoint child)"
+            )
         # se:AnchorPoint belongs inside se:Graphic (after ExternalGraphic/
         # Mark, Opacity, Size, Rotation), not directly under the symbolizer.
         anchor_el = d.el("AnchorPoint", parent=graphic)
         d.el("AnchorPointX", parent=anchor_el, text=format_number(fx))
         d.el("AnchorPointY", parent=anchor_el, text=format_number(fy))
 
+    _build_graphic_displacement(
+        d, graphic, _g(image_graphic, "position"), "ImageGraphic"
+    )
     return ps
 
 
@@ -589,6 +609,22 @@ def _alignment_hv(alignment: Any):
     h = _g(alignment, "h_alignment")
     v = _g(alignment, "v_alignment")
     return h, v
+
+
+def _build_halo(d: SldDialect, ts: etree._Element, outline: Any) -> None:
+    """Emit ``se:Halo`` from a CartoSym ``font.outline`` (size / opacity / color)."""
+    halo_el = d.el("Halo", parent=ts)
+    size = _g(outline, "size")
+    if size is not None:
+        d.el("Radius", parent=halo_el, text=format_number(size))
+    color = _g(outline, "color")
+    opacity = _g(outline, "opacity")
+    if color is not None or opacity is not None:
+        fill_el = d.el("Fill", parent=halo_el)
+        if color is not None:
+            d.param(fill_el, "fill", format_color(color))
+        if opacity is not None:
+            d.param(fill_el, "fill-opacity", format_opacity(opacity))
 
 
 def _build_text_symbolizer(
@@ -633,6 +669,8 @@ def _build_text_symbolizer(
         font_color = _g(font, "color")
         font_opacity = _g(font, "opacity")
 
+    font_outline = _g(font, "outline") if font is not None else None
+
     alignment = _g(text_graphic, "alignment")
     position = _g(text_graphic, "position")
     px, py = _unit_point_xy(position) if position is not None else (None, None)
@@ -650,6 +688,10 @@ def _build_text_symbolizer(
             disp_el = d.el("Displacement", parent=point_placement_el)
             d.el("DisplacementX", parent=disp_el, text=format_unit_value(px or 0))
             d.el("DisplacementY", parent=disp_el, text=format_unit_value(py or 0))
+
+    # se:TextSymbolizerType order: Label, Font, LabelPlacement, Halo, Fill.
+    if font_outline is not None:
+        _build_halo(d, ts, font_outline)
 
     combined_opacity = _combine_opacity(base_opacity, font_opacity)
     if font_color is not None or combined_opacity is not None:
@@ -970,7 +1012,7 @@ def _parse_mark(
             "codec (only 'circle' / Dot is supported)"
         )
 
-    result: dict = {"type": "Dot", "position": {"x": 0, "y": 0}}
+    result: dict = {"type": "Dot", "position": _graphic_displacement(d, graphic_el)}
     fill_el = d.find(mark_el, "Fill")
     if fill_el is not None:
         color = d.get_param(fill_el, "fill")
@@ -979,7 +1021,25 @@ def _parse_mark(
     size_text = element_text(d.find(graphic_el, "Size"))
     if size_text is not None:
         result["size"] = parse_unit_value(size_text)
+    opacity_text = element_text(d.find(graphic_el, "Opacity"))
+    if opacity_text and opacity_text.strip():
+        result["opacity"] = parse_opacity(opacity_text.strip())
     return result
+
+
+def _graphic_displacement(d: SldDialect, graphic_el: etree._Element) -> dict:
+    """Return the ``{x, y}`` offset from a point ``Graphic``'s ``se:Displacement``.
+
+    Defaults to ``{x: 0, y: 0}`` (no offset). SLD 1.0.0 never has this
+    child, so this is a no-op there.
+    """
+    disp_el = d.find(graphic_el, "Displacement")
+    if disp_el is None:
+        return {"x": 0, "y": 0}
+    return {
+        "x": _parsed_px_or_zero(d.find(disp_el, "DisplacementX")),
+        "y": _parsed_px_or_zero(d.find(disp_el, "DisplacementY")),
+    }
 
 
 def _parse_external_graphic(
@@ -997,7 +1057,7 @@ def _parse_external_graphic(
     result: dict = {
         "type": "Image",
         "image": {"uri": href},
-        "position": {"x": 0, "y": 0},
+        "position": _graphic_displacement(d, graphic_el),
     }
     format_text = element_text(d.find(ext_el, "Format"))
     if format_text and format_text.strip():
@@ -1032,15 +1092,33 @@ def _parsed_number_or(el: etree._Element | None, default: float) -> float:
     return parsed if parsed is not None else default
 
 
+def _parse_halo(d: SldDialect, halo_el: etree._Element | None) -> dict:
+    """Map ``se:Halo`` (``Radius`` + ``Fill``) to a CartoSym ``font.outline`` dict.
+
+    CartoSym Part-1 "font outlines": ``{size, opacity, color}``. An empty
+    ``se:Halo`` yields an empty dict (the caller drops it).
+    """
+    if halo_el is None:
+        return {}
+    outline: dict = {}
+    radius_text = element_text(d.find(halo_el, "Radius"))
+    if radius_text and radius_text.strip():
+        outline["size"] = parse_number(radius_text)
+    fill_el = d.find(halo_el, "Fill")
+    if fill_el is not None:
+        opacity = d.get_param(fill_el, "fill-opacity")
+        if opacity is not None:
+            outline["opacity"] = parse_opacity(opacity)
+        color = d.get_param(fill_el, "fill")
+        if color is not None:
+            outline["color"] = parse_color(color)
+    return outline
+
+
 def _parse_text_symbolizer(d: SldDialect, ts_el: etree._Element) -> dict:
     label_el = d.find(ts_el, "Label")
     if label_el is None:
         raise NotImplementedError("se:TextSymbolizer without se:Label is not supported")
-    if d.find(ts_el, "Halo") is not None:
-        raise NotImplementedError(
-            "se:TextSymbolizer/se:Halo (label halo/buffer) has no CartoSym "
-            "mapping in this codec's scope"
-        )
     prop_el = label_el.find(f"{OGC}PropertyName")
     literal_el = label_el.find(f"{OGC}Literal")
     if prop_el is not None:
@@ -1089,6 +1167,11 @@ def _parse_text_symbolizer(d: SldDialect, ts_el: etree._Element) -> dict:
             font["color"] = parse_color(color)
         if opacity is not None:
             font["opacity"] = parse_opacity(opacity)
+
+    outline = _parse_halo(d, d.find(ts_el, "Halo"))
+    if outline:
+        font["outline"] = outline
+
     if font:
         result["font"] = font
 
