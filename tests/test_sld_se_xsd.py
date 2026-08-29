@@ -3,9 +3,9 @@
 Validates, against the vendored OGC SLD 1.1.0 / SE 1.1.0 schemas
 (``tests/schemas/ogc-sld-se-1.1.0/``, see its ``README.md``):
 
-* every hand-written ``input/sld/*.sld`` fixture is itself valid SLD;
+* every hand-written ``examples/sld/*.sld`` fixture is itself valid SLD;
 * the writer's output — both from the ``.sld`` fixtures (read -> write) and
-  from the end-to-end-convertible ``input/*.cscss`` examples — is valid SLD;
+  from the end-to-end-convertible ``examples/*.cscss`` examples — is valid SLD;
 * ``.cscss`` styles with no SLD/SE-renderable content fail loudly rather
   than emit an invalid document.
 """
@@ -21,7 +21,7 @@ from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
 from ._xsd import assert_sld_valid
 
 ROOT = Path(__file__).resolve().parent.parent
-SLD_FIXTURES = sorted((ROOT / "input" / "sld").glob("*.sld"))
+SLD_FIXTURES = sorted((ROOT / "examples" / "sld").glob("*.sld"))
 
 # .cscss examples whose SLD/SE conversion currently succeeds end-to-end.
 CSCSS_CONVERTIBLE = ["5-coverage-dem", "11-natural_earth_continents"]
@@ -32,7 +32,7 @@ CSCSS_NO_RENDERABLE_CONTENT = ["0-basic", "1-core"]
 
 
 def _cscss_to_style(stem: str):
-    return get_codec("cscss").read(ROOT / "input" / f"{stem}.cscss")
+    return get_codec("cscss").read(ROOT / "examples" / f"{stem}.cscss")
 
 
 @pytest.mark.parametrize("fixture", SLD_FIXTURES, ids=[f.name for f in SLD_FIXTURES])

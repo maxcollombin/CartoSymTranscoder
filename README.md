@@ -27,28 +27,28 @@ project's `.venv` with `source .venv/bin/activate`.
 
 ```bash
 # Convert CSCSS → CS-JSON
-cartosym input/example.cscss -o output/example.cs.json
+cartosym examples/0-basic.cscss -o output/0-basic.cs.json
 
 # Convert CS-JSON → CSCSS
-cartosym output/example.cs.json -o output/example.cscss
+cartosym output/0-basic.cs.json -o output/0-basic.cscss
 
 # Explicit format selection
-cartosym --from-format cscss --to-format csjson input/example.cscss -o output/example.cs.json
+cartosym --from-format cscss --to-format csjson examples/0-basic.cscss -o output/0-basic.cs.json
 
 # Print the result to the console instead of writing a file
-cartosym input/example.cscss --print
+cartosym examples/0-basic.cscss --print
 
 # Convert and validate the output against the JSON schema
-cartosym input/example.cscss -o output/example.cs.json --validate
+cartosym examples/0-basic.cscss -o output/0-basic.cs.json --validate
 
 # Overwrite an existing output file
-cartosym input/example.cscss -o output/example.cs.json --force
+cartosym examples/0-basic.cscss -o output/0-basic.cs.json --force
 
 # Parse a CSCSS file (display structure info)
-cartosym parse input/example.cscss
+cartosym parse examples/0-basic.cscss
 
 # Validate a file
-cartosym validate input/example.cs.json
+cartosym validate examples/example-functional.cs.json
 
 # Help & version
 cartosym --help

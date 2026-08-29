@@ -7,7 +7,7 @@ import pytest
 from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
 
 ROOT = Path(__file__).resolve().parent.parent
-FIXTURES = ROOT / "input" / "sld"
+FIXTURES = ROOT / "examples" / "sld"
 
 
 def _read(name):

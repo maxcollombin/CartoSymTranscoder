@@ -1,7 +1,12 @@
-"""Round-trip and forward-conversion tests for all input examples (Phase 4.1).
+"""Round-trip and forward-conversion tests for every example style.
 
-Forward test:   input/*.cscss  →  converter  →  compare with output/*.cs.json
-Write-back:     output/*.cs.json  →  csjson_to_cscss  →  re-parse without error
+Forward test:   examples/*.cscss  →  converter  →  compare with the golden
+                tests/fixtures/expected/*.cs.json
+Write-back:     golden  →  csjson_to_cscss  →  re-parse, must equal the
+                forward result (nothing lost in two conversions)
+
+Regenerate the goldens after an intentional output change:
+``uv run python tests/fixtures/expected/regenerate.py``.
 """
 
 import json
@@ -13,15 +18,11 @@ from cartosym_transcoder.converter import Converter
 from cartosym_transcoder.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
-INPUT_DIR = ROOT / "input"
-OUTPUT_DIR = ROOT / "output"
+EXAMPLES_DIR = ROOT / "examples"
+EXPECTED_DIR = ROOT / "tests" / "fixtures" / "expected"
 
-# All .cscss inputs that have a matching expected .cs.json output
-_FORWARD_CASES = sorted(
-    f.stem
-    for f in INPUT_DIR.glob("*.cscss")
-    if (OUTPUT_DIR / f"{f.stem}.cs.json").exists()
-)
+# Every example must have a committed golden (regenerate.py keeps them in sync).
+_FORWARD_CASES = sorted(f.stem for f in EXAMPLES_DIR.glob("*.cscss"))
 
 
 # ---------------------------------------------------------------------------
@@ -37,17 +38,17 @@ class TestForwardConversion:
 
     @pytest.mark.parametrize("stem", _FORWARD_CASES, ids=_FORWARD_CASES)
     def test_cscss_to_csjson_matches_expected(self, stem):
-        """converter.cscss_to_csjson(input/<stem>.cscss) == output/<stem>.cs.json"""
-        cscss_path = INPUT_DIR / f"{stem}.cscss"
-        expected_path = OUTPUT_DIR / f"{stem}.cs.json"
+        """cscss_to_csjson(examples/<stem>.cscss) must equal the golden."""
+        cscss_path = EXAMPLES_DIR / f"{stem}.cscss"
+        expected_path = EXPECTED_DIR / f"{stem}.cs.json"
 
         result = self.converter.cscss_to_csjson(cscss_path)
         with open(expected_path, encoding="utf-8") as f:
             expected = json.load(f)
 
         assert result == expected, (
-            f"Mismatch for {stem}.cscss — "
-            f're-run `python -c "..."` to see diffs or regenerate expected output'
+            f"Mismatch for {stem}.cscss vs its golden — if the output change "
+            f"is intended, run tests/fixtures/expected/regenerate.py and review."
         )
 
 
@@ -72,8 +73,8 @@ class TestRoundTripFidelity:
     @pytest.mark.parametrize("stem", _FORWARD_CASES, ids=_FORWARD_CASES)
     def test_round_trip_semantic_equality(self, stem):
         """CSCSS → JSON vs CSCSS → JSON → CSCSS → JSON must be identical."""
-        cscss_path = INPUT_DIR / f"{stem}.cscss"
-        expected_path = OUTPUT_DIR / f"{stem}.cs.json"
+        cscss_path = EXAMPLES_DIR / f"{stem}.cscss"
+        expected_path = EXPECTED_DIR / f"{stem}.cs.json"
 
         # Step 1: Forward parse
         json1 = self.converter.cscss_to_csjson(cscss_path)
@@ -254,26 +255,26 @@ class TestCoverageProperties:
         return None
 
     def test_dem_has_color_map(self):
-        result = self.converter.cscss_to_csjson(INPUT_DIR / "5-coverage-dem.cscss")
+        result = self.converter.cscss_to_csjson(EXAMPLES_DIR / "5-coverage-dem.cscss")
         cm = self._find_key_in_rules(result["stylingRules"], "colorMap")
         assert cm is not None, "DEM example should have a colorMap"
         assert isinstance(cm, list), "colorMap should be an array"
 
     def test_sentinel2_has_channels(self):
         result = self.converter.cscss_to_csjson(
-            INPUT_DIR / "6-coverage-sentinel2.cscss"
+            EXAMPLES_DIR / "6-coverage-sentinel2.cscss"
         )
         ch = self._find_key_in_rules(result["stylingRules"], "colorChannels")
         assert ch is not None, "Sentinel-2 should have colorChannels"
 
     def test_ndvi_has_color_map(self):
-        result = self.converter.cscss_to_csjson(INPUT_DIR / "7-coverage-ndvi.cscss")
+        result = self.converter.cscss_to_csjson(EXAMPLES_DIR / "7-coverage-ndvi.cscss")
         cm = self._find_key_in_rules(result["stylingRules"], "colorMap")
         assert cm is not None, "NDVI example should have a colorMap"
 
     def test_hillshading_has_hill_shading(self):
         result = self.converter.cscss_to_csjson(
-            INPUT_DIR / "8-coverage-hillshading.cscss"
+            EXAMPLES_DIR / "8-coverage-hillshading.cscss"
         )
         hs = self._find_key_in_rules(result["stylingRules"], "hillShading")
         assert hs is not None, "Hillshading example should have hillShading"
@@ -301,7 +302,7 @@ class TestMetadataParsing:
         assert meta.get("abstract") == "A description"
 
     def test_metadata_from_example3(self):
-        result = self.converter.cscss_to_csjson(INPUT_DIR / "3-vector-line.cscss")
+        result = self.converter.cscss_to_csjson(EXAMPLES_DIR / "3-vector-line.cscss")
         meta = result.get("metadata", {})
         assert meta.get("title") == "Styling line vector features"
         assert "abstract" in meta

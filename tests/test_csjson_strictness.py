@@ -1,7 +1,7 @@
 """Stricter round-trip / conformance checks for the CSCSS ↔ CS-JSON core
 (complements ``test_roundtrip.py``):
 
-* every generated **and** every committed ``.cs.json`` validates against
+* every generated **and** every golden ``.cs.json`` validates against
   the bundled ``CartoSym-JSON.schema.json`` (using the draft the schema
   declares — 2019-09 — which ``jsonschema.validate`` auto-selects);
 * the CSCSS write-back is **idempotent** at the string level
@@ -18,15 +18,15 @@ from jsonschema import validate as jsonschema_validate
 from cartosym_transcoder.converter import Converter
 
 ROOT = Path(__file__).resolve().parent.parent
-INPUT_DIR = ROOT / "input"
-OUTPUT_DIR = ROOT / "output"
+EXAMPLES_DIR = ROOT / "examples"
+EXPECTED_DIR = ROOT / "tests" / "fixtures" / "expected"
 SCHEMA_PATH = (
     ROOT / "src" / "cartosym_transcoder" / "schemas" / "CartoSym-JSON.schema.json"
 )
 
 _SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-_CSCSS = sorted(f.stem for f in INPUT_DIR.glob("*.cscss"))
-_COMMITTED_JSON = sorted(f.name for f in OUTPUT_DIR.glob("*.cs.json"))
+_CSCSS = sorted(f.stem for f in EXAMPLES_DIR.glob("*.cscss"))
+_GOLDEN_JSON = sorted(f.name for f in EXPECTED_DIR.glob("*.cs.json"))
 
 
 @pytest.fixture
@@ -37,12 +37,12 @@ def converter():
 class TestSchemaConformance:
     @pytest.mark.parametrize("stem", _CSCSS, ids=_CSCSS)
     def test_generated_csjson_is_schema_valid(self, converter, stem):
-        data = converter.cscss_to_csjson(INPUT_DIR / f"{stem}.cscss")
+        data = converter.cscss_to_csjson(EXAMPLES_DIR / f"{stem}.cscss")
         jsonschema_validate(instance=data, schema=_SCHEMA)
 
-    @pytest.mark.parametrize("name", _COMMITTED_JSON, ids=_COMMITTED_JSON)
-    def test_committed_csjson_fixture_is_schema_valid(self, name):
-        data = json.loads((OUTPUT_DIR / name).read_text(encoding="utf-8"))
+    @pytest.mark.parametrize("name", _GOLDEN_JSON, ids=_GOLDEN_JSON)
+    def test_golden_csjson_fixture_is_schema_valid(self, name):
+        data = json.loads((EXPECTED_DIR / name).read_text(encoding="utf-8"))
         jsonschema_validate(instance=data, schema=_SCHEMA)
 
 
@@ -52,10 +52,7 @@ class TestWriteBackIdempotence:
         """json → cscss → json → cscss: the two CSCSS renderings match
         exactly (the writer has reached a fixed point, not just a
         semantic one)."""
-        expected_json = OUTPUT_DIR / f"{stem}.cs.json"
-        if not expected_json.exists():
-            pytest.skip(f"no committed output for {stem}")
-
+        expected_json = EXPECTED_DIR / f"{stem}.cs.json"
         cscss_1 = converter.csjson_to_cscss(expected_json)
         json_2 = converter.cscss_to_csjson(cscss_1)
         cscss_2 = converter.csjson_to_cscss(json_2)

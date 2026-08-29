@@ -4,7 +4,7 @@ from pathlib import Path
 
 from cartosym_transcoder.parser import CartoSymParser
 
-INPUT_DIR = Path(__file__).resolve().parent.parent / "input"
+EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 
 class TestMarkerAntlrExtraction:
@@ -202,7 +202,7 @@ class TestMarkerAntlrExtraction:
 
     def test_example3_marker(self):
         """Example 3 (vector-line) should parse marker elements correctly."""
-        style = self.parser.parse_file_to_pydantic(INPUT_DIR / "3-vector-line.cscss")
+        style = self.parser.parse_file_to_pydantic(EXAMPLES_DIR / "3-vector-line.cscss")
         # Find a marker somewhere in the rule tree
         found = _find_markers_recursive(style.styling_rules)
         assert len(found) >= 1, "Expected at least one marker in example 3"
@@ -215,7 +215,9 @@ class TestMarkerAntlrExtraction:
 
     def test_example4_markers(self):
         """Example 4 (vector-point) should parse multiple Dot markers."""
-        style = self.parser.parse_file_to_pydantic(INPUT_DIR / "4-vector-point.cscss")
+        style = self.parser.parse_file_to_pydantic(
+            EXAMPLES_DIR / "4-vector-point.cscss"
+        )
         found = _find_markers_recursive(style.styling_rules)
         assert len(found) >= 1, "Expected at least one marker in example 4"
         # First marker should have 2 Dot elements (white and orange)

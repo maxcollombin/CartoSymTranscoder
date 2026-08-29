@@ -6,7 +6,7 @@ import pytest
 
 from cartosym_transcoder.parser import CartoSymParser
 
-INPUT_DIR = Path(__file__).resolve().parent.parent / "input"
+EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 
 def _rule_selector_name(rule) -> str | None:
@@ -172,10 +172,10 @@ class TestIncludeDirective:
     # ── Integration with real input files ─────────────────────────
 
     def test_include_example_file_parses(self):
-        """The example input/12-include.cscss should parse without errors."""
-        include_file = INPUT_DIR / "12-include.cscss"
+        """The example examples/12-include.cscss should parse without errors."""
+        include_file = EXAMPLES_DIR / "12-include.cscss"
         if not include_file.exists():
-            pytest.skip("input/12-include.cscss not found")
+            pytest.skip("examples/12-include.cscss not found")
 
         result = self.parser.parse_file(include_file)
         assert result.styling_rules is not None

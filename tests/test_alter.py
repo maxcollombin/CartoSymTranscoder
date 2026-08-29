@@ -5,7 +5,7 @@ from pathlib import Path
 
 from cartosym_transcoder.parser import CartoSymParser
 
-INPUT_DIR = Path(__file__).resolve().parent.parent / "input"
+EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 
 class TestAlterFlag:
@@ -160,7 +160,9 @@ class TestAlterFlag:
 
     def test_example2_alter_flags(self):
         """Example 2 (vector-polygon) nested rules should have alter on fill/stroke."""
-        style = self.parser.parse_file_to_pydantic(INPUT_DIR / "2-vector-polygon.cscss")
+        style = self.parser.parse_file_to_pydantic(
+            EXAMPLES_DIR / "2-vector-polygon.cscss"
+        )
         # Navigate: stylingRules[0] → nestedRules[0] (the zoom rule) →
         # nestedRules[0..2] (FunctionCode rules)
         base_rule = style.styling_rules[0]
