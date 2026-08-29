@@ -26,10 +26,10 @@ They are SE 1.1.0 (`se:` namespace, `se:SvgParameter`).
 `tests/test_sld_se_geostyler.py` reads the split straight from the
 directory layout:
 
-- **`in-scope/`** (27 files) — fully within this codec's vector +
+- **`in-scope/`** (21 files) — fully within this codec's vector +
   Part-1-raster scope. Each must `read` → `write` → validate against the
   vendored OGC XSD → `read` again to a Pydantic-model fixed point.
-- **`out-of-scope/`** (25 files) — using constructs this codec
+- **`out-of-scope/`** (31 files) — using constructs this codec
   deliberately does not map. Each must raise `NotImplementedError` (a
   *clean* rejection — never another exception type).
 
@@ -37,7 +37,7 @@ Moving a file between the two directories is a deliberate act: the wrong
 behaviour then fails loudly, and `test_corpus_layout` asserts the split
 sizes and that no `.sld` is left uncategorised in the corpus root.
 
-## Out-of-scope breakdown (25 files)
+## Out-of-scope breakdown (31 files)
 
 The scope boundary, mapped against this corpus:
 
@@ -45,7 +45,9 @@ The scope boundary, mapped against this corpus:
 |---|---|---|
 | `se:Mark/se:WellKnownName` other than `circle` (`square`, `triangle`, `star`, `cross`, `x`, `shape://slash`, `ttf://` glyph) | 8 | extensible — real future scope |
 | `se:GraphicFill` / `se:GraphicStroke` (hatch / pattern fills & strokes) | 6 | GeoServer vendor extension / CartoSym Part 2 |
+| `se:TextSymbolizer/se:Halo` (label halo / buffer) | 4 | CartoSym Part-1 "font outlines" — not yet mapped |
 | `se:LabelPlacement/se:LinePlacement` | 3 | unfinished design work |
+| unmapped `se:SvgParameter` (`stroke-linecap`, `stroke-linejoin`, `stroke-dashoffset`) | 2 | CSS/SVG stroke hints with no CartoSym `Stroke` field |
 | `ogc:Function` inside `ogc:Filter` | 2 | no Filter Encoding 1.1 mapping without `ogc:Function` support |
 | `ogc:Function` inside `se:Label` (`round`, …) | 1 | property-driven label text, out of scope |
 | `se:RasterSymbolizer/se:ContrastEnhancement` | 1 | "not supported by SLD/SE" per OGC Annex B |
@@ -54,10 +56,10 @@ The scope boundary, mapped against this corpus:
 | colour = `se:Categorize` function result | 1 | property-driven colour, out of scope |
 
 `se:Min/MaxScaleDenominator` ↔ `viz.sd` **is** now mapped (issue #39), so
-the 3 files that used to be rejected for it (`point_simplepoint_filter`,
-`point_simplepoint_nestedLogicalFilters`, `zero_values`) are in-scope.
-Only the non-`circle`-mark rows (~8 files) are still "could reasonably be
-added"; the rest are deliberate Part-2 / vendor scope calls.
+`point_simplepoint_filter` and `point_simplepoint_nestedLogicalFilters`,
+once rejected for it, are in-scope. The non-`circle`-mark rows (~8 files)
+and the `se:Halo` rows (4 files) are "could reasonably be added"; the rest
+are deliberate Part-2 / vendor scope calls.
 
 **Source validity**: 6 of the 52 files are not themselves valid against
 the pure OGC SE 1.1.0 XSD (empty `<se:Filter/>`, `ogc:Function` where the
