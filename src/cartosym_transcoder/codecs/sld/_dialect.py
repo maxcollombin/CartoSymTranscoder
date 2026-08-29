@@ -33,7 +33,7 @@ from typing import Literal, cast
 
 from lxml import etree
 
-from ._xml_helpers import NSMAP, OGC_NS, SE_NS, SLD_NS, XLINK_NS
+from ._xml_helpers import NSMAP, OGC_NS, SE_NS, SLD_NS, XLINK_NS, element_text
 
 # SE 1.1.0 shares the module-level NSMAP (also used for detached ogc:Filter
 # roots). SLD 1.0.0 needs no ``se`` prefix.
@@ -142,10 +142,14 @@ class SldDialect:
         return elem.find(f".//{{{self.symbology_ns}}}{tag}")
 
     def get_param(self, elem: etree._Element, name: str) -> str | None:
-        """Return the text of the ``<SvgParameter name=...>`` child, if present."""
+        """Return the value of the ``<SvgParameter name=...>`` child, if present.
+
+        Unwraps a ``<ogc:Literal>``-wrapped constant (a common GeoServer
+        SLD 1.0.0 spelling).
+        """
         for param in self.findall(elem, self.param_tag):
             if param.get("name") == name:
-                return cast("str | None", param.text)
+                return element_text(param)
         return None
 
 

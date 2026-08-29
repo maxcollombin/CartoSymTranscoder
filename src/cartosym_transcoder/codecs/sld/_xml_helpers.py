@@ -9,6 +9,8 @@ Filter Encoding element factory (FE 1.0 and FE 1.1 share a namespace).
 
 from __future__ import annotations
 
+from typing import cast
+
 from lxml import etree
 
 SLD_NS = "http://www.opengis.net/sld"
@@ -60,3 +62,22 @@ def ogc_el(
 def local_name(elem: etree._Element) -> str:
     """Return the local (unprefixed) tag name of *elem*."""
     return str(etree.QName(elem).localname)
+
+
+def element_text(elem: etree._Element | None) -> str | None:
+    """Return *elem*'s value, unwrapping a single wrapping ``<ogc:Literal>``.
+
+    SLD lets a parameter or scalar element hold either bare text
+    (``<Size>6</Size>``) or an expression; GeoServer very often writes the
+    constant case as ``<Size><ogc:Literal>6</ogc:Literal></Size>`` /
+    ``<CssParameter name="fill"><ogc:Literal>#abc</ogc:Literal></CssParameter>``.
+    Both spell the same constant, so they read back identically.
+    """
+    if elem is None:
+        return None
+    if elem.text is not None and elem.text.strip():
+        return cast("str", elem.text)
+    literal = elem.find(f"{OGC}Literal")
+    if literal is not None and literal.text is not None:
+        return cast("str", literal.text)
+    return cast("str | None", elem.text)

@@ -49,7 +49,7 @@ from ._types import (
     parse_opacity,
     parse_unit_value,
 )
-from ._xml_helpers import OGC, XLINK, local_name
+from ._xml_helpers import OGC, XLINK, element_text, local_name
 
 _ANCHOR_X = {"left": "0", "center": "0.5", "right": "1"}
 _ANCHOR_Y = {"top": "1", "middle": "0.5", "bottom": "0"}
@@ -826,9 +826,9 @@ def _parse_shaded_relief(d: SldDialect, sr_el: etree._Element) -> dict:
             "mapping in this codec's scope"
         )
     result: dict = {}
-    factor_el = d.find(sr_el, "ReliefFactor")
-    if factor_el is not None and factor_el.text:
-        result["factor"] = parse_number(factor_el.text)
+    factor_text = element_text(d.find(sr_el, "ReliefFactor"))
+    if factor_text and factor_text.strip():
+        result["factor"] = parse_number(factor_text)
     return result
 
 
@@ -840,9 +840,9 @@ def _parse_raster_symbolizer(d: SldDialect, el: etree._Element) -> dict:
                 "this codec's scope"
             )
     result: dict = {}
-    opacity_el = d.find(el, "Opacity")
-    if opacity_el is not None and opacity_el.text:
-        result["opacity"] = parse_opacity(opacity_el.text.strip())
+    opacity_text = element_text(d.find(el, "Opacity"))
+    if opacity_text and opacity_text.strip():
+        result["opacity"] = parse_opacity(opacity_text.strip())
     cs_el = d.find(el, "ChannelSelection")
     if cs_el is not None:
         result.update(_parse_channel_selection(d, cs_el))
@@ -875,8 +875,7 @@ def _parse_point_symbolizer(d: SldDialect, ps_el: etree._Element) -> dict:
 def _parse_mark(
     d: SldDialect, mark_el: etree._Element, graphic_el: etree._Element
 ) -> dict:
-    wkn_el = d.find(mark_el, "WellKnownName")
-    wkn = wkn_el.text if wkn_el is not None else None
+    wkn = element_text(d.find(mark_el, "WellKnownName"))
     if wkn != "circle":
         raise NotImplementedError(
             f"se:Mark/se:WellKnownName {wkn!r} is out of scope for this "
@@ -889,9 +888,9 @@ def _parse_mark(
         color = d.get_param(fill_el, "fill")
         if color is not None:
             result["color"] = parse_color(color)
-    size_el = d.find(graphic_el, "Size")
-    if size_el is not None:
-        result["size"] = parse_unit_value(size_el.text)
+    size_text = element_text(d.find(graphic_el, "Size"))
+    if size_text is not None:
+        result["size"] = parse_unit_value(size_text)
     return result
 
 
@@ -912,9 +911,9 @@ def _parse_external_graphic(
         "image": {"uri": href},
         "position": {"x": 0, "y": 0},
     }
-    format_el = d.find(ext_el, "Format")
-    if format_el is not None and format_el.text:
-        result["image"]["type"] = format_el.text.strip()
+    format_text = element_text(d.find(ext_el, "Format"))
+    if format_text and format_text.strip():
+        result["image"]["type"] = format_text.strip()
 
     anchor_el = d.find(graphic_el, "AnchorPoint")
     if anchor_el is not None:
@@ -930,16 +929,18 @@ def _parse_external_graphic(
 
 
 def _parsed_px_or_zero(el: etree._Element | None) -> float:
-    if el is None or el.text is None:
+    text = element_text(el)
+    if text is None:
         return 0
-    parsed = parse_unit_value(el.text)
+    parsed = parse_unit_value(text)
     return parsed["px"] if parsed is not None else 0
 
 
 def _parsed_number_or(el: etree._Element | None, default: float) -> float:
-    if el is None or el.text is None:
+    text = element_text(el)
+    if text is None:
         return default
-    parsed = parse_number(el.text)
+    parsed = parse_number(text)
     return parsed if parsed is not None else default
 
 
