@@ -1,0 +1,16 @@
+repo:      https://github.com/geostyler/geostyler-sld-parser
+path:      data/slds/geoserver/
+commit:    48f761c812d5d04df44cfa09f3969b5c78778131
+retrieved: 2026-08-29
+license:   BSD-2-Clause (see the upstream repository's LICENSE)
+modified:  file contents unchanged; copied verbatim (upstream keeps them
+           flat, so does this directory)
+
+Real-world GeoServer SLD sample styles. All 24 files are **SLD 1.0.0**
+(`CssParameter`, no `se:` namespace, `<ogc:...>` filters) — the version
+GeoServer emits and consumes by default, distinct from the SLD 1.1.0 /
+SE 1.1.0 the `sld_se` codec targets. A handful carry GeoServer
+`<VendorOption>` elements and GeoServer-specific `<ogc:Function>` calls.
+
+See README.md for how the tests use this corpus. To refresh: re-pull the
+path above at a newer commit, update this file, review the diff.
