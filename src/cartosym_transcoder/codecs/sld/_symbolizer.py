@@ -11,6 +11,12 @@ raise :exc:`NotImplementedError` naming the field — per this project's
 lossless-transcoding requirement, out-of-scope content must fail loudly
 rather than silently drop data.
 
+Every function here is dialect-agnostic: the caller passes a
+:class:`~cartosym_transcoder.codecs.sld._dialect.SldDialect` (``d``) and all
+XML element/parameter construction and lookup goes through it, so the same
+code serialises SLD 1.0.0 (``CssParameter``, unprefixed) and SE 1.1.0
+(``se:SvgParameter``).
+
 ``Symbolizer.opacity`` has no whole-symbolizer equivalent in SE 1.1.0 and
 is folded multiplicatively into every leaf opacity produced
 (``fill-opacity``, ``stroke-opacity``, ``se:Graphic/se:Opacity``,
@@ -32,6 +38,7 @@ from typing import Any
 
 from lxml import etree
 
+from ._dialect import SldDialect
 from ._types import (
     format_color,
     format_number,
@@ -42,15 +49,7 @@ from ._types import (
     parse_opacity,
     parse_unit_value,
 )
-from ._xml_helpers import (
-    OGC,
-    XLINK,
-    find_se_direct,
-    get_svg_param,
-    local_name,
-    se_el,
-    svg_param,
-)
+from ._xml_helpers import OGC, XLINK, local_name
 
 _ANCHOR_X = {"left": "0", "center": "0.5", "right": "1"}
 _ANCHOR_Y = {"top": "1", "middle": "0.5", "bottom": "0"}
@@ -131,7 +130,7 @@ def _combine_opacity(base: float | None, own: Any) -> str | None:
     return format_opacity(factor)
 
 
-def symbolizer_to_elements(sym: Any) -> list[etree._Element]:
+def symbolizer_to_elements(d: SldDialect, sym: Any) -> list[etree._Element]:
     """Convert one CartoSym ``Symbolizer`` into 1..N sibling SLD/SE elements."""
     elements: list[etree._Element] = []
     fill = _g(sym, "fill")
@@ -143,15 +142,17 @@ def symbolizer_to_elements(sym: Any) -> list[etree._Element]:
     s_op = _opacity_float(_g(sym, "opacity"))
 
     if fill is not None:
-        elements.append(_build_polygon_symbolizer(fill, stroke, s_op))
+        elements.append(_build_polygon_symbolizer(d, fill, stroke, s_op))
     elif stroke is not None:
-        elements.append(_build_line_symbolizer(stroke, s_op))
+        elements.append(_build_line_symbolizer(d, stroke, s_op))
 
     if has_raster_fields(sym):
-        elements.append(_build_raster_symbolizer(sym, s_op))
+        elements.append(_build_raster_symbolizer(d, sym, s_op))
 
     if marker is not None:
-        elements.extend(_graphic_elements_to_symbolizers(_g(marker, "elements"), s_op))
+        elements.extend(
+            _graphic_elements_to_symbolizers(d, _g(marker, "elements"), s_op)
+        )
 
     if label is not None:
         if _g(label, "placement") is not None:
@@ -159,18 +160,20 @@ def symbolizer_to_elements(sym: Any) -> list[etree._Element]:
                 "Label.placement (line placement / priority / spacing) has "
                 "no SLD/SE mapping in this codec"
             )
-        elements.extend(_graphic_elements_to_symbolizers(_g(label, "elements"), s_op))
+        elements.extend(
+            _graphic_elements_to_symbolizers(d, _g(label, "elements"), s_op)
+        )
 
     # An empty result means the symbolizer carried no geometry-styling
     # intent (only visibility / opacity / zOrder, or nothing). SE 1.1.0
     # forbids a se:Rule without a se:Symbolizer, so the caller decides
     # whether such a rule can be dropped faithfully or must fail loudly
-    # (see writer.SldSeWriter._build_rule).
+    # (see writer.SldWriter._build_rule).
     return elements
 
 
 def _graphic_elements_to_symbolizers(
-    elements: Any, base_opacity: float | None = None
+    d: SldDialect, elements: Any, base_opacity: float | None = None
 ) -> list[etree._Element]:
     if elements is None:
         return []
@@ -186,11 +189,11 @@ def _graphic_elements_to_symbolizers(
     for el in elements:
         el_type = _g(el, "type")
         if el_type == "Dot":
-            result.append(_build_point_symbolizer(el, base_opacity))
+            result.append(_build_point_symbolizer(d, el, base_opacity))
         elif el_type == "Image":
-            result.append(_build_image_symbolizer(el, base_opacity))
+            result.append(_build_image_symbolizer(d, el, base_opacity))
         elif el_type == "Text":
-            result.append(_build_text_symbolizer(el, base_opacity))
+            result.append(_build_text_symbolizer(d, el, base_opacity))
         else:
             raise NotImplementedError(
                 f"Graphic element type {el_type!r} has no SLD/SE mapping in "
@@ -207,15 +210,17 @@ def _raise_if_fill_out_of_scope(fill: Any) -> None:
             )
 
 
-def _build_fill_element(fill: Any, base_opacity: float | None = None) -> etree._Element:
+def _build_fill_element(
+    d: SldDialect, fill: Any, base_opacity: float | None = None
+) -> etree._Element:
     _raise_if_fill_out_of_scope(fill)
-    el = se_el("Fill")
+    el = d.el("Fill")
     color = _g(fill, "color")
     if color is not None:
-        svg_param(el, "fill", format_color(color))
+        d.param(el, "fill", format_color(color))
     combined = _combine_opacity(base_opacity, _g(fill, "opacity"))
     if combined is not None:
-        svg_param(el, "fill-opacity", combined)
+        d.param(el, "fill-opacity", combined)
     return el
 
 
@@ -233,43 +238,43 @@ def _raise_if_stroke_out_of_scope(stroke: Any) -> None:
 
 
 def _build_stroke_element(
-    stroke: Any, base_opacity: float | None = None
+    d: SldDialect, stroke: Any, base_opacity: float | None = None
 ) -> etree._Element:
     _raise_if_stroke_out_of_scope(stroke)
-    el = se_el("Stroke")
+    el = d.el("Stroke")
     color = _g(stroke, "color")
     width = _g(stroke, "width")
     dash_pattern = _g(stroke, "dash_pattern")
     if color is not None:
-        svg_param(el, "stroke", format_color(color))
+        d.param(el, "stroke", format_color(color))
     if width is not None:
-        svg_param(el, "stroke-width", format_unit_value(width))
+        d.param(el, "stroke-width", format_unit_value(width))
     combined = _combine_opacity(base_opacity, _g(stroke, "opacity"))
     if combined is not None:
-        svg_param(el, "stroke-opacity", combined)
+        d.param(el, "stroke-opacity", combined)
     if dash_pattern is not None:
         pattern = _g(dash_pattern, "pattern")
         if pattern:
-            svg_param(el, "stroke-dasharray", " ".join(str(int(p)) for p in pattern))
+            d.param(el, "stroke-dasharray", " ".join(str(int(p)) for p in pattern))
     return el
 
 
 def _build_polygon_symbolizer(
-    fill: Any, stroke: Any, base_opacity: float | None = None
+    d: SldDialect, fill: Any, stroke: Any, base_opacity: float | None = None
 ) -> etree._Element:
-    el = se_el("PolygonSymbolizer")
+    el = d.el("PolygonSymbolizer")
     if fill is not None:
-        el.append(_build_fill_element(fill, base_opacity))
+        el.append(_build_fill_element(d, fill, base_opacity))
     if stroke is not None:
-        el.append(_build_stroke_element(stroke, base_opacity))
+        el.append(_build_stroke_element(d, stroke, base_opacity))
     return el
 
 
 def _build_line_symbolizer(
-    stroke: Any, base_opacity: float | None = None
+    d: SldDialect, stroke: Any, base_opacity: float | None = None
 ) -> etree._Element:
-    el = se_el("LineSymbolizer")
-    el.append(_build_stroke_element(stroke, base_opacity))
+    el = d.el("LineSymbolizer")
+    el.append(_build_stroke_element(d, stroke, base_opacity))
     return el
 
 
@@ -303,25 +308,25 @@ def _channel_source_name(channel_expr: Any, field_label: str) -> str:
     )
 
 
-def _build_channel_selection_rgb(color_channels: Any) -> etree._Element:
+def _build_channel_selection_rgb(d: SldDialect, color_channels: Any) -> etree._Element:
     if not isinstance(color_channels, list) or len(color_channels) != 3:
         raise NotImplementedError(
             "Symbolizer.colorChannels must be a 3-element [R, G, B] list "
             f"(got {color_channels!r})"
         )
-    cs = se_el("ChannelSelection")
+    cs = d.el("ChannelSelection")
     for tag, expr in zip(("RedChannel", "GreenChannel", "BlueChannel"), color_channels):
         name = _channel_source_name(expr, "colorChannels")
-        channel_el = se_el(tag, parent=cs)
-        se_el("SourceChannelName", parent=channel_el, text=name)
+        channel_el = d.el(tag, parent=cs)
+        d.el("SourceChannelName", parent=channel_el, text=name)
     return cs
 
 
-def _build_channel_selection_gray(single_channel: Any) -> etree._Element:
+def _build_channel_selection_gray(d: SldDialect, single_channel: Any) -> etree._Element:
     name = _channel_source_name(single_channel, "singleChannel")
-    cs = se_el("ChannelSelection")
-    gray_el = se_el("GrayChannel", parent=cs)
-    se_el("SourceChannelName", parent=gray_el, text=name)
+    cs = d.el("ChannelSelection")
+    gray_el = d.el("GrayChannel", parent=cs)
+    d.el("SourceChannelName", parent=gray_el, text=name)
     return cs
 
 
@@ -340,35 +345,35 @@ def _validated_map_pairs(value: Any, field_label: str) -> list:
     return value
 
 
-def _build_categorize(pairs: list) -> etree._Element:
+def _build_categorize(d: SldDialect, pairs: list) -> etree._Element:
     """Build ``se:Categorize`` from ``[threshold, color]`` pairs.
 
     Per ``se:Categorize``'s own semantics, the first ``se:Value`` has no
     preceding ``se:Threshold`` (it's the below/at-first-value bucket) —
     ``pairs[0][0]`` is therefore never written.
     """
-    categorize = se_el("Categorize")
+    categorize = d.el("Categorize")
     # fallbackValue is required on se:FunctionType (SE 1.1.0). It is the
     # value returned for an uncategorisable input; the below-first-
     # threshold colour is the natural choice. Ignored on read (regenerated
     # deterministically, so the round trip stays stable).
     categorize.set("fallbackValue", format_color(pairs[0][1]))
-    se_el("LookupValue", parent=categorize, text="Rasterdata")
-    se_el("Value", parent=categorize, text=format_color(pairs[0][1]))
+    d.el("LookupValue", parent=categorize, text="Rasterdata")
+    d.el("Value", parent=categorize, text=format_color(pairs[0][1]))
     for threshold, value in pairs[1:]:
-        se_el("Threshold", parent=categorize, text=format_number(threshold))
-        se_el("Value", parent=categorize, text=format_color(value))
+        d.el("Threshold", parent=categorize, text=format_number(threshold))
+        d.el("Value", parent=categorize, text=format_color(value))
     return categorize
 
 
-def _build_color_map(color_map: Any) -> etree._Element:
+def _build_color_map(d: SldDialect, color_map: Any) -> etree._Element:
     pairs = _validated_map_pairs(color_map, "colorMap")
-    cm = se_el("ColorMap")
-    cm.append(_build_categorize(pairs))
+    cm = d.el("ColorMap")
+    cm.append(_build_categorize(d, pairs))
     return cm
 
 
-def _build_shaded_relief(hill_shading: Any) -> etree._Element:
+def _build_shaded_relief(d: SldDialect, hill_shading: Any) -> etree._Element:
     if _g2(hill_shading, "sun", "sun") is not None:
         raise NotImplementedError(
             "HillShading.sun (azimuth/elevation) has no SE 1.1.0 "
@@ -385,21 +390,21 @@ def _build_shaded_relief(hill_shading: Any) -> etree._Element:
             "HillShading.opacityMap has no documented SE 1.1.0 mapping — "
             "Annex B is silent"
         )
-    sr = se_el("ShadedRelief")
+    sr = d.el("ShadedRelief")
     factor = _g2(hill_shading, "factor", "factor")
     if factor is not None:
-        se_el("ReliefFactor", parent=sr, text=format_number(factor))
+        d.el("ReliefFactor", parent=sr, text=format_number(factor))
     return sr
 
 
 def _build_raster_symbolizer(
-    sym: Any, base_opacity: float | None = None
+    d: SldDialect, sym: Any, base_opacity: float | None = None
 ) -> etree._Element:
-    rs = se_el("RasterSymbolizer")
+    rs = d.el("RasterSymbolizer")
 
     # se:RasterSymbolizerType order: Geometry?, Opacity?, ChannelSelection?, ...
     if base_opacity is not None:
-        se_el("Opacity", parent=rs, text=format_opacity(base_opacity))
+        d.el("Opacity", parent=rs, text=format_opacity(base_opacity))
 
     color_channels = _g(sym, "color_channels")
     single_channel = _g(sym, "single_channel")
@@ -409,9 +414,9 @@ def _build_raster_symbolizer(
             "both be set — se:ChannelSelection is RGB *or* Gray, not both"
         )
     if color_channels is not None:
-        rs.append(_build_channel_selection_rgb(color_channels))
+        rs.append(_build_channel_selection_rgb(d, color_channels))
     elif single_channel is not None:
-        rs.append(_build_channel_selection_gray(single_channel))
+        rs.append(_build_channel_selection_gray(d, single_channel))
 
     if _g(sym, "alpha_channel") is not None:
         raise NotImplementedError(
@@ -426,36 +431,36 @@ def _build_raster_symbolizer(
 
     color_map = _g(sym, "color_map")
     if color_map is not None:
-        rs.append(_build_color_map(color_map))
+        rs.append(_build_color_map(d, color_map))
 
     hill_shading = _g(sym, "hill_shading")
     if hill_shading is not None:
-        rs.append(_build_shaded_relief(hill_shading))
+        rs.append(_build_shaded_relief(d, hill_shading))
 
     return rs
 
 
 def _build_point_symbolizer(
-    dot: Any, base_opacity: float | None = None
+    d: SldDialect, dot: Any, base_opacity: float | None = None
 ) -> etree._Element:
-    ps = se_el("PointSymbolizer")
-    graphic = se_el("Graphic", parent=ps)
-    mark = se_el("Mark", parent=graphic)
-    se_el("WellKnownName", parent=mark, text="circle")
+    ps = d.el("PointSymbolizer")
+    graphic = d.el("Graphic", parent=ps)
+    mark = d.el("Mark", parent=graphic)
+    d.el("WellKnownName", parent=mark, text="circle")
 
     color = _g(dot, "color")
     if color is not None:
-        fill_el = se_el("Fill", parent=mark)
-        svg_param(fill_el, "fill", format_color(color))
+        fill_el = d.el("Fill", parent=mark)
+        d.param(fill_el, "fill", format_color(color))
 
     # se:GraphicType order: (Mark|ExternalGraphic)*, Opacity?, Size?, ...
     combined = _combine_opacity(base_opacity, _g(dot, "opacity"))
     if combined is not None:
-        se_el("Opacity", parent=graphic, text=combined)
+        d.el("Opacity", parent=graphic, text=combined)
 
     size = _g(dot, "size")
     if size is not None:
-        se_el("Size", parent=graphic, text=format_unit_value(size))
+        d.el("Size", parent=graphic, text=format_unit_value(size))
 
     position = _g(dot, "position")
     if position is not None:
@@ -500,7 +505,7 @@ def _raise_if_image_out_of_scope(image_graphic: Any) -> None:
 
 
 def _build_image_symbolizer(
-    image_graphic: Any, base_opacity: float | None = None
+    d: SldDialect, image_graphic: Any, base_opacity: float | None = None
 ) -> etree._Element:
     _raise_if_image_out_of_scope(image_graphic)
 
@@ -515,20 +520,20 @@ def _build_image_symbolizer(
         )
     mime_type = _g(resource, "type")
 
-    ps = se_el("PointSymbolizer")
-    graphic = se_el("Graphic", parent=ps)
-    ext_graphic = se_el("ExternalGraphic", parent=graphic)
-    online_resource = se_el("OnlineResource", parent=ext_graphic)
+    ps = d.el("PointSymbolizer")
+    graphic = d.el("Graphic", parent=ps)
+    ext_graphic = d.el("ExternalGraphic", parent=graphic)
+    online_resource = d.el("OnlineResource", parent=ext_graphic)
     online_resource.set(f"{XLINK}type", "simple")
     online_resource.set(f"{XLINK}href", uri)
     if mime_type is not None:
-        se_el("Format", parent=ext_graphic, text=mime_type)
+        d.el("Format", parent=ext_graphic, text=mime_type)
 
     # se:GraphicType order: (Mark|ExternalGraphic)*, Opacity?, Size?,
     # Rotation?, AnchorPoint?, Displacement?
     combined = _combine_opacity(base_opacity, _g(image_graphic, "opacity"))
     if combined is not None:
-        se_el("Opacity", parent=graphic, text=combined)
+        d.el("Opacity", parent=graphic, text=combined)
 
     position = _g(image_graphic, "position")
     if position is not None:
@@ -544,9 +549,9 @@ def _build_image_symbolizer(
         fx, fy = _hot_spot_to_anchor_fraction(hot_spot)
         # se:AnchorPoint belongs inside se:Graphic (after ExternalGraphic/
         # Mark, Opacity, Size, Rotation), not directly under the symbolizer.
-        anchor_el = se_el("AnchorPoint", parent=graphic)
-        se_el("AnchorPointX", parent=anchor_el, text=format_number(fx))
-        se_el("AnchorPointY", parent=anchor_el, text=format_number(fy))
+        anchor_el = d.el("AnchorPoint", parent=graphic)
+        d.el("AnchorPointX", parent=anchor_el, text=format_number(fx))
+        d.el("AnchorPointY", parent=anchor_el, text=format_number(fy))
 
     return ps
 
@@ -564,12 +569,12 @@ def _alignment_hv(alignment: Any):
 
 
 def _build_text_symbolizer(
-    text_graphic: Any, base_opacity: float | None = None
+    d: SldDialect, text_graphic: Any, base_opacity: float | None = None
 ) -> etree._Element:
-    ts = se_el("TextSymbolizer")
+    ts = d.el("TextSymbolizer")
 
     text = _g(text_graphic, "text")
-    label_el = se_el("Label", parent=ts)
+    label_el = d.el("Label", parent=ts)
     if isinstance(text, dict) and "property" in text:
         etree.SubElement(label_el, f"{OGC}PropertyName").text = text["property"]
     elif isinstance(text, str):
@@ -588,19 +593,19 @@ def _build_text_symbolizer(
             raise NotImplementedError(
                 "Font.underline has no se:Font mapping in this codec"
             )
-        font_el = se_el("Font", parent=ts)
+        font_el = d.el("Font", parent=ts)
         face = _g(font, "face")
         size = _g(font, "size")
         bold = _g(font, "bold")
         italic = _g(font, "italic")
         if face is not None:
-            svg_param(font_el, "font-family", str(face))
+            d.param(font_el, "font-family", str(face))
         if size is not None:
-            svg_param(font_el, "font-size", format_unit_value(size))
+            d.param(font_el, "font-size", format_unit_value(size))
         if bold is not None:
-            svg_param(font_el, "font-weight", "bold" if bold else "normal")
+            d.param(font_el, "font-weight", "bold" if bold else "normal")
         if italic is not None:
-            svg_param(font_el, "font-style", "italic" if italic else "normal")
+            d.param(font_el, "font-style", "italic" if italic else "normal")
 
         font_color = _g(font, "color")
         font_opacity = _g(font, "opacity")
@@ -611,25 +616,25 @@ def _build_text_symbolizer(
     has_displacement = (px or 0) != 0 or (py or 0) != 0
 
     if alignment is not None or has_displacement:
-        placement_el = se_el("LabelPlacement", parent=ts)
-        point_placement_el = se_el("PointPlacement", parent=placement_el)
+        placement_el = d.el("LabelPlacement", parent=ts)
+        point_placement_el = d.el("PointPlacement", parent=placement_el)
         if alignment is not None:
             h, v = _alignment_hv(alignment)
-            anchor_el = se_el("AnchorPoint", parent=point_placement_el)
-            se_el("AnchorPointX", parent=anchor_el, text=_ANCHOR_X.get(h, "0.5"))
-            se_el("AnchorPointY", parent=anchor_el, text=_ANCHOR_Y.get(v, "0.5"))
+            anchor_el = d.el("AnchorPoint", parent=point_placement_el)
+            d.el("AnchorPointX", parent=anchor_el, text=_ANCHOR_X.get(h, "0.5"))
+            d.el("AnchorPointY", parent=anchor_el, text=_ANCHOR_Y.get(v, "0.5"))
         if has_displacement:
-            disp_el = se_el("Displacement", parent=point_placement_el)
-            se_el("DisplacementX", parent=disp_el, text=format_unit_value(px or 0))
-            se_el("DisplacementY", parent=disp_el, text=format_unit_value(py or 0))
+            disp_el = d.el("Displacement", parent=point_placement_el)
+            d.el("DisplacementX", parent=disp_el, text=format_unit_value(px or 0))
+            d.el("DisplacementY", parent=disp_el, text=format_unit_value(py or 0))
 
     combined_opacity = _combine_opacity(base_opacity, font_opacity)
     if font_color is not None or combined_opacity is not None:
-        fill_el = se_el("Fill", parent=ts)
+        fill_el = d.el("Fill", parent=ts)
         if font_color is not None:
-            svg_param(fill_el, "fill", format_color(font_color))
+            d.param(fill_el, "fill", format_color(font_color))
         if combined_opacity is not None:
-            svg_param(fill_el, "fill-opacity", combined_opacity)
+            d.param(fill_el, "fill-opacity", combined_opacity)
 
     return ts
 
@@ -639,7 +644,7 @@ def _build_text_symbolizer(
 # ---------------------------------------------------------------------------
 
 
-def elements_to_symbolizer(sym_elements: list[etree._Element]) -> dict:
+def elements_to_symbolizer(d: SldDialect, sym_elements: list[etree._Element]) -> dict:
     """Convert one ``se:Rule``'s symbolizer elements into a CartoSym symbolizer.
 
     Returns a CS-JSON-shaped ``symbolizer`` dict, ready for
@@ -651,7 +656,7 @@ def elements_to_symbolizer(sym_elements: list[etree._Element]) -> dict:
 
     for el in sym_elements:
         tag = local_name(el)
-        if find_se_direct(el, "Geometry") is not None:
+        if d.find(el, "Geometry") is not None:
             # SE 1.1.0 "symbolizer geometry" — an optional <se:Geometry>
             # <ogc:PropertyName> selecting which geometry property to
             # render. CartoSym's 3-geometry "Symbolizer Geometry"
@@ -665,25 +670,25 @@ def elements_to_symbolizer(sym_elements: list[etree._Element]) -> dict:
                 "conceptual-model representation yet"
             )
         if tag == "PolygonSymbolizer":
-            fill_el = find_se_direct(el, "Fill")
-            stroke_el = find_se_direct(el, "Stroke")
+            fill_el = d.find(el, "Fill")
+            stroke_el = d.find(el, "Stroke")
             if fill_el is not None:
-                result["fill"] = _parse_fill_element(fill_el)
+                result["fill"] = _parse_fill_element(d, fill_el)
             if stroke_el is not None:
-                result["stroke"] = _parse_stroke_element(stroke_el)
+                result["stroke"] = _parse_stroke_element(d, stroke_el)
         elif tag == "LineSymbolizer":
-            stroke_el = find_se_direct(el, "Stroke")
+            stroke_el = d.find(el, "Stroke")
             if stroke_el is None:
                 raise NotImplementedError(
                     "se:LineSymbolizer without se:Stroke is not supported"
                 )
-            result["stroke"] = _parse_stroke_element(stroke_el)
+            result["stroke"] = _parse_stroke_element(d, stroke_el)
         elif tag == "PointSymbolizer":
-            marker_elements.append(_parse_point_symbolizer(el))
+            marker_elements.append(_parse_point_symbolizer(d, el))
         elif tag == "TextSymbolizer":
-            label_elements.append(_parse_text_symbolizer(el))
+            label_elements.append(_parse_text_symbolizer(d, el))
         elif tag == "RasterSymbolizer":
-            result.update(_parse_raster_symbolizer(el))
+            result.update(_parse_raster_symbolizer(d, el))
         else:
             raise NotImplementedError(f"Unsupported symbolizer element <{tag}>")
 
@@ -694,15 +699,15 @@ def elements_to_symbolizer(sym_elements: list[etree._Element]) -> dict:
     return result
 
 
-def _parse_fill_element(fill_el: etree._Element) -> dict:
-    if find_se_direct(fill_el, "GraphicFill") is not None:
+def _parse_fill_element(d: SldDialect, fill_el: etree._Element) -> dict:
+    if d.find(fill_el, "GraphicFill") is not None:
         raise NotImplementedError(
             "se:Fill/se:GraphicFill (hatch/pattern fills) is out of scope "
             "for this codec"
         )
     result: dict = {}
-    color = get_svg_param(fill_el, "fill")
-    opacity = get_svg_param(fill_el, "fill-opacity")
+    color = d.get_param(fill_el, "fill")
+    opacity = d.get_param(fill_el, "fill-opacity")
     if color is not None:
         result["color"] = parse_color(color)
     if opacity is not None:
@@ -710,19 +715,19 @@ def _parse_fill_element(fill_el: etree._Element) -> dict:
     return result
 
 
-def _parse_stroke_element(stroke_el: etree._Element) -> dict:
+def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
     if (
-        find_se_direct(stroke_el, "GraphicStroke") is not None
-        or find_se_direct(stroke_el, "GraphicFill") is not None
+        d.find(stroke_el, "GraphicStroke") is not None
+        or d.find(stroke_el, "GraphicFill") is not None
     ):
         raise NotImplementedError(
             "se:Stroke graphic-fill/-stroke patterns are out of scope for this codec"
         )
     result: dict = {}
-    color = get_svg_param(stroke_el, "stroke")
-    width = get_svg_param(stroke_el, "stroke-width")
-    opacity = get_svg_param(stroke_el, "stroke-opacity")
-    dasharray = get_svg_param(stroke_el, "stroke-dasharray")
+    color = d.get_param(stroke_el, "stroke")
+    width = d.get_param(stroke_el, "stroke-width")
+    opacity = d.get_param(stroke_el, "stroke-opacity")
+    dasharray = d.get_param(stroke_el, "stroke-dasharray")
     if color is not None:
         result["color"] = parse_color(color)
     if width is not None:
@@ -741,13 +746,13 @@ _UNSUPPORTED_RASTER_CHILDREN = (
 )
 
 
-def _parse_selected_channel(channel_el: etree._Element) -> dict:
-    if find_se_direct(channel_el, "ContrastEnhancement") is not None:
+def _parse_selected_channel(d: SldDialect, channel_el: etree._Element) -> dict:
+    if d.find(channel_el, "ContrastEnhancement") is not None:
         raise NotImplementedError(
             "se:SelectedChannelType/se:ContrastEnhancement has no "
             "CartoSym mapping in this codec's scope"
         )
-    name_el = find_se_direct(channel_el, "SourceChannelName")
+    name_el = d.find(channel_el, "SourceChannelName")
     if name_el is None or not (name_el.text and name_el.text.strip()):
         raise NotImplementedError(
             "se:SourceChannelName is required and must have text content"
@@ -755,29 +760,29 @@ def _parse_selected_channel(channel_el: etree._Element) -> dict:
     return {"property": name_el.text.strip()}
 
 
-def _parse_channel_selection(cs_el: etree._Element) -> dict:
-    red = find_se_direct(cs_el, "RedChannel")
-    green = find_se_direct(cs_el, "GreenChannel")
-    blue = find_se_direct(cs_el, "BlueChannel")
-    gray = find_se_direct(cs_el, "GrayChannel")
+def _parse_channel_selection(d: SldDialect, cs_el: etree._Element) -> dict:
+    red = d.find(cs_el, "RedChannel")
+    green = d.find(cs_el, "GreenChannel")
+    blue = d.find(cs_el, "BlueChannel")
+    gray = d.find(cs_el, "GrayChannel")
     if red is not None and green is not None and blue is not None:
         return {
             "colorChannels": [
-                _parse_selected_channel(red),
-                _parse_selected_channel(green),
-                _parse_selected_channel(blue),
+                _parse_selected_channel(d, red),
+                _parse_selected_channel(d, green),
+                _parse_selected_channel(d, blue),
             ]
         }
     if gray is not None:
-        return {"singleChannel": _parse_selected_channel(gray)}
+        return {"singleChannel": _parse_selected_channel(d, gray)}
     raise NotImplementedError(
         "se:ChannelSelection without a full RGB triple or a GrayChannel is "
         "not supported"
     )
 
 
-def _parse_color_map(cm_el: etree._Element) -> list:
-    categorize_el = find_se_direct(cm_el, "Categorize")
+def _parse_color_map(d: SldDialect, cm_el: etree._Element) -> list:
+    categorize_el = d.find(cm_el, "Categorize")
     if categorize_el is None:
         raise NotImplementedError(
             "se:ColorMap without se:Categorize (se:Interpolate, or the "
@@ -814,61 +819,63 @@ def _parse_color_map(cm_el: etree._Element) -> list:
     return pairs
 
 
-def _parse_shaded_relief(sr_el: etree._Element) -> dict:
-    if find_se_direct(sr_el, "BrightnessOnly") is not None:
+def _parse_shaded_relief(d: SldDialect, sr_el: etree._Element) -> dict:
+    if d.find(sr_el, "BrightnessOnly") is not None:
         raise NotImplementedError(
             "se:ShadedRelief/se:BrightnessOnly has no CartoSym HillShading "
             "mapping in this codec's scope"
         )
     result: dict = {}
-    factor_el = find_se_direct(sr_el, "ReliefFactor")
+    factor_el = d.find(sr_el, "ReliefFactor")
     if factor_el is not None and factor_el.text:
         result["factor"] = parse_number(factor_el.text)
     return result
 
 
-def _parse_raster_symbolizer(el: etree._Element) -> dict:
+def _parse_raster_symbolizer(d: SldDialect, el: etree._Element) -> dict:
     for tag in _UNSUPPORTED_RASTER_CHILDREN:
-        if find_se_direct(el, tag) is not None:
+        if d.find(el, tag) is not None:
             raise NotImplementedError(
                 f"se:RasterSymbolizer/se:{tag} has no CartoSym mapping in "
                 "this codec's scope"
             )
     result: dict = {}
-    opacity_el = find_se_direct(el, "Opacity")
+    opacity_el = d.find(el, "Opacity")
     if opacity_el is not None and opacity_el.text:
         result["opacity"] = parse_opacity(opacity_el.text.strip())
-    cs_el = find_se_direct(el, "ChannelSelection")
+    cs_el = d.find(el, "ChannelSelection")
     if cs_el is not None:
-        result.update(_parse_channel_selection(cs_el))
-    cm_el = find_se_direct(el, "ColorMap")
+        result.update(_parse_channel_selection(d, cs_el))
+    cm_el = d.find(el, "ColorMap")
     if cm_el is not None:
-        result["colorMap"] = _parse_color_map(cm_el)
-    sr_el = find_se_direct(el, "ShadedRelief")
+        result["colorMap"] = _parse_color_map(d, cm_el)
+    sr_el = d.find(el, "ShadedRelief")
     if sr_el is not None:
-        result["hillShading"] = _parse_shaded_relief(sr_el)
+        result["hillShading"] = _parse_shaded_relief(d, sr_el)
     return result
 
 
-def _parse_point_symbolizer(ps_el: etree._Element) -> dict:
-    graphic_el = find_se_direct(ps_el, "Graphic")
+def _parse_point_symbolizer(d: SldDialect, ps_el: etree._Element) -> dict:
+    graphic_el = d.find(ps_el, "Graphic")
     if graphic_el is None:
         raise NotImplementedError(
             "se:PointSymbolizer without se:Graphic is not supported"
         )
-    mark_el = find_se_direct(graphic_el, "Mark")
+    mark_el = d.find(graphic_el, "Mark")
     if mark_el is not None:
-        return _parse_mark(mark_el, graphic_el)
-    ext_el = find_se_direct(graphic_el, "ExternalGraphic")
+        return _parse_mark(d, mark_el, graphic_el)
+    ext_el = d.find(graphic_el, "ExternalGraphic")
     if ext_el is not None:
-        return _parse_external_graphic(ext_el, graphic_el)
+        return _parse_external_graphic(d, ext_el, graphic_el)
     raise NotImplementedError(
         "se:Graphic without se:Mark or se:ExternalGraphic is not supported"
     )
 
 
-def _parse_mark(mark_el: etree._Element, graphic_el: etree._Element) -> dict:
-    wkn_el = find_se_direct(mark_el, "WellKnownName")
+def _parse_mark(
+    d: SldDialect, mark_el: etree._Element, graphic_el: etree._Element
+) -> dict:
+    wkn_el = d.find(mark_el, "WellKnownName")
     wkn = wkn_el.text if wkn_el is not None else None
     if wkn != "circle":
         raise NotImplementedError(
@@ -877,19 +884,21 @@ def _parse_mark(mark_el: etree._Element, graphic_el: etree._Element) -> dict:
         )
 
     result: dict = {"type": "Dot", "position": {"x": 0, "y": 0}}
-    fill_el = find_se_direct(mark_el, "Fill")
+    fill_el = d.find(mark_el, "Fill")
     if fill_el is not None:
-        color = get_svg_param(fill_el, "fill")
+        color = d.get_param(fill_el, "fill")
         if color is not None:
             result["color"] = parse_color(color)
-    size_el = find_se_direct(graphic_el, "Size")
+    size_el = d.find(graphic_el, "Size")
     if size_el is not None:
         result["size"] = parse_unit_value(size_el.text)
     return result
 
 
-def _parse_external_graphic(ext_el: etree._Element, graphic_el: etree._Element) -> dict:
-    online_resource_el = find_se_direct(ext_el, "OnlineResource")
+def _parse_external_graphic(
+    d: SldDialect, ext_el: etree._Element, graphic_el: etree._Element
+) -> dict:
+    online_resource_el = d.find(ext_el, "OnlineResource")
     if online_resource_el is None:
         raise NotImplementedError(
             "se:ExternalGraphic without se:OnlineResource is not supported"
@@ -903,14 +912,14 @@ def _parse_external_graphic(ext_el: etree._Element, graphic_el: etree._Element) 
         "image": {"uri": href},
         "position": {"x": 0, "y": 0},
     }
-    format_el = find_se_direct(ext_el, "Format")
+    format_el = d.find(ext_el, "Format")
     if format_el is not None and format_el.text:
         result["image"]["type"] = format_el.text.strip()
 
-    anchor_el = find_se_direct(graphic_el, "AnchorPoint")
+    anchor_el = d.find(graphic_el, "AnchorPoint")
     if anchor_el is not None:
-        ax_el = find_se_direct(anchor_el, "AnchorPointX")
-        ay_el = find_se_direct(anchor_el, "AnchorPointY")
+        ax_el = d.find(anchor_el, "AnchorPointX")
+        ay_el = d.find(anchor_el, "AnchorPointY")
         fx = _parsed_number_or(ax_el, 0.5)
         fy = _parsed_number_or(ay_el, 0.5)
         result["hotSpot"] = [
@@ -934,8 +943,8 @@ def _parsed_number_or(el: etree._Element | None, default: float) -> float:
     return parsed if parsed is not None else default
 
 
-def _parse_text_symbolizer(ts_el: etree._Element) -> dict:
-    label_el = find_se_direct(ts_el, "Label")
+def _parse_text_symbolizer(d: SldDialect, ts_el: etree._Element) -> dict:
+    label_el = d.find(ts_el, "Label")
     if label_el is None:
         raise NotImplementedError("se:TextSymbolizer without se:Label is not supported")
     prop_el = label_el.find(f"{OGC}PropertyName")
@@ -956,13 +965,13 @@ def _parse_text_symbolizer(ts_el: etree._Element) -> dict:
 
     result: dict = {"type": "Text", "text": text, "position": {"x": 0, "y": 0}}
 
-    font_el = find_se_direct(ts_el, "Font")
+    font_el = d.find(ts_el, "Font")
     font: dict = {}
     if font_el is not None:
-        face = get_svg_param(font_el, "font-family")
-        size = get_svg_param(font_el, "font-size")
-        weight = get_svg_param(font_el, "font-weight")
-        style = get_svg_param(font_el, "font-style")
+        face = d.get_param(font_el, "font-family")
+        size = d.get_param(font_el, "font-size")
+        weight = d.get_param(font_el, "font-weight")
+        style = d.get_param(font_el, "font-style")
         if face is not None:
             font["face"] = face
         if size is not None:
@@ -972,10 +981,10 @@ def _parse_text_symbolizer(ts_el: etree._Element) -> dict:
         if style is not None:
             font["italic"] = style == "italic"
 
-    fill_el = find_se_direct(ts_el, "Fill")
+    fill_el = d.find(ts_el, "Fill")
     if fill_el is not None:
-        color = get_svg_param(fill_el, "fill")
-        opacity = get_svg_param(fill_el, "fill-opacity")
+        color = d.get_param(fill_el, "fill")
+        opacity = d.get_param(fill_el, "fill-opacity")
         if color is not None:
             font["color"] = parse_color(color)
         if opacity is not None:
@@ -983,25 +992,25 @@ def _parse_text_symbolizer(ts_el: etree._Element) -> dict:
     if font:
         result["font"] = font
 
-    placement_el = find_se_direct(ts_el, "LabelPlacement")
+    placement_el = d.find(ts_el, "LabelPlacement")
     if placement_el is not None:
-        point_placement_el = find_se_direct(placement_el, "PointPlacement")
+        point_placement_el = d.find(placement_el, "PointPlacement")
         if point_placement_el is None:
             raise NotImplementedError(
                 "se:LabelPlacement/se:LinePlacement is out of scope for this codec"
             )
-        anchor_el = find_se_direct(point_placement_el, "AnchorPoint")
+        anchor_el = d.find(point_placement_el, "AnchorPoint")
         if anchor_el is not None:
-            ax = find_se_direct(anchor_el, "AnchorPointX")
-            ay = find_se_direct(anchor_el, "AnchorPointY")
+            ax = d.find(anchor_el, "AnchorPointX")
+            ay = d.find(anchor_el, "AnchorPointY")
             result["alignment"] = [
                 _ANCHOR_X_TO_H.get(ax.text if ax is not None else "", "center"),
                 _ANCHOR_Y_TO_V.get(ay.text if ay is not None else "", "middle"),
             ]
-        disp_el = find_se_direct(point_placement_el, "Displacement")
+        disp_el = d.find(point_placement_el, "Displacement")
         if disp_el is not None:
-            dx = find_se_direct(disp_el, "DisplacementX")
-            dy = find_se_direct(disp_el, "DisplacementY")
+            dx = d.find(disp_el, "DisplacementX")
+            dy = d.find(disp_el, "DisplacementY")
             result["position"] = {
                 "x": _parsed_px_or_zero(dx),
                 "y": _parsed_px_or_zero(dy),

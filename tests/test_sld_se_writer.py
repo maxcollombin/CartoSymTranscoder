@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
+from cartosym_transcoder.codecs.sld._dialect import SE_1_1_0
 from cartosym_transcoder.codecs.sld._symbolizer import symbolizer_to_elements
 from cartosym_transcoder.codecs.sld.writer import SldSeWriter
 from cartosym_transcoder.converter import Converter
@@ -857,28 +858,28 @@ class TestRealRasterFixturesRegression:
 
     def test_dem_succeeds(self):
         sym = self._symbolizer_for("5-coverage-dem")
-        elements = symbolizer_to_elements(sym)
+        elements = symbolizer_to_elements(SE_1_1_0, sym)
         assert any(etree.QName(e).localname == "RasterSymbolizer" for e in elements)
 
     def test_sentinel2_raises_on_alpha_channel(self):
         sym = self._symbolizer_for("6-coverage-sentinel2")
         with pytest.raises(NotImplementedError, match="alphaChannel"):
-            symbolizer_to_elements(sym)
+            symbolizer_to_elements(SE_1_1_0, sym)
 
     def test_ndvi_raises_on_arithmetic_single_channel(self):
         sym = self._symbolizer_for("7-coverage-ndvi")
         with pytest.raises(NotImplementedError, match="singleChannel"):
-            symbolizer_to_elements(sym)
+            symbolizer_to_elements(SE_1_1_0, sym)
 
     def test_hillshading_raises_on_sun(self):
         sym = self._symbolizer_for("8-coverage-hillshading")
         with pytest.raises(NotImplementedError, match="sun"):
-            symbolizer_to_elements(sym)
+            symbolizer_to_elements(SE_1_1_0, sym)
 
     def test_hillshading_opacity_raises_on_sun(self):
         sym = self._symbolizer_for("9-coverage-hillshading-opacity")
         with pytest.raises(NotImplementedError, match="sun"):
-            symbolizer_to_elements(sym)
+            symbolizer_to_elements(SE_1_1_0, sym)
 
 
 class TestSymbolizerOpacity:

@@ -17,6 +17,7 @@ from lxml import etree
 from ...models.styles import Style, StylingRule
 from ..base import CodecWriter
 from ._cascade import flatten_cascade_rules
+from ._dialect import SE_1_1_0
 from ._filter import (
     extract_feature_type_name,
     extract_scale_denominators,
@@ -209,7 +210,7 @@ class SldSeWriter(CodecWriter):
         is_else: bool = False,
     ) -> etree._Element | None:
         sym_elements = (
-            symbolizer_to_elements(rule.symbolizer)
+            symbolizer_to_elements(SE_1_1_0, rule.symbolizer)
             if rule.symbolizer is not None
             else []
         )

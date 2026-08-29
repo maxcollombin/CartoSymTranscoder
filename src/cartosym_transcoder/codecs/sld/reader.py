@@ -15,6 +15,7 @@ from lxml import etree
 
 from ...models.styles import Style
 from ..base import CodecReader
+from ._dialect import SE_1_1_0
 from ._filter import (
     filter_xml_to_selector,
     merge_feature_type_name,
@@ -176,6 +177,6 @@ class SldSeReader(CodecReader):
 
         sym_children = [c for c in rule_el if local_name(c).endswith("Symbolizer")]
         if sym_children:
-            rule_dict["symbolizer"] = elements_to_symbolizer(sym_children)
+            rule_dict["symbolizer"] = elements_to_symbolizer(SE_1_1_0, sym_children)
 
         return rule_dict, is_else
