@@ -366,8 +366,27 @@ def _build_categorize(d: SldDialect, pairs: list) -> etree._Element:
     return categorize
 
 
+def _build_color_map_entries(d: SldDialect, pairs: list) -> etree._Element:
+    """Build the SLD 1.0.0 ``<ColorMap><ColorMapEntry .../></ColorMap>`` form.
+
+    Each ``[threshold, colour, label?]`` model entry becomes one
+    ``<ColorMapEntry color quantity [label]/>`` — a clean 1:1 mapping, no
+    synthesised first threshold (unlike ``se:Categorize``).
+    """
+    cm = d.el("ColorMap")
+    for pair in pairs:
+        entry = d.el("ColorMapEntry", parent=cm)
+        entry.set("color", format_color(pair[1]))
+        entry.set("quantity", format_number(pair[0]))
+        if len(pair) > 2 and pair[2] is not None:
+            entry.set("label", str(pair[2]))
+    return cm
+
+
 def _build_color_map(d: SldDialect, color_map: Any) -> etree._Element:
     pairs = _validated_map_pairs(color_map, "colorMap")
+    if d.raster_colormap == "entry":
+        return _build_color_map_entries(d, pairs)
     cm = d.el("ColorMap")
     cm.append(_build_categorize(d, pairs))
     return cm
@@ -781,7 +800,46 @@ def _parse_channel_selection(d: SldDialect, cs_el: etree._Element) -> dict:
     )
 
 
+def _parse_color_map_entries(d: SldDialect, cm_el: etree._Element) -> list:
+    """Parse the SLD 1.0.0 ``<ColorMap><ColorMapEntry/></ColorMap>`` form.
+
+    ``<ColorMapEntry color quantity [label]/>`` maps 1:1 to a
+    ``[threshold, colour, label?]`` model entry. A ``type`` other than the
+    default ``ramp`` (``intervals`` / ``values``) or a per-entry
+    ``opacity`` has no CartoSym ``colorMap`` representation and raises.
+    """
+    map_type = cm_el.get("type")
+    if map_type is not None and map_type != "ramp":
+        raise NotImplementedError(
+            f"<ColorMap type={map_type!r}> has no CartoSym colorMap mapping "
+            "(only the default 'ramp' form is supported)"
+        )
+    entries = d.findall(cm_el, "ColorMapEntry")
+    if not entries:
+        raise NotImplementedError("<ColorMap> without any <ColorMapEntry>")
+    pairs: list = []
+    for entry in entries:
+        if entry.get("opacity") is not None:
+            raise NotImplementedError(
+                "<ColorMapEntry opacity=...> has no CartoSym colorMap mapping"
+            )
+        color = entry.get("color")
+        quantity = entry.get("quantity")
+        if color is None or quantity is None:
+            raise NotImplementedError(
+                "<ColorMapEntry> must carry both color and quantity"
+            )
+        pair: list = [parse_number(quantity), parse_color(color)]
+        label = entry.get("label")
+        if label is not None:
+            pair.append(label)
+        pairs.append(pair)
+    return pairs
+
+
 def _parse_color_map(d: SldDialect, cm_el: etree._Element) -> list:
+    if d.raster_colormap == "entry":
+        return _parse_color_map_entries(d, cm_el)
     categorize_el = d.find(cm_el, "Categorize")
     if categorize_el is None:
         raise NotImplementedError(
