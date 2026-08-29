@@ -92,9 +92,11 @@ extend-exclude = ["src/cartosym_transcoder/grammar/generated"]
 
 [tool.ruff.lint]
 # E/F/W: flake8 parity. I: isort parity. UP: pyupgrade (safe on the
-# >=3.10 floor — PEP 604/585 syntax). ERA (commented-out code) and D
-# (pydocstyle) are staged in as separate follow-ups.
-select = ["E", "F", "W", "I", "UP"]
+# >=3.10 floor — PEP 604/585 syntax). FIX/TD: no stray TODO/FIXME/HACK
+# left in the tree — a known gap raises NotImplementedError with an inline
+# reason instead. ERA (commented-out code) and D (pydocstyle) are staged
+# in as separate follow-ups.
+select = ["E", "F", "W", "I", "UP", "FIX", "TD"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["cartosym_transcoder"]

@@ -323,6 +323,30 @@ class TestMetadataParsing:
         back = self.converter.style_to_cscss(Style.from_dict(result))
         assert ".geoDataClasses 'https://ex.org/a, https://ex.org/b'" in back
 
+    def test_fill_pattern_writeback_raises(self):
+        """A fill pattern graphic has no CartoSym-CSS write-back yet — the
+        writer must raise (naming the field) rather than drop it silently."""
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "fill": {"color": [255, 0, 0], "hatch": {"angle": 45}}
+                        }
+                    }
+                ]
+            }
+        )
+        with pytest.raises(NotImplementedError, match="fill.hatch"):
+            self.converter.style_to_cscss(style)
+
+    def test_plain_fill_still_writes_back(self):
+        """Regression guard for the pattern check: a plain fill is unaffected."""
+        style = Style.from_dict(
+            {"stylingRules": [{"symbolizer": {"fill": {"color": [255, 0, 0]}}}]}
+        )
+        assert "fill:" in self.converter.style_to_cscss(style)
+
 
 # ---------------------------------------------------------------------------
 # Font and graphic element normalization (ast_converter)
