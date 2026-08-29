@@ -5,6 +5,10 @@ raster/coverage styling. GeoServer vendor extensions and advanced/Part-4
 raster are out of scope. Out-of-scope content raises
 :exc:`NotImplementedError` naming the unsupported field rather than being
 silently dropped, per this project's lossless-transcoding requirement.
+
+:class:`SldWriter` is parametrised by an
+:class:`~cartosym_transcoder.codecs.sld._dialect.SldDialect`; the wiring in
+:mod:`cartosym_transcoder.codecs.sld` binds it to SE 1.1.0.
 """
 
 from __future__ import annotations
@@ -17,14 +21,13 @@ from lxml import etree
 from ...models.styles import Style, StylingRule
 from ..base import CodecWriter
 from ._cascade import flatten_cascade_rules
-from ._dialect import SE_1_1_0
+from ._dialect import SE_1_1_0, SldDialect
 from ._filter import (
     extract_feature_type_name,
     extract_scale_denominators,
     selector_to_filter_xml,
 )
 from ._symbolizer import has_raster_fields, symbolizer_to_elements
-from ._xml_helpers import NSMAP, se_el, sld_el
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +39,12 @@ def _scale_text(value: int | float) -> str:
     return str(value)
 
 
-class SldSeWriter(CodecWriter):
+class SldWriter(CodecWriter):
     """Write a Style model as SLD/SE XML."""
+
+    def __init__(self, dialect: SldDialect = SE_1_1_0) -> None:
+        """Bind the writer to an SLD/SE dialect (SE 1.1.0 by default)."""
+        self.d = dialect
 
     def write(self, style: Style) -> str:
         """Serialise a Style model to an SLD/SE XML string."""
@@ -48,19 +55,19 @@ class SldSeWriter(CodecWriter):
         return xml.decode("utf-8")
 
     def _build_sld(self, style: Style) -> etree._Element:
-        root = etree.Element(f"{{{NSMAP[None]}}}StyledLayerDescriptor", nsmap=NSMAP)
-        root.set("version", "1.1.0")
-        named_layer = sld_el("NamedLayer", parent=root)
+        root = self.d.wrap("StyledLayerDescriptor")
+        root.set("version", self.d.version)
+        named_layer = self.d.wrap("NamedLayer", parent=root)
         # SLD 1.1.0 requires se:Name as the first child of NamedLayer
         # (minOccurs=1). CartoSym has no layer-name concept, so this is
         # synthesised from the style title (write-only; the reader ignores it).
         title = getattr(style.metadata, "title", None) if style.metadata else None
-        se_el("Name", parent=named_layer, text=title or "CartoSym Style")
+        self.d.el("Name", parent=named_layer, text=title or "CartoSym Style")
         named_layer.append(self._build_user_style(style))
         return root
 
     def _build_user_style(self, style: Style) -> etree._Element:
-        user_style = sld_el("UserStyle")
+        user_style = self.d.wrap("UserStyle")
 
         metadata = style.metadata
         if metadata is not None:
@@ -70,11 +77,11 @@ class SldSeWriter(CodecWriter):
                         f"Style.metadata.{field} has no SLD/SE mapping in this codec"
                     )
             if metadata.title or metadata.abstract:
-                description = se_el("Description", parent=user_style)
+                description = self.d.el("Description", parent=user_style)
                 if metadata.title:
-                    se_el("Title", parent=description, text=metadata.title)
+                    self.d.el("Title", parent=description, text=metadata.title)
                 if metadata.abstract:
-                    se_el("Abstract", parent=description, text=metadata.abstract)
+                    self.d.el("Abstract", parent=description, text=metadata.abstract)
         if style.variables:
             raise NotImplementedError(
                 "Style.$variables has no SLD/SE mapping in this codec"
@@ -154,13 +161,13 @@ class SldSeWriter(CodecWriter):
             self._rule_has_raster(rule) for rule, _ in rules_and_selectors
         )
         if is_coverage:
-            fts = se_el("CoverageStyle")
+            fts = self.d.el("CoverageStyle")
             if feature_type_name is not None:
-                se_el("CoverageName", parent=fts, text=str(feature_type_name))
+                self.d.el("CoverageName", parent=fts, text=str(feature_type_name))
         else:
-            fts = se_el("FeatureTypeStyle")
+            fts = self.d.el("FeatureTypeStyle")
             if feature_type_name is not None:
-                se_el("FeatureTypeName", parent=fts, text=str(feature_type_name))
+                self.d.el("FeatureTypeName", parent=fts, text=str(feature_type_name))
         n_rules = 0
         for rule, remaining_selector in rules_and_selectors:
             rule_el = self._build_rule(rule, remaining_selector)
@@ -186,8 +193,8 @@ class SldSeWriter(CodecWriter):
     def _flatten_nested_rules(self, rule: StylingRule) -> list[etree._Element]:
         """Emit the selector-less ``nested_rules`` as sibling ``se:Rule`` elements.
 
-        Each carries ``se:ElseFilter`` (the SE 1.1.0 namespace form, not
-        the SLD 1.0.0 ``ogc:ElseFilter``).
+        Each carries an ``ElseFilter`` marker in the dialect's symbology
+        namespace (``se:ElseFilter`` for SE 1.1.0).
 
         By the time this runs, ``flatten_cascade_rules`` has already
         pulled every *selector-bearing* nested rule out into an
@@ -210,7 +217,7 @@ class SldSeWriter(CodecWriter):
         is_else: bool = False,
     ) -> etree._Element | None:
         sym_elements = (
-            symbolizer_to_elements(SE_1_1_0, rule.symbolizer)
+            symbolizer_to_elements(self.d, rule.symbolizer)
             if rule.symbolizer is not None
             else []
         )
@@ -235,13 +242,13 @@ class SldSeWriter(CodecWriter):
                 )
             return None
 
-        rule_el = se_el("Rule")
+        rule_el = self.d.el("Rule")
         name = rule.styling_rule_name or rule.name
         if name:
-            se_el("Name", parent=rule_el, text=name)
+            self.d.el("Name", parent=rule_el, text=name)
 
         if is_else:
-            se_el("ElseFilter", parent=rule_el)
+            self.d.el("ElseFilter", parent=rule_el)
         else:
             min_sd, max_sd, filter_selector = extract_scale_denominators(
                 remaining_selector
@@ -252,9 +259,13 @@ class SldSeWriter(CodecWriter):
             # SE 1.1.0 RuleType order: (Filter|ElseFilter)?, then
             # MinScaleDenominator?, MaxScaleDenominator?, then Symbolizer*.
             if min_sd is not None:
-                se_el("MinScaleDenominator", parent=rule_el, text=_scale_text(min_sd))
+                self.d.el(
+                    "MinScaleDenominator", parent=rule_el, text=_scale_text(min_sd)
+                )
             if max_sd is not None:
-                se_el("MaxScaleDenominator", parent=rule_el, text=_scale_text(max_sd))
+                self.d.el(
+                    "MaxScaleDenominator", parent=rule_el, text=_scale_text(max_sd)
+                )
 
         for sym_el in sym_elements:
             rule_el.append(sym_el)

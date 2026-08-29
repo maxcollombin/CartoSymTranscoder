@@ -1,12 +1,13 @@
-"""XML namespace constants and small ``lxml`` element-building helpers.
+"""XML namespace constants and the dialect-invariant ``lxml`` helpers.
 
-Shared by :mod:`_filter`, :mod:`_symbolizer`, :mod:`reader`, and
-:mod:`writer`.
+Everything that differs between SLD 1.0.0 and SE 1.1.0 (the symbology
+namespace, ``SvgParameter`` vs. ``CssParameter``, ...) lives on
+:class:`._dialect.SldDialect`. What stays here is common to both dialects:
+the namespace URIs, the Clark-notation prefixes, ``local_name``, and the
+Filter Encoding element factory (FE 1.0 and FE 1.1 share a namespace).
 """
 
 from __future__ import annotations
-
-from typing import cast
 
 from lxml import etree
 
@@ -16,6 +17,17 @@ OGC_NS = "http://www.opengis.net/ogc"
 GML_NS = "http://www.opengis.net/gml"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 
+SE = f"{{{SE_NS}}}"
+OGC = f"{{{OGC_NS}}}"
+GML = f"{{{GML_NS}}}"
+SLD = f"{{{SLD_NS}}}"
+XLINK = f"{{{XLINK_NS}}}"
+
+# Full namespace map declared on a detached ``ogc:Filter`` / ``ogc:BBOX``
+# root before it is appended into the document tree. lxml drops the
+# declarations already in scope at the insertion point, so this keeps the
+# serialised output identical to declaring the prefixes only on the
+# document root.
 NSMAP = {
     None: SLD_NS,
     "se": SE_NS,
@@ -24,51 +36,13 @@ NSMAP = {
     "xlink": XLINK_NS,
 }
 
-SE = f"{{{SE_NS}}}"
-OGC = f"{{{OGC_NS}}}"
-GML = f"{{{GML_NS}}}"
-SLD = f"{{{SLD_NS}}}"
-XLINK = f"{{{XLINK_NS}}}"
-
-
-def se_el(
-    tag: str,
-    parent: etree._Element | None = None,
-    text: str | None = None,
-) -> etree._Element:
-    """Create a ``se:<tag>`` element, optionally appended to *parent*."""
-    el = (
-        etree.SubElement(parent, f"{SE}{tag}")
-        if parent is not None
-        else etree.Element(f"{SE}{tag}", nsmap=NSMAP)
-    )
-    if text is not None:
-        el.text = text
-    return el
-
-
-def sld_el(
-    tag: str,
-    parent: etree._Element | None = None,
-    text: str | None = None,
-) -> etree._Element:
-    """Create an unprefixed ``sld:<tag>`` element, optionally appended to *parent*."""
-    el = (
-        etree.SubElement(parent, f"{SLD}{tag}")
-        if parent is not None
-        else etree.Element(f"{SLD}{tag}", nsmap=NSMAP)
-    )
-    if text is not None:
-        el.text = text
-    return el
-
 
 def ogc_el(
     tag: str,
     parent: etree._Element | None = None,
     text: str | None = None,
 ) -> etree._Element:
-    """Create an ``ogc:<tag>`` element, optionally appended to *parent*."""
+    """Create an ``ogc:<tag>`` Filter Encoding element, optionally under *parent*."""
     el = (
         etree.SubElement(parent, f"{OGC}{tag}")
         if parent is not None
@@ -79,41 +53,6 @@ def ogc_el(
     return el
 
 
-def svg_param(parent: etree._Element, name: str, value: str) -> etree._Element:
-    """Append an ``se:SvgParameter name="...">value</se:SvgParameter>`` child.
-
-    Always ``se:SvgParameter`` — never the SLD 1.0.0 ``CssParameter``
-    (SE 1.1.0 renamed the element; some Annex B examples still show the
-    old spelling).
-    """
-    el = se_el("SvgParameter", parent, text=value)
-    el.set("name", name)
-    return el
-
-
 def local_name(elem: etree._Element) -> str:
     """Return the local (unprefixed) tag name of *elem*."""
     return str(etree.QName(elem).localname)
-
-
-def find_se(elem: etree._Element, tag: str):
-    """Find the first direct-or-descendant ``se:<tag>`` child of *elem*."""
-    return elem.find(f".//{SE}{tag}")
-
-
-def find_se_direct(elem: etree._Element, tag: str):
-    """Find the first direct ``se:<tag>`` child of *elem*."""
-    return elem.find(f"{SE}{tag}")
-
-
-def findall_se(elem: etree._Element, tag: str):
-    """Find all direct ``se:<tag>`` children of *elem*."""
-    return elem.findall(f"{SE}{tag}")
-
-
-def get_svg_param(elem: etree._Element, name: str) -> str | None:
-    """Return the text of the ``se:SvgParameter[@name=...]`` child, if present."""
-    for param in findall_se(elem, "SvgParameter"):
-        if param.get("name") == name:
-            return cast(str | None, param.text)
-    return None

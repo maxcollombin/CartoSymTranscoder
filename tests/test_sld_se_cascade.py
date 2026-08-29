@@ -10,7 +10,7 @@ into independent ``se:Rule``s.
 from lxml import etree
 
 from cartosym_transcoder.codecs.sld._cascade import flatten_cascade_rules
-from cartosym_transcoder.codecs.sld.writer import SldSeWriter
+from cartosym_transcoder.codecs.sld.writer import SldWriter
 from cartosym_transcoder.models.styles import Style
 
 NS = {
@@ -151,7 +151,7 @@ class TestFlattenCascadeRules:
 class TestCascadeThroughWriter:
     def _write(self, style_dict):
         style = Style.from_dict(style_dict)
-        return etree.fromstring(SldSeWriter().write(style).encode("utf-8"))
+        return etree.fromstring(SldWriter().write(style).encode("utf-8"))
 
     def test_nested_scale_and_property_cascade_produces_independent_rules(self):
         root = self._write(

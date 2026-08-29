@@ -5,6 +5,10 @@ Scope: vector symbolizers plus basic Part-1 raster/coverage styling; see
 SLD/SE constructs (e.g. advanced raster, graphic fills, external graphics)
 raise :exc:`NotImplementedError` rather than being silently skipped, per
 this project's lossless-transcoding requirement.
+
+:class:`SldReader` is parametrised by an
+:class:`~cartosym_transcoder.codecs.sld._dialect.SldDialect`; the wiring in
+:mod:`cartosym_transcoder.codecs.sld` binds it to SE 1.1.0.
 """
 
 from __future__ import annotations
@@ -15,14 +19,14 @@ from lxml import etree
 
 from ...models.styles import Style
 from ..base import CodecReader
-from ._dialect import SE_1_1_0
+from ._dialect import SE_1_1_0, SldDialect
 from ._filter import (
     filter_xml_to_selector,
     merge_feature_type_name,
     merge_scale_denominators,
 )
 from ._symbolizer import elements_to_symbolizer
-from ._xml_helpers import OGC, SLD, find_se_direct, findall_se, local_name
+from ._xml_helpers import OGC, SLD, local_name
 
 
 def _scale_denominator_value(
@@ -46,8 +50,12 @@ def _scale_denominator_value(
     return int(num) if num.is_integer() else num
 
 
-class SldSeReader(CodecReader):
+class SldReader(CodecReader):
     """Read ``.sld`` / ``.se`` XML files (or raw XML strings) into a Style model."""
+
+    def __init__(self, dialect: SldDialect = SE_1_1_0) -> None:
+        """Bind the reader to an SLD/SE dialect (SE 1.1.0 by default)."""
+        self.d = dialect
 
     def read(self, source: str | Path) -> Style:
         """Parse *source* and return a validated Style.
@@ -89,10 +97,10 @@ class SldSeReader(CodecReader):
 
     def _parse_user_style(self, user_style: etree._Element) -> Style:
         metadata: dict = {}
-        description = find_se_direct(user_style, "Description")
+        description = self.d.find(user_style, "Description")
         if description is not None:
-            title_el = find_se_direct(description, "Title")
-            abstract_el = find_se_direct(description, "Abstract")
+            title_el = self.d.find(description, "Title")
+            abstract_el = self.d.find(description, "Abstract")
             if title_el is not None and title_el.text:
                 metadata["title"] = title_el.text
             if abstract_el is not None and abstract_el.text:
@@ -114,9 +122,9 @@ class SldSeReader(CodecReader):
         return style
 
     def _parse_feature_type_style(self, fts_el: etree._Element) -> list[dict]:
-        ftn_el = find_se_direct(fts_el, "FeatureTypeName")
+        ftn_el = self.d.find(fts_el, "FeatureTypeName")
         if ftn_el is None:
-            ftn_el = find_se_direct(fts_el, "CoverageName")
+            ftn_el = self.d.find(fts_el, "CoverageName")
         feature_type_name = ftn_el.text if ftn_el is not None else None
 
         rule_dicts: list[dict] = []
@@ -125,7 +133,7 @@ class SldSeReader(CodecReader):
         # chains into consecutive siblings, so we reverse that here.
         attach_to: dict | None = None
 
-        for rule_el in findall_se(fts_el, "Rule"):
+        for rule_el in self.d.findall(fts_el, "Rule"):
             rule_dict, is_else = self._parse_rule(rule_el)
             if is_else:
                 if attach_to is None:
@@ -148,18 +156,14 @@ class SldSeReader(CodecReader):
     def _parse_rule(self, rule_el: etree._Element) -> tuple[dict, bool]:
         rule_dict: dict = {}
 
-        name_el = find_se_direct(rule_el, "Name")
+        name_el = self.d.find(rule_el, "Name")
         if name_el is not None and name_el.text:
             rule_dict["stylingRuleName"] = name_el.text
 
-        min_sd = _scale_denominator_value(
-            find_se_direct(rule_el, "MinScaleDenominator")
-        )
-        max_sd = _scale_denominator_value(
-            find_se_direct(rule_el, "MaxScaleDenominator")
-        )
+        min_sd = _scale_denominator_value(self.d.find(rule_el, "MinScaleDenominator"))
+        max_sd = _scale_denominator_value(self.d.find(rule_el, "MaxScaleDenominator"))
 
-        is_else = find_se_direct(rule_el, "ElseFilter") is not None
+        is_else = self.d.find(rule_el, "ElseFilter") is not None
 
         if not is_else:
             filter_el = rule_el.find(f"{OGC}Filter")
@@ -177,6 +181,6 @@ class SldSeReader(CodecReader):
 
         sym_children = [c for c in rule_el if local_name(c).endswith("Symbolizer")]
         if sym_children:
-            rule_dict["symbolizer"] = elements_to_symbolizer(SE_1_1_0, sym_children)
+            rule_dict["symbolizer"] = elements_to_symbolizer(self.d, sym_children)
 
         return rule_dict, is_else

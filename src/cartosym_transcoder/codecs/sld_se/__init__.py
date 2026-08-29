@@ -8,7 +8,7 @@ New code should import from :mod:`cartosym_transcoder.codecs.sld`.
 from __future__ import annotations
 
 from ..sld import codec
-from ..sld.reader import SldSeReader
-from ..sld.writer import SldSeWriter
+from .reader import SldSeReader
+from .writer import SldSeWriter
 
 __all__ = ["codec", "SldSeReader", "SldSeWriter"]

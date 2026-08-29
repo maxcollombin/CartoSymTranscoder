@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.codecs.sld.reader import SldSeReader
-from cartosym_transcoder.codecs.sld.writer import SldSeWriter
+from cartosym_transcoder.codecs.sld.reader import SldReader
+from cartosym_transcoder.codecs.sld.writer import SldWriter
 from cartosym_transcoder.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -35,8 +35,8 @@ class TestRoundTrip:
         "fixture", IN_SCOPE_FIXTURES, ids=[f.name for f in IN_SCOPE_FIXTURES]
     )
     def test_read_write_read_fixed_point(self, fixture):
-        reader = SldSeReader()
-        writer = SldSeWriter()
+        reader = SldReader()
+        writer = SldWriter()
 
         style1 = reader.read(fixture)
         xml2 = writer.write(style1)
@@ -91,8 +91,8 @@ class TestDataLayerMetadataStripping:
             ]
         }
         style1 = Style.from_dict(style_dict)
-        xml = SldSeWriter().write(style1)
-        style2 = SldSeReader().read(xml)
+        xml = SldWriter().write(style1)
+        style2 = SldReader().read(xml)
         assert style2.styling_rules[0].selector == {
             "op": "=",
             "args": [{"sysId": "dataLayer.id"}, "Landuse"],

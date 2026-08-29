@@ -29,19 +29,14 @@ from typing import Literal, cast
 
 from lxml import etree
 
-from ._xml_helpers import GML_NS, OGC_NS, SE_NS, SLD_NS, XLINK_NS
+from ._xml_helpers import NSMAP, OGC_NS, SE_NS, SLD_NS, XLINK_NS
 
-_SE_NSMAP = {
-    None: SLD_NS,
-    "se": SE_NS,
-    "ogc": OGC_NS,
-    "gml": GML_NS,
-    "xlink": XLINK_NS,
-}
+# SE 1.1.0 shares the module-level NSMAP (also used for detached ogc:Filter
+# roots). SLD 1.0.0 needs no ``se`` prefix.
+_SE_NSMAP = NSMAP
 _SLD10_NSMAP = {
     None: SLD_NS,
     "ogc": OGC_NS,
-    "gml": GML_NS,
     "xlink": XLINK_NS,
 }
 
