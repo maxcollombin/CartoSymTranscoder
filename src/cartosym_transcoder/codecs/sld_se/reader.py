@@ -10,6 +10,8 @@ rather than being silently skipped, per this project's lossless-transcoding
 requirement.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from lxml import etree

@@ -4,7 +4,9 @@ Symbolizer models for CartoSym.
 Based on the JSON Schema definitions for symbolizer, fill, stroke, marker, label, etc.
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
@@ -48,9 +50,9 @@ class Fill(BaseCartoSymModel, AlterMixin):
     pattern: dict[str, Any] | None = Field(
         None, description="Fill pattern graphic (temporary)"
     )
-    hatch: Optional["Hatch"] = Field(None, description="Hatch pattern")
-    dotpattern: Optional["DotPattern"] = Field(None, description="Dot pattern")
-    stipple: Optional["Stipple"] = Field(None, description="Stipple pattern")
+    hatch: Hatch | None = Field(None, description="Hatch pattern")
+    dotpattern: DotPattern | None = Field(None, description="Dot pattern")
+    stipple: Stipple | None = Field(None, description="Stipple pattern")
 
 
 class Hatch(BaseCartoSymModel, AlterMixin):
@@ -139,11 +141,11 @@ class Stroke(BaseCartoSymModel, AlterMixin):
     width: UnitValue | str | float | None = Field(None, description="Stroke width")
 
     # Extended stroke properties
-    casing: Optional["StrokeStyling"] = Field(None, description="Stroke casing")
-    center_line: Optional["StrokeStyling"] = Field(
+    casing: StrokeStyling | None = Field(None, description="Stroke casing")
+    center_line: StrokeStyling | None = Field(
         None, alias="centerLine", description="Center line styling"
     )
-    dash_pattern: Optional["DashPattern"] = Field(
+    dash_pattern: DashPattern | None = Field(
         None, alias="dashPattern", description="Dash pattern"
     )
     pattern: dict[str, Any] | None = Field(
@@ -164,7 +166,7 @@ class Marker(BaseCartoSymModel):
 
     # Enhanced with proper structure
     alter: bool | None = Field(None, description="Alter behavior flag")
-    position: Optional["UnitPoint"] = Field(None, description="Marker position")
+    position: UnitPoint | None = Field(None, description="Marker position")
     opacity: FlexibleOpacity | None = Field(None, description="Marker opacity")
     elements: Any | None = Field(
         None,
@@ -199,12 +201,12 @@ class Label(BaseCartoSymModel):
 
     # Enhanced with proper structure
     alter: bool | None = Field(None, description="Alter behavior flag")
-    position: Optional["UnitPoint"] = Field(None, description="Label position")
+    position: UnitPoint | None = Field(None, description="Label position")
     opacity: FlexibleOpacity | None = Field(None, description="Label opacity")
-    elements: list["Graphic"] | None = Field(
+    elements: list[Graphic] | None = Field(
         None, description="Graphic elements in label"
     )
-    placement: Optional["LabelPlacement"] = Field(
+    placement: LabelPlacement | None = Field(
         None, description="Label placement configuration"
     )
 
@@ -413,8 +415,8 @@ class SymbolizerEnhanced(BaseCartoSymModel, CommentMixin):
     # Vector symbolizers
     fill: Fill | None = Field(None, description="Fill symbolizer")
     stroke: Stroke | None = Field(None, description="Stroke symbolizer")
-    marker: Optional["Marker"] = Field(None, description="Marker symbolizer")
-    label: Optional["Label"] = Field(None, description="Label symbolizer")
+    marker: Marker | None = Field(None, description="Marker symbolizer")
+    label: Label | None = Field(None, description="Label symbolizer")
 
     # Raster/coverage symbolizers
     color_channels: FlexibleColor | None = Field(

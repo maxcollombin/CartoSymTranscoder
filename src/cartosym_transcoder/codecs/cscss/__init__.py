@@ -2,6 +2,8 @@
 CartoSym-CSS codec — ``.cscss`` reader and writer.
 """
 
+from __future__ import annotations
+
 from ..base import Codec
 from .reader import CscssReader
 from .writer import CscssWriter

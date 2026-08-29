@@ -10,6 +10,8 @@ naming the unsupported field rather than being silently dropped, per this
 project's lossless-transcoding requirement.
 """
 
+from __future__ import annotations
+
 import logging
 from collections import OrderedDict
 
@@ -119,7 +121,7 @@ class SldSeWriter(CodecWriter):
 
     def _group_rules_by_feature_type(
         self, rules: list[StylingRule]
-    ) -> "OrderedDict[str | None, list[tuple[StylingRule, dict | None]]]":
+    ) -> OrderedDict[str | None, list[tuple[StylingRule, dict | None]]]:
         """Group top-level rules by their ``dataLayer.id`` conjunct.
 
         Rules with no ``dataLayer.id`` conjunct are grouped under the key

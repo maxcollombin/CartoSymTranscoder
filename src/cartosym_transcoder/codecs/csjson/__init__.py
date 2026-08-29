@@ -2,6 +2,8 @@
 CartoSym-JSON codec — ``.cs.json`` reader and writer.
 """
 
+from __future__ import annotations
+
 from ..base import Codec
 from .reader import CsjsonReader
 from .writer import CsjsonWriter

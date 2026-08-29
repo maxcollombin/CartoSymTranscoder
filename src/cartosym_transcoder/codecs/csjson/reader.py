@@ -4,6 +4,8 @@ CS-JSON reader — parse CartoSym-JSON files into Style models.
 Delegates to :meth:`~cartosym_transcoder.converter.Converter.csjson_to_style`.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from ...converter import Converter

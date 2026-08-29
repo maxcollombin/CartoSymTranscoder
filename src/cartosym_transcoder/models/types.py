@@ -5,6 +5,8 @@ This module contains precise types based on the JSON Schema analysis,
 including colors, units, ranges, and custom validators.
 """
 
+from __future__ import annotations
+
 import re
 from enum import Enum
 from typing import Annotated

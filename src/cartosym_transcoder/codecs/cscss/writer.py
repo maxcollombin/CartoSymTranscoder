@@ -4,6 +4,8 @@ CSCSS writer — serialise Style models to CartoSym-CSS text.
 Delegates to :meth:`~cartosym_transcoder.converter.Converter.style_to_cscss`.
 """
 
+from __future__ import annotations
+
 from ...converter import Converter
 from ...models.styles import Style
 from ..base import CodecWriter

@@ -4,6 +4,8 @@ CSCSS reader — parse CartoSym-CSS files into Style models.
 Delegates to the existing :class:`~cartosym_transcoder.parser.CartoSymParser`.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from ...models.styles import Style
