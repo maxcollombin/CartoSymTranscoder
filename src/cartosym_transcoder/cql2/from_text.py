@@ -666,7 +666,8 @@ class ExpressionParser:
         """Helper to parse expression from text string."""
         text = text.strip()
 
-        # Handle parentheses - remove outer parentheses if they wrap the entire expression
+        # Handle parentheses - remove the outer pair if it wraps the
+        # entire expression
         if text.startswith("(") and text.endswith(")"):
             # Check if these parentheses actually wrap the whole expression
             paren_depth = 0
@@ -802,7 +803,8 @@ class ExpressionParser:
         """Parse a single expression without logical operators."""
         text = text.strip()
 
-        # Handle parentheses - remove outer parentheses if they wrap the entire expression
+        # Handle parentheses - remove the outer pair if it wraps the
+        # entire expression
         if text.startswith("(") and text.endswith(")"):
             # Check if these parentheses actually wrap the whole expression
             paren_depth = 0
@@ -1340,9 +1342,12 @@ class ExpressionParser:
 
     @staticmethod
     def _try_parse_temporal_braces(text: str) -> Optional[Expression]:
-        """Try to parse curly-brace temporal literals: DATE{...}, TIMESTAMP{...}, INTERVAL{...}.
+        """Try to parse curly-brace temporal literals.
 
-        Returns the parsed TemporalLiteral or None if the text is not a temporal literal.
+        DATE{...}, TIMESTAMP{...}, INTERVAL{...}.
+
+        Returns the parsed TemporalLiteral, or None if the text is not a
+        temporal literal.
         """
         text = text.strip()
         brace_pos = text.find("{")

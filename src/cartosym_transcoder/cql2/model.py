@@ -1,6 +1,7 @@
 """
 Complete Expression System for CartoSym CSS and JSON Schema
-Supports complex expressions, conditions, function calls, and JSON Schema expression types.
+Supports complex expressions, conditions, function calls, and JSON Schema
+expression types.
 """
 
 from abc import ABC
@@ -382,7 +383,10 @@ class FunctionCallJSON(Expression):
 
 # Enhanced Conditional Expressions (JSON Schema format)
 class ConditionalExpressionJSON(Expression):
-    """JSON Schema conditional: {"op": "if", "args": [condition, trueValue, falseValue]}"""
+    """JSON Schema conditional.
+
+    ``{"op": "if", "args": [condition, trueValue, falseValue]}``
+    """
 
     op: Literal["if"] = "if"
     args: List[Expression] = Field(min_length=3, max_length=3)
@@ -407,7 +411,10 @@ class DateInstant(TemporalExpression):
 
 
 class TimestampInstant(TemporalExpression):
-    """Timestamp instant: {"op": "timestamp", "args": [year, month, day, hour, minute, second]}"""
+    """Timestamp instant.
+
+    ``{"op": "timestamp", "args": [year, month, day, hour, minute, second]}``
+    """
 
     op: Literal["timestamp"] = "timestamp"
     args: List[NumericExpression] = Field(
@@ -423,7 +430,10 @@ class DateString(TemporalExpression):
 
 
 class TimestampString(TemporalExpression):
-    """Timestamp from string: {"op": "timestampString", "args": [timestampString, format?]}"""
+    """Timestamp from string.
+
+    ``{"op": "timestampString", "args": [timestampString, format?]}``
+    """
 
     op: Literal["timestampString"] = "timestampString"
     args: List[Expression] = Field(min_length=1, max_length=2)
@@ -577,7 +587,10 @@ class GeometryBuffer(GeometryExpression):
 
 
 class GeometryManipulationUnary(GeometryExpression):
-    """Unary geometry operations: {"op": "s_convexHull|s_envelope|centroid|boundary", "args": [geometry]}"""
+    """Unary geometry operations.
+
+    ``{"op": "s_convexHull|s_envelope|centroid|boundary", "args": [geometry]}``
+    """
 
     op: Literal[
         "centroid", "envelope", "convexHull", "boundary", "s_convexHull", "s_envelope"
@@ -586,7 +599,11 @@ class GeometryManipulationUnary(GeometryExpression):
 
 
 class GeometryManipulationBinary(GeometryExpression):
-    """Binary geometry operations: {"op": "s_intersection|s_union|s_difference|s_symDifference", "args": [geom1, geom2]}"""
+    """Binary geometry operations.
+
+    ``{"op": "s_intersection|s_union|s_difference|s_symDifference",
+    "args": [geom1, geom2]}``
+    """
 
     op: Literal[
         "union",
@@ -866,7 +883,10 @@ class FormatExpression(CharacterExpression):
 
 
 class SubstituteExpression(CharacterExpression):
-    """String substitution: {"op": "substitute", "args": [string, pattern, replacement]}"""
+    """String substitution.
+
+    ``{"op": "substitute", "args": [string, pattern, replacement]}``
+    """
 
     op: Literal["substitute"] = "substitute"
     args: List[Expression] = Field(min_length=3, max_length=3)
@@ -1428,7 +1448,10 @@ class RotationTransform(Expression):
         if self.center_x == 0 and self.center_y == 0:
             return f"rotate({self.angle}{self.angle_unit})"
         else:
-            return f"rotate({self.angle}{self.angle_unit} {self.center_x}px {self.center_y}px)"
+            return (
+                f"rotate({self.angle}{self.angle_unit} "
+                f"{self.center_x}px {self.center_y}px)"
+            )
 
 
 class ScaleTransform(Expression):
@@ -1470,7 +1493,11 @@ class ScaleTransform(Expression):
         if self.center_x == 0 and self.center_y == 0:
             return scale_func
         else:
-            return f"translate({self.center_x}px, {self.center_y}px) {scale_func} translate({-self.center_x}px, {-self.center_y}px)"
+            return (
+                f"translate({self.center_x}px, {self.center_y}px) "
+                f"{scale_func} "
+                f"translate({-self.center_x}px, {-self.center_y}px)"
+            )
 
 
 class TranslationTransform(Expression):

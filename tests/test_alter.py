@@ -1,4 +1,5 @@
-"""Tests for the 'alter' flag on dot-notation and indexed element overrides (Phase 2.2)."""
+"""Tests for the 'alter' flag on dot-notation and indexed element
+overrides (Phase 2.2)."""
 
 from pathlib import Path
 
@@ -8,7 +9,8 @@ INPUT_DIR = Path(__file__).resolve().parent.parent / "input"
 
 
 class TestAlterFlag:
-    """Verify that dot-notation properties produce alter: true on the parent sub-object."""
+    """Dot-notation properties should produce ``alter: true`` on the
+    parent sub-object."""
 
     def setup_method(self):
         self.parser = CartoSymParser()
@@ -85,7 +87,8 @@ class TestAlterFlag:
     # ── fill.color + stroke.color combined ─────────────────────────
 
     def test_fill_and_stroke_dot_notation_both_alter(self):
-        """Both fill.color and stroke.color should set alter on their respective objects."""
+        """fill.color and stroke.color should each set ``alter`` on their
+        own object."""
         cscss = """\
 [Base]
 {
@@ -110,7 +113,8 @@ class TestAlterFlag:
     # ── marker.elements[N] sets alter on marker ───────────────────
 
     def test_marker_elements_indexed_sets_alter(self):
-        """marker.elements[1]: Image{...} → marker: { alter: true, elements: {index: 1, value: ...} }"""
+        """marker.elements[1]: Image{...} →
+        marker: { alter: true, elements: {index: 1, value: ...} }"""
         cscss = """\
 [Base]
 {
@@ -120,7 +124,8 @@ class TestAlterFlag:
    {
       marker.elements[1]:
          Image {
-            image: {uri: 'http://example.com/icon'; path: 'icon.png'; id: 'parking'; type: 'image/png'; ext: 'png'};
+            image: {uri: 'http://example.com/icon'; path: 'icon.png';
+                    id: 'parking'; type: 'image/png'; ext: 'png'};
             hotSpot: 50 pc 50 pc; tint: white; blackTint: blue; alphaThreshold: 0.1;
          };
    }
@@ -156,7 +161,8 @@ class TestAlterFlag:
     def test_example2_alter_flags(self):
         """Example 2 (vector-polygon) nested rules should have alter on fill/stroke."""
         style = self.parser.parse_file_to_pydantic(INPUT_DIR / "2-vector-polygon.cscss")
-        # Navigate: stylingRules[0] → nestedRules[0] (the zoom rule) → nestedRules[0..2] (FunctionCode rules)
+        # Navigate: stylingRules[0] → nestedRules[0] (the zoom rule) →
+        # nestedRules[0..2] (FunctionCode rules)
         base_rule = style.styling_rules[0]
         zoom_rule = base_rule.nested_rules[0]
         # The first 3 nested rules use fill.color / stroke.color

@@ -20,7 +20,8 @@ class Converter:
 
     def _resolve_path(self, path: Union[str, Path]) -> Path:
         """
-        Résout le chemin relatif par rapport à la racine du projet (là où se trouve pyproject.toml).
+        Résout le chemin relatif par rapport à la racine du projet
+        (là où se trouve pyproject.toml).
         """
         p = Path(path)
         if p.is_absolute() or p.exists():
@@ -85,15 +86,16 @@ class Converter:
                     and "property" in selector
                     and len(selector) == 1
                 ):
-                    # Invalid standalone property selector - this is likely a parsing error
-                    # where a member access like 'viz.timeInterval.start.date' was incorrectly split
+                    # Invalid standalone property selector - likely a parsing
+                    # error where a member access like
+                    # 'viz.timeInterval.start.date' was incorrectly split.
                     # Remove the invalid selector entirely
                     del data["selector"]
                 elif isinstance(selector, dict) and "property" in selector:
-                    # If it's a property reference that's part of a larger expression, ensure it has the right structure
-                    # Property references in selectors should be propertyRef objects
+                    # A property reference that's part of a larger expression
+                    # must have the right structure (propertyRef objects).
                     if "op" not in selector and "args" not in selector:
-                        # This is a bare property reference, which is invalid in selector context
+                        # Bare property reference — invalid in selector context
                         del data["selector"]
             # Recursively fix nested structures
             for value in data.values():
@@ -358,7 +360,10 @@ class Converter:
         return lines
 
     def _channel_expr_to_css(self, expr) -> str:
-        """Format a channel expression (property-ref, arithmetic expr, or string) to CSCSS."""
+        """Format a channel expression to CSCSS.
+
+        The expression is a property-ref, an arithmetic expr, or a string.
+        """
         if isinstance(expr, dict):
             if "property" in expr:
                 return expr["property"]
@@ -702,7 +707,8 @@ class Converter:
             if opacity is not None:
                 lines.append(f"  fill.opacity: {opacity};")
         elif color is not None or opacity is not None:
-            # Normal mode: always use compound block to avoid injecting alter on re-parse
+            # Normal mode: always use a compound block to avoid injecting
+            # alter on re-parse
             parts = []
             if color is not None:
                 parts.append(f"color: {self._format_color(color)}")

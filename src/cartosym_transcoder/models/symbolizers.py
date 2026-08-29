@@ -176,7 +176,9 @@ class Marker(BaseCartoSymModel):
     opacity: Optional[FlexibleOpacity] = Field(None, description="Marker opacity")
     elements: Optional[Any] = Field(
         None,
-        description="Graphic elements in marker (list) or indexed override {index, value}",
+        description=(
+            "Graphic elements in marker (list) or indexed override " "{index, value}"
+        ),
     )
 
     @field_validator("elements", mode="before")

@@ -1,8 +1,10 @@
 """
-CartoSym Transcoder - Lossless transcoding between CartoSym CSS, CartoSym JSON, and other encodings.
+CartoSym Transcoder - Lossless transcoding between CartoSym CSS, CartoSym
+JSON, and other encodings.
 
-This package provides tools for converting between CartoSym CSS, CartoSym JSON format, and other
-cartographic symbology encodings like SLD (Styled Layer Descriptor) and MapLibre GL Style.
+This package provides tools for converting between CartoSym CSS, CartoSym
+JSON format, and other cartographic symbology encodings like SLD (Styled
+Layer Descriptor) and MapLibre GL Style.
 """
 
 __version__ = "0.1.0"

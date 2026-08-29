@@ -241,8 +241,9 @@ class CartoSymParser:
         return listener.stylesheet
 
     def _merge_marker_elements(self, stylesheet):
-        """No-op: marker.elements[N] overrides are now kept in their own rule as indexed
-        Markers and written back as 'marker.elements[N]: Type { ... }' by the CSCSS writer.
+        """No-op: marker.elements[N] overrides are now kept in their own rule
+        as indexed Markers and written back as 'marker.elements[N]: Type
+        { ... }' by the CSCSS writer.
         """
         return
 
@@ -250,7 +251,10 @@ class CartoSymParser:
 class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
 
     def _handle_object_property(self, prop_name: str, prop_value: str, symbolizer):
-        """Handle object literal property assignments (e.g., fill: {color: gray; opacity: 0.5})."""
+        """Handle object literal property assignments.
+
+        E.g. ``fill: {color: gray; opacity: 0.5}``.
+        """
         # Remove outer braces and strip whitespace
         content = prop_value.strip()
         if content.startswith("{") and content.endswith("}"):
@@ -636,7 +640,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         self.current_rule = StylingRule()
         self.current_assignments = []
         self.current_selectors = []
-        # Inherit any pending marker element assignments from parent stack (propagate down)
+        # Inherit any pending marker element assignments from the parent
+        # stack (propagate down)
         if (
             self.rule_stack
             and "_pending_marker_element_assignments" in self.rule_stack[-1]
@@ -694,7 +699,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                     symbolizer_obj,
                     assignment,
                 )
-        # Si aucune propriété symbolizer explicite, mais symbolizer a été rempli, on l'affecte
+        # Si aucune propriété symbolizer explicite, mais symbolizer a été
+        # rempli, on l'affecte
         if not symbolizer_set and (
             symbolizer_obj.fill
             or symbolizer_obj.stroke
@@ -1044,7 +1050,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
     def _parse_color_map(self, prop_value: str):
         """Parse color map from string format."""
         try:
-            # Handle array format: [0 96 136 73, 900 226 219 167, ...] or [0 black, 0.15 gray, ...]
+            # Handle array format: [0 96 136 73, 900 226 219 167, ...]
+            # or [0 black, 0.15 gray, ...]
             if prop_value.startswith("[") and prop_value.endswith("]"):
                 content = prop_value.strip("[]").strip()
                 if content:

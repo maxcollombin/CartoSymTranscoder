@@ -212,7 +212,8 @@ def convert_command(args) -> int:
             parser.styleSheet()
             if parser.getNumberOfSyntaxErrors() > 0:
                 print(
-                    "Error: Input CSCSS file contains syntax errors. Conversion aborted.",
+                    "Error: Input CSCSS file contains syntax errors. "
+                    "Conversion aborted.",
                     file=sys.stderr,
                 )
                 has_errors = True

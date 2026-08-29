@@ -290,7 +290,10 @@ class TestMetadataParsing:
         self.converter = Converter()
 
     def test_title_and_abstract(self):
-        cscss = ".title 'My Style'\n.abstract 'A description'\n[Base]\n{ visibility: true; }"
+        cscss = (
+            ".title 'My Style'\n.abstract 'A description'\n"
+            "[Base]\n{ visibility: true; }"
+        )
         result = self.converter.cscss_to_csjson(cscss)
         meta = result.get("metadata", {})
         assert meta.get("title") == "My Style"

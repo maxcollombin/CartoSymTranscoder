@@ -5,7 +5,8 @@ Covers:
  - Character expression functions: CASEI, ACCENTI, LOWERCASE, UPPERCASE,
    CONCATENATE, SUBSTITUTE, FORMAT
  - Spatial predicates: S_COVERS, S_COVEREDBY
- - Geometry manipulation (binary): S_INTERSECTION, S_UNION, S_DIFFERENCE, S_SYMDIFFERENCE
+ - Geometry manipulation (binary): S_INTERSECTION, S_UNION,
+   S_DIFFERENCE, S_SYMDIFFERENCE
  - Geometry manipulation (unary): S_CONVEXHULL, S_ENVELOPE
  - Geometry buffer: S_BUFFER
  - Hex number literals: 0xFF

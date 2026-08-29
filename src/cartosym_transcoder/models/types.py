@@ -349,7 +349,8 @@ def validate_unit_string(v: str) -> str:
 # Flexible Types for Real-world Usage
 # =============================================================================
 
-# These are the types actually used in models - they accept both precise types and strings
+# These are the types actually used in models - they accept both precise
+# types and strings
 
 FlexibleColor = Union[Color, str]
 """Color that accepts precise Color types or string expressions."""

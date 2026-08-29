@@ -47,7 +47,8 @@ class StylingRule(BaseCartoSymModel, CommentMixin):
     Now supports explicit stylingRuleName.
 
     Field order matters: Pydantic serializes in declaration order,
-    so the JSON output follows: name → stylingRuleName → selector → symbolizer → nestedRules.
+    so the JSON output follows: name → stylingRuleName → selector →
+    symbolizer → nestedRules.
     """
 
     name: Optional[str] = Field(None, description="Rule name (legacy or fallback)")

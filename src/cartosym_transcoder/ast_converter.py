@@ -127,7 +127,10 @@ def _parse_nested_props(props_str: str) -> dict:
 
 
 def _parse_color_value(v: str):
-    """Convert a color string to schema-valid form: hex #rrggbb or #rgb → [r,g,b]; web names kept as-is."""
+    """Convert a color string to schema-valid form.
+
+    Hex ``#rrggbb`` or ``#rgb`` → ``[r, g, b]``; web colour names kept as-is.
+    """
     if isinstance(v, str) and v.startswith("#") and len(v) in (4, 7):
         hex_str = v[1:]
         if len(hex_str) == 3:
@@ -334,7 +337,10 @@ class AstToPydanticConverter:
     """Converts ANTLR AST nodes to Pydantic models."""
 
     def convert_stylesheet(self, ast_stylesheet: AstStyleSheet) -> Style:
-        """Convert AST StyleSheet to Pydantic Style model, preserving nested rules only as children."""
+        """Convert AST StyleSheet to Pydantic Style model.
+
+        Nested rules are preserved only as children.
+        """
         try:
             # Convert metadata
             metadata = None
@@ -447,7 +453,10 @@ class AstToPydanticConverter:
                 self._resolve_ast_variables(val, var_lookup)
 
     def _convert_styling_rule(self, ast_rule: AstStylingRule) -> Optional[StylingRule]:
-        """Convert AST StylingRule to Pydantic StylingRule, including nested selectors and stylingRuleName."""
+        """Convert AST StylingRule to Pydantic StylingRule.
+
+        Includes nested selectors and ``stylingRuleName``.
+        """
         try:
             selector = None
             rule_name = None
@@ -731,7 +740,11 @@ class AstToPydanticConverter:
             return None
 
     def _convert_marker(self, ast_marker) -> Optional[Marker]:
-        """Convert AST Marker to Pydantic Marker, including position and opacity if present, and preserving all element properties."""
+        """Convert AST Marker to Pydantic Marker.
+
+        Includes position and opacity if present, and preserves all element
+        properties.
+        """
         try:
             from .models.symbolizers import Marker as PydanticMarker
 
@@ -779,7 +792,8 @@ class AstToPydanticConverter:
                 else:
                     converted_elements = []
                     for el in (elements if isinstance(elements, list) else [elements]):
-                        # Accept dicts (from marker.elements[N] patch) or Pydantic objects
+                        # Accept dicts (from marker.elements[N] patch) or
+                        # Pydantic objects
                         if hasattr(el, "model_dump"):
                             el_dict = el.model_dump(exclude_none=True)
                         elif hasattr(el, "items"):
@@ -816,8 +830,10 @@ class AstToPydanticConverter:
         """Convert a channel value to proper expression format.
 
         If value is a simple identifier string, convert to property reference.
-        If value is multiple space-separated identifiers, convert to array of property references.
-        If value contains arithmetic operators, parse it as a mathematical expression.
+        If value is multiple space-separated identifiers, convert to an array
+        of property references.
+        If value contains arithmetic operators, parse it as a mathematical
+        expression.
         Otherwise return as-is for numeric values or complex expressions.
         """
         if isinstance(value, str):
@@ -831,7 +847,7 @@ class AstToPydanticConverter:
                     )
                     return value
 
-            # Check if it contains multiple space-separated identifiers (like "B04 B03 B02")
+            # Check for multiple space-separated identifiers (like "B04 B03 B02")
             parts = value.split()
             if len(parts) > 1:
                 # Multiple identifiers - check if they're all simple identifiers
@@ -858,7 +874,7 @@ class AstToPydanticConverter:
                 ):
                     # Convert to array of property references
                     return [{"property": p} for p in parts]
-            # Single identifier - check if it's a simple identifier (no spaces, no operators)
+            # Single identifier - check it's simple (no spaces, no operators)
             elif value and not any(
                 c in value
                 for c in [" ", "+", "-", "*", "/", "(", ")", "[", "]", "{", "}", ";"]
@@ -1046,7 +1062,9 @@ class AstToPydanticConverter:
         """Convert AST HillShading to dictionary per JSON schema."""
         try:
             if isinstance(ast_hill_shading, dict):
-                # Handle object format: {factor: 56; sun: {azimuth: 45.0; elevation: 60.0}; colorMap: [...]; opacityMap: [...]}
+                # Handle object format, e.g.
+                # {factor: 56; sun: {azimuth: 45.0; elevation: 60.0};
+                #  colorMap: [...]; opacityMap: [...]}
                 result = {}
                 for key, value in ast_hill_shading.items():
                     if key == "sun":
@@ -1057,7 +1075,8 @@ class AstToPydanticConverter:
                             and value.startswith("{")
                             and value.endswith("}")
                         ):
-                            # Parse sun string like "{azimuth: 45.0; elevation: 60.0}" to object
+                            # Parse sun string, e.g.
+                            # "{azimuth: 45.0; elevation: 60.0}" → object
                             sun_obj = {}
                             content = value.strip("{}").strip()
                             for part in content.split(";"):
