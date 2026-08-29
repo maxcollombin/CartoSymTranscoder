@@ -694,7 +694,25 @@ class Converter:
         return str(uv)
 
     def _fill_to_css(self, fill) -> list:
-        """Convert Fill model to CSS lines."""
+        """Convert Fill model to CSS lines.
+
+        Raises:
+            NotImplementedError: If the fill carries a pattern graphic
+                (``hatch``/``dotpattern``/``stipple``/``pattern``). These
+                are not yet emitted on the CS-JSON → CartoSym-CSS path;
+                dropping them silently would break the lossless guarantee.
+        """
+
+        def _get(o, k):
+            return o.get(k) if isinstance(o, dict) else getattr(o, k, None)
+
+        for field in ("hatch", "dotpattern", "stipple", "pattern"):
+            if _get(fill, field) is not None:
+                raise NotImplementedError(
+                    f"fill.{field}: fill pattern graphics are not yet written "
+                    "back to CartoSym-CSS"
+                )
+
         lines = []
         color = getattr(fill, "color", None)
         opacity = getattr(fill, "opacity", None)
@@ -716,7 +734,6 @@ class Converter:
                 parts.append(f"opacity: {opacity}")
             lines.append(f"  fill: {{{'; '.join(parts)}}};")
 
-        # TODO: Add pattern support
         return lines
 
     def _stroke_to_css(self, stroke) -> list:
