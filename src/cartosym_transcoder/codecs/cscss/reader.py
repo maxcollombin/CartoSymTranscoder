@@ -16,6 +16,7 @@ class CscssReader(CodecReader):
     """Read ``.cscss`` files (or raw CSCSS strings) into a Style model."""
 
     def __init__(self) -> None:
+        """Create the reader with a fresh :class:`CartoSymParser`."""
         self._parser = CartoSymParser()
 
     def read(self, source: str | Path) -> Style:

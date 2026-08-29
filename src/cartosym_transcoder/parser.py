@@ -250,6 +250,11 @@ class CartoSymParser:
 
 
 class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
+    """ANTLR listener that builds a :class:`~cartosym_transcoder.ast.StyleSheet`.
+
+    Walks the ``CartoSymCSSGrammar`` parse tree and accumulates rules,
+    selectors, symbolizers and metadata onto :attr:`stylesheet`.
+    """
 
     def _handle_object_property(self, prop_name: str, prop_value: str, symbolizer):
         """Handle object literal property assignments.
@@ -398,6 +403,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         element_dict[key] = v
 
     def __init__(self) -> None:
+        """Initialise the listener with empty stylesheet and rule state."""
         self.stylesheet: StyleSheet | None = None
         self.current_rule: StylingRule | None = None
         self.current_assignments: list = []
@@ -658,6 +664,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             self._pending_marker_element_assignments = {}
 
     def exitStylingRule(self, ctx):
+        """Finalise the current styling rule when its ``stylingRule`` subtree closes."""
         # Always create a new symbolizer for each rule, even if nested
         symbolizer_obj = ModelSymbolizer()
         explicit_symbolizer = None
@@ -831,6 +838,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 self.current_assignments.append(assignment)
 
     def exitPropertyAssignment(self, ctx):
+        """Record a property assignment when its subtree closes."""
         if (
             hasattr(self, "_in_object_assignment_stack")
             and self._in_object_assignment_stack

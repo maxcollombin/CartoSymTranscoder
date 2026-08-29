@@ -122,6 +122,7 @@ class NullLiteral(Expression):
     type: ExpressionType = ExpressionType.NULL
 
     def to_cql2_json(self) -> None:
+        """Serialise to CQL2-JSON: SQL ``NULL`` becomes JSON ``null``."""
         return None
 
 
@@ -271,6 +272,7 @@ class ArithmeticOperands(NumericExpression):
 
     @property
     def result_type(self) -> str:
+        """Static result type of this expression (always ``"numeric"``)."""
         return "numeric"
 
 
@@ -687,6 +689,7 @@ class BboxLiteral(GeometryExpression):
     bbox: list[float] = Field(min_length=4, max_length=6)
 
     def to_cql2_json(self) -> dict[str, Any]:
+        """Serialise to a CQL2-JSON ``{"bbox": [...]}`` object."""
         return {"bbox": self.bbox}
 
 
@@ -814,6 +817,7 @@ class Dot(Expression):
     path: list[str] = Field(min_length=2)  # e.g., ['dataLayer', 'type']
 
     def to_string(self) -> str:
+        """Render the member path as a dotted string (e.g. ``dataLayer.type``)."""
         return ".".join(self.path)
 
 

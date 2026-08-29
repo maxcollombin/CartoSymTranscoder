@@ -14,6 +14,7 @@ class CscssWriter(CodecWriter):
     """Write a Style model as ``.cscss`` text."""
 
     def __init__(self) -> None:
+        """Create the writer with a fresh :class:`Converter`."""
         self._converter = Converter()
 
     def write(self, style: Style) -> str:

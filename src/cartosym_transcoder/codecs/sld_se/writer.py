@@ -40,6 +40,7 @@ class SldSeWriter(CodecWriter):
     """Write a Style model as SLD/SE XML."""
 
     def write(self, style: Style) -> str:
+        """Serialise a Style model to an SLD/SE XML string."""
         root = self._build_sld(style)
         xml: bytes = etree.tostring(
             root, pretty_print=True, xml_declaration=True, encoding="UTF-8"

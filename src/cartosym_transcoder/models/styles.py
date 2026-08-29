@@ -67,12 +67,14 @@ class StylingRule(BaseCartoSymModel, CommentMixin):
 
     @field_validator("symbolizer", mode="before")
     def ensure_symbolizer_model(cls, v):
+        """Coerce a plain ``dict`` symbolizer into a :class:`Symbolizer`."""
         if isinstance(v, dict):
             return Symbolizer.from_dict(v)
         return v
 
     @model_validator(mode="after")
     def recursively_validate_nested_rules(self):
+        """Coerce nested-rule dicts into :class:`StylingRule` models, recursively."""
         if self.nested_rules:
             for i, rule in enumerate(self.nested_rules):
                 if isinstance(rule, dict):

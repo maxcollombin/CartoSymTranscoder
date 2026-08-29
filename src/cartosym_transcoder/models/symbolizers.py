@@ -15,6 +15,7 @@ from .types import FlexibleAngle, FlexibleColor, FlexibleOpacity, UnitValue
 
 
 def parse_flexible_unit_value(v):
+    """Coerce a ``{unit: value}`` dict into a :class:`UnitValue`."""
     # Accept dicts like {"px": 2.0}
     if isinstance(v, dict) and len(v) == 1:
         unit, value = next(iter(v.items()))
@@ -63,6 +64,7 @@ class Hatch(BaseCartoSymModel, AlterMixin):
 
     @field_validator("width", "distance", mode="before")
     def validate_unit_fields(cls, v):
+        """Coerce ``{unit: value}`` dicts on width/distance before validation."""
         return parse_flexible_unit_value(v)
 
 
@@ -75,6 +77,7 @@ class DotPattern(BaseCartoSymModel, AlterMixin):
 
     @field_validator("distance", mode="before")
     def validate_distance(cls, v):
+        """Coerce a ``{unit: value}`` dict on ``distance`` before validation."""
         return parse_flexible_unit_value(v)
 
 
@@ -97,6 +100,7 @@ class StrokeStyling(BaseCartoSymModel, AlterMixin):
 
     @field_validator("width", mode="before")
     def validate_width(cls, v):
+        """Coerce a ``{unit: value}`` dict on ``width`` before validation."""
         return parse_flexible_unit_value(v)
 
 
@@ -141,6 +145,7 @@ class Stroke(BaseCartoSymModel, AlterMixin):
 
     @field_validator("width", mode="before")
     def validate_width(cls, v):
+        """Coerce a ``{unit: value}`` dict on ``width`` before validation."""
         return parse_flexible_unit_value(v)
 
 
@@ -163,6 +168,7 @@ class Marker(BaseCartoSymModel):
 
     @field_validator("elements", mode="before")
     def ensure_elements_list(cls, v):
+        """Normalise ``elements`` to a list, preserving an indexed override dict."""
         # Preserve indexed override form {"index": N, "value": graphic} as-is
         if isinstance(v, dict) and "index" in v and "value" in v:
             return v
@@ -197,6 +203,7 @@ class Label(BaseCartoSymModel):
 
     @field_validator("elements", mode="before")
     def ensure_elements_list(cls, v):
+        """Normalise ``elements`` to a list of graphic dicts."""
         if isinstance(v, dict) and "value" in v:
             return [v["value"]]
         if isinstance(v, dict):
@@ -216,6 +223,7 @@ class UnitPoint(BaseCartoSymModel):
     @model_validator(mode="before")
     @classmethod
     def parse_unit_point(cls, v):
+        """Accept a bare ``"x y"`` string or ``[x, y]`` list as well as ``{x, y}``."""
         # Accept a bare "x y" string (as written by the CSCSS writer, e.g.
         # for `position`) or a [x, y] list, in addition to the normal
         # {x: ..., y: ...} dict form.
@@ -297,6 +305,7 @@ class AbstractGraphic(BaseCartoSymModel, AlterMixin):
 
     @field_validator("position", mode="before")
     def validate_position(cls, v):
+        """Accept a two-item ``[x, y]`` list for ``position``."""
         if isinstance(v, list) and len(v) == 2:
             return UnitPoint(x=v[0], y=v[1])
         return v

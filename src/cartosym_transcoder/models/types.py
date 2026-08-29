@@ -248,6 +248,7 @@ class UnitValue(BaseModel):
     @field_validator("value", "unit", mode="before")
     @classmethod
     def parse_dict_input(cls, v, info):
+        """Split a ``{unit: value}`` dict into the ``value`` and ``unit`` fields."""
         # Accept dicts like {"px": 2.0}
         if isinstance(v, dict) and len(v) == 1:
             unit, value = next(iter(v.items()))

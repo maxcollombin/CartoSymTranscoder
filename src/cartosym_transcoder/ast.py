@@ -42,6 +42,7 @@ class StylingRuleList:
     rules: list[StylingRule]
 
     def __post_init__(self):
+        """Default ``rules`` to an empty list when constructed with ``None``."""
         if self.rules is None:
             self.rules = []
 
@@ -120,6 +121,7 @@ class PropertyAssignmentList:
     assignments: list[PropertyAssignment]
 
     def __post_init__(self):
+        """Default ``assignments`` to an empty list when constructed with ``None``."""
         if self.assignments is None:
             self.assignments = []
 
