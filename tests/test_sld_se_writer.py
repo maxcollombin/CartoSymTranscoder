@@ -5,7 +5,6 @@ XML tree (not raw string matching, to avoid whitespace/attribute-order
 brittleness).
 """
 
-import json
 from pathlib import Path
 
 import pytest
@@ -13,10 +12,11 @@ from lxml import etree
 
 from cartosym_transcoder.codecs.sld_se._symbolizer import symbolizer_to_elements
 from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
+from cartosym_transcoder.converter import Converter
 from cartosym_transcoder.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = ROOT / "output"
+INPUT_DIR = ROOT / "input"
 
 NS = {
     "sld": "http://www.opengis.net/sld",
@@ -845,7 +845,7 @@ class TestRealRasterFixturesRegression:
     plan's Context section / docs/sld_se_mapping_issues.md #24/#25/#32."""
 
     def _symbolizer_for(self, stem):
-        data = json.loads((OUTPUT_DIR / f"{stem}.cs.json").read_text(encoding="utf-8"))
+        data = Converter().cscss_to_csjson(INPUT_DIR / f"{stem}.cscss")
         raw = _find_raster_symbolizer_dict(data["stylingRules"])
         assert raw is not None, f"no raster symbolizer found in {stem}.cs.json"
         style = Style.from_dict({"stylingRules": [{"symbolizer": raw}]})
