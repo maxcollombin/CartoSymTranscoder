@@ -1,5 +1,4 @@
-"""
-CQL2 / CartoSym-CSS expression parsing -> ``cql2.model`` expression models.
+"""CQL2 / CartoSym-CSS expression parsing -> ``cql2.model`` expression models.
 
 Public callers should use :mod:`cartosym_transcoder.cql2`
 (``parse_text`` / ``parse_tree``); ``ExpressionParser`` here is the
@@ -230,7 +229,8 @@ class ExpressionParser:
         op_ctx, table: dict[str, BinaryOperator]
     ) -> BinaryOperator | None:
         """First ``BinaryOperator`` in *table* whose token accessor is set on
-        *op_ctx* (``table`` is keyed by grammar token name, e.g. ``"IDIV"``)."""
+        *op_ctx* (``table`` is keyed by grammar token name, e.g. ``"IDIV"``).
+        """
         for token_name, operator in table.items():
             if getattr(op_ctx, token_name)() is not None:
                 return operator
@@ -1304,7 +1304,8 @@ class ExpressionParser:
     def _find_top_level(text: str, needle: str, *, last: bool = True) -> int:
         """Index of *needle* in *text* at bracket depth 0 and outside quotes,
         or -1. Case-insensitive. ``last=True`` returns the rightmost match
-        (for left-associative operator splitting)."""
+        (for left-associative operator splitting).
+        """
         nl = needle.lower()
         n = len(needle)
         found = -1

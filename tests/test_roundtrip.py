@@ -117,7 +117,8 @@ class TestSelectorParsing:
         """CartoSym-CSS has no `!=` / `<>` operator — its grammar's
         `relationalOperator` is EQ | LT | LTEQ | GT | GTEQ | IN | NOT IN |
         IS | IS NOT | LIKE | NOT LIKE. `!=` must be a hard syntax error,
-        not silently swallowed."""
+        not silently swallowed.
+        """
         from cartosym_transcoder.exceptions import CartoSymSyntaxError
 
         with pytest.raises(CartoSymSyntaxError):
@@ -309,7 +310,8 @@ class TestMetadataParsing:
 
     def test_geo_data_classes_roundtrip(self):
         """.geoDataClasses must survive CSCSS → CS-JSON → CSCSS write-back
-        (regression: the writer read a wrong attribute name and dropped it)."""
+        (regression: the writer read a wrong attribute name and dropped it).
+        """
         cscss = (
             ".title 'T'\n"
             ".geoDataClasses 'https://ex.org/a, https://ex.org/b'\n"
@@ -325,7 +327,8 @@ class TestMetadataParsing:
 
     def test_fill_pattern_writeback_raises(self):
         """A fill pattern graphic has no CartoSym-CSS write-back yet — the
-        writer must raise (naming the field) rather than drop it silently."""
+        writer must raise (naming the field) rather than drop it silently.
+        """
         style = Style.from_dict(
             {
                 "stylingRules": [

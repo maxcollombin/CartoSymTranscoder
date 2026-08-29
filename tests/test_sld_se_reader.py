@@ -51,7 +51,8 @@ class TestReadBasicSymbolizers:
 
     def test_label_ogc_literal_is_read_as_plain_text(self):
         """se:Label is mixed content; some producers wrap literal text in
-        <ogc:Literal> rather than as a bare text node."""
+        <ogc:Literal> rather than as a bare text node.
+        """
         xml = (
             '<StyledLayerDescriptor version="1.1.0" '
             'xmlns="http://www.opengis.net/sld" '
@@ -200,7 +201,8 @@ class TestReadMetadata:
 class TestReadSymbolizerGeometry:
     """se:Geometry (symbolizer geometry, 3-geometry) has no CartoSym
     conceptual-model representation yet — the reader must raise, not drop
-    it silently."""
+    it silently.
+    """
 
     def test_se_geometry_child_raises(self):
         xml = (

@@ -13,8 +13,7 @@ __all__ = ["expression_to_text", "geojson_to_wkt"]
 
 
 def expression_to_text(expr, quote_bare_strings: bool = True) -> str:
-    """
-    Recursively format a selector expression dict as a CSCSS filter string.
+    """Recursively format a selector expression dict as a CSCSS filter string.
 
     quote_bare_strings: when True (default) plain string values are
     single-quoted.  Set to False when the right-hand side of a sysId

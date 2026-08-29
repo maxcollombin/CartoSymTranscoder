@@ -1,5 +1,4 @@
-"""
-Symbolizer models for CartoSym.
+"""Symbolizer models for CartoSym.
 
 Based on the JSON Schema definitions for symbolizer, fill, stroke, marker, label, etc.
 """
@@ -35,8 +34,7 @@ def _coerce_numeric_str(v: str):
 
 
 class Fill(BaseCartoSymModel, AlterMixin):
-    """
-    Fill symbolizer for polygons and areas.
+    """Fill symbolizer for polygons and areas.
 
     Based on the 'fill' definition in the JSON schema.
     Can be either an expression reference or a fill object.
@@ -55,9 +53,7 @@ class Fill(BaseCartoSymModel, AlterMixin):
 
 
 class Hatch(BaseCartoSymModel, AlterMixin):
-    """
-    Hatch pattern for fills.
-    """
+    """Hatch pattern for fills."""
 
     width: UnitValue | str | float | None = Field(None, description="Hatch line width")
     angle: FlexibleAngle | None = Field(None, description="Hatch angle")
@@ -71,9 +67,7 @@ class Hatch(BaseCartoSymModel, AlterMixin):
 
 
 class DotPattern(BaseCartoSymModel, AlterMixin):
-    """
-    Dot pattern for fills.
-    """
+    """Dot pattern for fills."""
 
     distance: UnitValue | str | float | None = Field(
         None, description="Distance between dots"
@@ -85,9 +79,7 @@ class DotPattern(BaseCartoSymModel, AlterMixin):
 
 
 class Stipple(BaseCartoSymModel, AlterMixin):
-    """
-    Stipple pattern for fills.
-    """
+    """Stipple pattern for fills."""
 
     ratio: Any | None = Field(
         None, description="Stipple ratio (temporary - will be numericExpression)"
@@ -95,9 +87,7 @@ class Stipple(BaseCartoSymModel, AlterMixin):
 
 
 class StrokeStyling(BaseCartoSymModel, AlterMixin):
-    """
-    Basic stroke styling properties.
-    """
+    """Basic stroke styling properties."""
 
     color: FlexibleColor | None = Field(None, description="Stroke color")
     opacity: FlexibleOpacity | None = Field(
@@ -111,8 +101,7 @@ class StrokeStyling(BaseCartoSymModel, AlterMixin):
 
 
 class DashPattern(BaseCartoSymModel):
-    """
-    Dash pattern for strokes.
+    """Dash pattern for strokes.
 
     Can be either an array of integers or an indexed value.
     """
@@ -126,8 +115,7 @@ class DashPattern(BaseCartoSymModel):
 
 
 class Stroke(BaseCartoSymModel, AlterMixin):
-    """
-    Stroke symbolizer for lines and outlines.
+    """Stroke symbolizer for lines and outlines.
 
     Based on the 'stroke' definition in the JSON schema.
     """
@@ -157,8 +145,7 @@ class Stroke(BaseCartoSymModel, AlterMixin):
 
 
 class Marker(BaseCartoSymModel):
-    """
-    Marker symbolizer for points.
+    """Marker symbolizer for points.
 
     Based on the 'marker' definition (multiGraphic) in the JSON schema.
     """
@@ -191,8 +178,7 @@ class Marker(BaseCartoSymModel):
 
 
 class Label(BaseCartoSymModel):
-    """
-    Label symbolizer for text labels.
+    """Label symbolizer for text labels.
 
     Based on the 'label' definition in the JSON schema.
     Extends multiGraphic with label placement.
@@ -400,9 +386,7 @@ class HillShading(BaseCartoSymModel):
 
 # Enhanced Symbolizer with all JSON schema properties
 class SymbolizerEnhanced(BaseCartoSymModel, CommentMixin):
-    """
-    Enhanced symbolizer with all properties from JSON schema.
-    """
+    """Enhanced symbolizer with all properties from JSON schema."""
 
     # Basic properties
     visibility: BoolExpression | None = Field(None, description="Visibility condition")
@@ -441,8 +425,7 @@ class SymbolizerEnhanced(BaseCartoSymModel, CommentMixin):
 
 
 class Symbolizer(BaseCartoSymModel, CommentMixin):
-    """
-    Main symbolizer containing all rendering properties.
+    """Main symbolizer containing all rendering properties.
 
     Based on the 'symbolizer' definition in the JSON schema.
     """

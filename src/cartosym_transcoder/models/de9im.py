@@ -1,5 +1,4 @@
-"""
-DE-9IM (Dimensionally Extended 9-Intersection Model) — predicate lookup table.
+"""DE-9IM (Dimensionally Extended 9-Intersection Model) — predicate lookup table.
 
 This module provides a reference table mapping OGC named spatial predicates
 to their DE-9IM intersection matrix patterns, plus utility functions for

@@ -1,5 +1,6 @@
 """Tests for CQL2 expression models (GeometryLiteral, BboxLiteral, TemporalLiteral,
-SpatialPredicate, SpatialRelatePredicate, TemporalPredicate, ArrayPredicate)."""
+SpatialPredicate, SpatialRelatePredicate, TemporalPredicate, ArrayPredicate).
+"""
 
 import pytest
 from pydantic import ValidationError

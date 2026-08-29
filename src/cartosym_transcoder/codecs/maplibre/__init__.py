@@ -1,6 +1,4 @@
-"""
-MapLibre / MapBox GL Style codec — ``.maplibre.json`` reader and writer (stub).
-"""
+"""MapLibre / MapBox GL Style codec — ``.maplibre.json`` reader and writer (stub)."""
 
 from __future__ import annotations
 

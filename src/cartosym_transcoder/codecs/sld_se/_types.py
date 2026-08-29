@@ -1,5 +1,4 @@
-"""
-Scalar formatting conventions for the SLD/SE codec.
+"""Scalar formatting conventions for the SLD/SE codec.
 
 SLD/SE ``se:SvgParameter`` values and XML attributes are bare numeric/hex
 strings — unlike CartoSym's ``{unit: value}`` dict convention for
@@ -214,7 +213,7 @@ def format_unit_value(value: Any) -> str:
     are silently stripped and only the numeric magnitude is kept — a known,
     documented lossy conversion.
 
-    Raises
+    Raises:
     ------
     NotImplementedError
         If *value* is a non-numeric expression string (property-driven

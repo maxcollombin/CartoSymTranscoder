@@ -1,5 +1,4 @@
-"""
-XML namespace constants and small ``lxml`` element-building helpers shared
+"""XML namespace constants and small ``lxml`` element-building helpers shared
 by :mod:`_filter`, :mod:`_symbolizer`, :mod:`reader`, and :mod:`writer`.
 """
 

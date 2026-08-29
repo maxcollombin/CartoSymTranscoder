@@ -1,5 +1,4 @@
-"""
-Pydantic models for CartoSym CSS/JSON structures.
+"""Pydantic models for CartoSym CSS/JSON structures.
 
 This module contains the complete data model based on the OGC CartoSym specification,
 implemented using Pydantic for validation, serialization, and documentation.
@@ -45,7 +44,7 @@ __all__ = [
     "BaseCartoSymModel",
     "CommentMixin",
     "AlterMixin",
-    # Core models (Phase 2)
+    # Core models
     "Style",
     "StylingRule",
     "Metadata",
@@ -66,7 +65,7 @@ __all__ = [
     "Percent",
     "ColorComponent255",
     "FlexibleOpacity",
-    # Symbolizer models (Phase 3)
+    # Symbolizer models
     "Symbolizer",
     "Fill",
     "Stroke",

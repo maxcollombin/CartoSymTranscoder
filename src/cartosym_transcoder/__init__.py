@@ -1,5 +1,4 @@
-"""
-CartoSym Transcoder - Lossless transcoding between CartoSym CSS, CartoSym
+"""CartoSym Transcoder - Lossless transcoding between CartoSym CSS, CartoSym
 JSON, and other encodings.
 
 This package provides tools for converting between CartoSym CSS, CartoSym

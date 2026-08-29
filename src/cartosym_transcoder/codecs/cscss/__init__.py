@@ -1,6 +1,4 @@
-"""
-CartoSym-CSS codec — ``.cscss`` reader and writer.
-"""
+"""CartoSym-CSS codec — ``.cscss`` reader and writer."""
 
 from __future__ import annotations
 

@@ -1,5 +1,4 @@
-"""
-Codec registry — automatic format detection and routing.
+"""Codec registry — automatic format detection and routing.
 
 Each sub-package (``cscss``, ``csjson``, ``sld_se``, ``maplibre``) registers
 its codec here so the CLI and public API can route conversions transparently.

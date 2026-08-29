@@ -51,7 +51,8 @@ class TestWriteBackIdempotence:
     def test_cscss_writeback_is_string_idempotent(self, converter, stem):
         """json → cscss → json → cscss: the two CSCSS renderings match
         exactly (the writer has reached a fixed point, not just a
-        semantic one)."""
+        semantic one).
+        """
         expected_json = EXPECTED_DIR / f"{stem}.cs.json"
         cscss_1 = converter.csjson_to_cscss(expected_json)
         json_2 = converter.cscss_to_csjson(cscss_1)

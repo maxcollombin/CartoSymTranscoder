@@ -1,4 +1,4 @@
-"""Tests for ANTLR-based marker/label element extraction (Phase 2.4)."""
+"""Tests for ANTLR-based marker/label element extraction."""
 
 from pathlib import Path
 

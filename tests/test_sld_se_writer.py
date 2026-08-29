@@ -80,7 +80,8 @@ class TestWriteBasicSymbolizers:
         """CscssReader bypasses Converter._fix_unit_values, so some
         UnitValue fields reach this codec as a raw 'N unit' string (e.g.
         examples/3-vector-line.cscss's alter-overridden width) rather than a
-        {unit: value} dict — must still parse, not raise issue #11."""
+        {unit: value} dict — must still parse, not raise issue #11.
+        """
         root = _write(_rule_style({"stroke": {"color": "red", "width": "8.0 m"}}))
         line = root.find(".//se:LineSymbolizer", NS)
         stroke_params = {
@@ -443,7 +444,8 @@ class TestWriteOutOfScopeRaises:
 
     def test_shape_graphic_raises(self):
         """Image is now supported (see TestWriteImage) — Shape/Circle/
-        Rectangle remain the unsupported graphic types."""
+        Rectangle remain the unsupported graphic types.
+        """
         with pytest.raises(NotImplementedError):
             _write(
                 _rule_style(
@@ -817,7 +819,8 @@ class TestWriteRaster:
 
 def _find_raster_symbolizer_dict(rules):
     """Recursively find the first nested-rule symbolizer dict carrying a
-    raster field, in an output/*.cs.json-shaped stylingRules list."""
+    raster field, in an output/*.cs.json-shaped stylingRules list.
+    """
     raster_keys = (
         "colorChannels",
         "singleChannel",
@@ -842,7 +845,8 @@ class TestRealRasterFixturesRegression:
     project's own raster fixtures (examples/5..9-coverage-*.cscss). Only
     fixture 5 is expected to fully succeed — 6/7/8/9 each hit a distinct,
     correctly-documented out-of-scope construct (alphaChannel, HillShading
-    sun/colorMap/opacityMap, arithmetic raster channels)."""
+    sun/colorMap/opacityMap, arithmetic raster channels).
+    """
 
     def _symbolizer_for(self, stem):
         data = Converter().cscss_to_csjson(EXAMPLES_DIR / f"{stem}.cscss")
@@ -879,7 +883,8 @@ class TestRealRasterFixturesRegression:
 
 class TestSymbolizerOpacity:
     """Symbolizer.opacity has no whole-symbolizer equivalent in SE 1.1.0 —
-    it is folded (multiplicatively) into every leaf opacity produced."""
+    it is folded (multiplicatively) into every leaf opacity produced.
+    """
 
     def test_folds_into_fill_and_stroke_opacity(self):
         root = _write(

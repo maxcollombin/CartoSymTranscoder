@@ -1,5 +1,4 @@
-"""
-SLD/SE writer — serialise Style models to OGC Styled Layer Descriptor /
+"""SLD/SE writer — serialise Style models to OGC Styled Layer Descriptor /
 Symbology Encoding XML.
 
 Scope: vector symbolizers (Point/Line/Polygon/Text) plus basic Part-1

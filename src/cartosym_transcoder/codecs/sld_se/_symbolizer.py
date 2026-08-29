@@ -1,5 +1,4 @@
-"""
-CartoSym ``Symbolizer`` <-> SLD/SE ``{Point,Line,Polygon,Text,Raster}Symbolizer``
+"""CartoSym ``Symbolizer`` <-> SLD/SE ``{Point,Line,Polygon,Text,Raster}Symbolizer``
 mapping, both directions.
 
 Scope: vector symbolizers plus basic Part-1 raster/coverage styling

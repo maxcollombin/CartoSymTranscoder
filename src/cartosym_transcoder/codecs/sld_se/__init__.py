@@ -1,6 +1,4 @@
-"""
-OGC SLD/SE codec — ``.sld`` reader and writer.
-"""
+"""OGC SLD/SE codec — ``.sld`` reader and writer."""
 
 from __future__ import annotations
 
