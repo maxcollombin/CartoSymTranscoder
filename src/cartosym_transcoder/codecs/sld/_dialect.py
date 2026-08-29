@@ -71,6 +71,12 @@ class SldDialect:
         graphic_placement: ``True`` if a point ``Graphic`` may carry an
             ``AnchorPoint`` / ``Displacement`` child (SE 1.1.0 ``GraphicType``);
             ``False`` for SLD 1.0.0, whose ``Graphic`` stops at ``Rotation``.
+        vendor_options: ``True`` if the dialect reads/writes GeoServer
+            ``<VendorOption name=...>`` children of a symbolizer, mapping
+            them to ``vendor.geoserver.*`` symbolizer properties (the
+            conceptual model's generic vendor-extension mechanism).
+            ``False`` for the standard OGC dialects, which reject
+            ``<VendorOption>`` as a non-standard extension.
         nsmap: Namespace map for the document root element.
     """
 
@@ -81,6 +87,7 @@ class SldDialect:
     description_element: bool
     coverage_style: bool
     graphic_placement: bool
+    vendor_options: bool
     nsmap: dict[str | None, str]
 
     # -- element factories -------------------------------------------------
@@ -165,6 +172,7 @@ SE_1_1_0 = SldDialect(
     description_element=True,
     coverage_style=True,
     graphic_placement=True,
+    vendor_options=False,
     nsmap=_SE_NSMAP,
 )
 
@@ -176,7 +184,23 @@ SLD_1_0_0 = SldDialect(
     description_element=False,
     coverage_style=False,
     graphic_placement=False,
+    vendor_options=False,
     nsmap=_SLD10_NSMAP,
 )
 
-__all__ = ["SldDialect", "SE_1_1_0", "SLD_1_0_0"]
+# SLD 1.0.0 as GeoServer emits it: the OGC 1.0.0 document model plus
+# GeoServer's <VendorOption> symbolizer children. Everything else is
+# identical to SLD_1_0_0.
+SLD_1_0_0_GEOSERVER = SldDialect(
+    version="1.0.0",
+    symbology_ns=SLD_NS,
+    param_tag="CssParameter",
+    raster_colormap="entry",
+    description_element=False,
+    coverage_style=False,
+    graphic_placement=False,
+    vendor_options=True,
+    nsmap=_SLD10_NSMAP,
+)
+
+__all__ = ["SldDialect", "SE_1_1_0", "SLD_1_0_0", "SLD_1_0_0_GEOSERVER"]

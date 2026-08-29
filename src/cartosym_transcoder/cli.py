@@ -96,17 +96,19 @@ def _create_convert_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force", action="store_true", help="Overwrite output file if it exists"
     )
+    _sld_formats = ["sld", "sld:1.0.0", "sld:1.1.0", "sld:geoserver"]
     parser.add_argument(
         "--from-format",
-        choices=["cscss", "csjson", "sld", "sld:1.0.0", "sld:1.1.0", "maplibre"],
+        choices=["cscss", "csjson", *_sld_formats, "maplibre"],
         help="Source format (auto-detected from file extension if omitted; "
         "a plain '.sld' auto-detects SLD 1.0.0 vs 1.1.0)",
     )
     parser.add_argument(
         "--to-format",
-        choices=["cscss", "csjson", "sld", "sld:1.0.0", "sld:1.1.0", "maplibre"],
+        choices=["cscss", "csjson", *_sld_formats, "maplibre"],
         help="Target format (auto-detected from file extension if omitted; "
-        "'sld' writes 1.1.0/SE, 'sld:1.0.0' writes the GeoServer dialect)",
+        "'sld' writes 1.1.0/SE, 'sld:1.0.0' pure OGC SLD 1.0.0, "
+        "'sld:geoserver' SLD 1.0.0 with GeoServer <VendorOption>s)",
     )
     return parser
 

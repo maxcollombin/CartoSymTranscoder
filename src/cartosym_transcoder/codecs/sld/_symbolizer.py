@@ -95,6 +95,95 @@ def _unit_point_xy(position: Any):
 
 
 # ---------------------------------------------------------------------------
+# GeoServer <VendorOption> <-> vendor.geoserver.* symbolizer properties
+# ---------------------------------------------------------------------------
+
+
+def _coerce_vendor_value(text: str) -> bool | int | float | str:
+    """Best-effort scalar for a ``<VendorOption>`` text value.
+
+    ``"true"``/``"false"`` become ``bool``; an integral / decimal string
+    becomes ``int`` / ``float``; anything else stays a ``str``. Each of
+    those round-trips back to the same text via :func:`_vendor_option_text`.
+    """
+    stripped = text.strip()
+    low = stripped.lower()
+    if low in ("true", "false"):
+        return low == "true"
+    try:
+        return int(stripped)
+    except ValueError:
+        pass
+    try:
+        return float(stripped)
+    except ValueError:
+        pass
+    return stripped
+
+
+def _vendor_option_text(value: Any) -> str:
+    """Render a ``vendor.geoserver.*`` value back as ``<VendorOption>`` text."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _read_vendor_options(
+    d: SldDialect, el: etree._Element
+) -> list[tuple[str, bool | int | float | str]]:
+    """Return ``(name, value)`` for each ``<VendorOption>`` child of *el*."""
+    out: list[tuple[str, bool | int | float | str]] = []
+    for opt in d.findall(el, "VendorOption"):
+        name = opt.get("name")
+        if not name:
+            raise NotImplementedError("<VendorOption> without a name attribute")
+        out.append((name, _coerce_vendor_value(element_text(opt) or "")))
+    return out
+
+
+def _vendor_extension_items(sym: Any) -> list[tuple[str, Any]]:
+    """Return ``(key, value)`` for every ``vendor.<name>.<prop>`` property."""
+    source: Any = (
+        sym if isinstance(sym, dict) else getattr(sym, "__pydantic_extra__", None) or {}
+    )
+    return [(k, v) for k, v in source.items() if k.startswith("vendor.")]
+
+
+def _apply_vendor_options(
+    d: SldDialect, sym: Any, elements: list[etree._Element]
+) -> None:
+    """Append the symbolizer's ``vendor.geoserver.*`` props as ``<VendorOption>``.
+
+    The conceptual model's vendor extensions are per-symbolizer, so they
+    can only be written when the CartoSym symbolizer maps to exactly one
+    SLD element — otherwise there is no unambiguous host.
+    """
+    items = _vendor_extension_items(sym)
+    if not items:
+        return
+    if not d.vendor_options:
+        raise NotImplementedError(
+            "vendor.* symbolizer extensions have no mapping in the standard "
+            "SLD/SE dialects — the 'sld:geoserver' codec is required"
+        )
+    if len(elements) != 1:
+        raise NotImplementedError(
+            "vendor.* symbolizer extensions on a symbolizer that expands to "
+            f"{len(elements)} SLD elements — cannot attribute the "
+            "<VendorOption> to a single symbolizer element"
+        )
+    for key, value in items:
+        _, vendor_name, prop = key.split(".", 2)
+        if vendor_name != "geoserver":
+            raise NotImplementedError(
+                f"vendor extension {key!r}: only 'geoserver' vendor extensions "
+                "map to a GeoServer <VendorOption>"
+            )
+        opt = d.el("VendorOption", parent=elements[0], text=_vendor_option_text(value))
+        opt.set("name", prop)
+
+
+# ---------------------------------------------------------------------------
 # Writer direction: Symbolizer -> SLD/SE symbolizer elements
 # ---------------------------------------------------------------------------
 
@@ -172,6 +261,8 @@ def symbolizer_to_elements(d: SldDialect, sym: Any) -> list[etree._Element]:
         elements.extend(
             _graphic_elements_to_symbolizers(d, _g(label, "elements"), s_op)
         )
+
+    _apply_vendor_options(d, sym, elements)
 
     # An empty result means the symbolizer carried no geometry-styling
     # intent (only visibility / opacity / zOrder, or nothing). SE 1.1.0
@@ -721,6 +812,9 @@ def elements_to_symbolizer(d: SldDialect, sym_elements: list[etree._Element]) ->
 
     for el in sym_elements:
         tag = local_name(el)
+        if d.vendor_options:
+            for name, value in _read_vendor_options(d, el):
+                result[f"vendor.geoserver.{name}"] = value
         if d.find(el, "Geometry") is not None:
             # SE 1.1.0 "symbolizer geometry" — an optional <se:Geometry>
             # <ogc:PropertyName> selecting which geometry property to
