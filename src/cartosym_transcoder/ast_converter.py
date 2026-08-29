@@ -67,7 +67,7 @@ def _parse_resource_string(inner: str) -> dict:
     return result
 
 
-def _parse_hotspot_string(s: str) -> list:
+def _parse_hotspot_string(s: str) -> Any:
     """Convert ``'N unit N unit'`` (e.g. ``'50 pc 50 pc'``) to a unitPoint
     array ``[{unit: N}, {unit: N}]`` as expected by the CS.JSON schema."""
     parts = s.strip().split()
@@ -250,7 +250,7 @@ def _normalize_graphic_element(el: dict) -> None:
                 raw = raw[1:-1]
             parts = [p.strip() for p in raw.split(",") if p.strip()]
             if len(parts) == 2:
-                coords = []
+                coords: list = []
                 for p in parts:
                     try:
                         coords.append(int(p))
@@ -458,7 +458,7 @@ class AstToPydanticConverter:
         Includes nested selectors and ``stylingRuleName``.
         """
         try:
-            selector = None
+            selector: Any = None
             rule_name = None
             styling_rule_name = None
             # Support explicit stylingRuleName if present
@@ -900,7 +900,7 @@ class AstToPydanticConverter:
         else:
             return value
 
-    def _parse_arithmetic_expression(self, expr: str) -> Dict[str, Any]:
+    def _parse_arithmetic_expression(self, expr: str) -> Any:
         """Parse arithmetic expression string into JSON expression format.
 
         Handles basic arithmetic: +, -, *, / with parentheses.
@@ -1065,7 +1065,7 @@ class AstToPydanticConverter:
                 # Handle object format, e.g.
                 # {factor: 56; sun: {azimuth: 45.0; elevation: 60.0};
                 #  colorMap: [...]; opacityMap: [...]}
-                result = {}
+                result: dict = {}
                 for key, value in ast_hill_shading.items():
                     if key == "sun":
                         if isinstance(value, dict):
@@ -1077,7 +1077,7 @@ class AstToPydanticConverter:
                         ):
                             # Parse sun string, e.g.
                             # "{azimuth: 45.0; elevation: 60.0}" → object
-                            sun_obj = {}
+                            sun_obj: dict = {}
                             content = value.strip("{}").strip()
                             for part in content.split(";"):
                                 if ":" in part:

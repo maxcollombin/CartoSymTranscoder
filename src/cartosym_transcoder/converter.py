@@ -368,7 +368,7 @@ class Converter:
         """
         if isinstance(expr, dict):
             if "property" in expr:
-                return expr["property"]
+                return str(expr["property"])
             if "op" in expr:
                 return self._arith_expr_to_css(expr)
         return str(expr)
@@ -377,7 +377,7 @@ class Converter:
         """Recursively convert an arithmetic expression dict back to CSCSS string."""
         if isinstance(expr, dict):
             if "property" in expr:
-                return expr["property"]
+                return str(expr["property"])
             if "op" in expr and "args" in expr:
                 op = expr["op"]
                 args = [self._arith_expr_to_css(a) for a in expr["args"]]

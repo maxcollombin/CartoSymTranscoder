@@ -2,9 +2,11 @@
 Base Pydantic models and utilities for CartoSym.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
+
+_T = TypeVar("_T", bound="BaseCartoSymModel")
 
 
 class BaseCartoSymModel(BaseModel):
@@ -39,12 +41,12 @@ class BaseCartoSymModel(BaseModel):
         return self.model_dump_json(exclude_none=True)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]):
+    def from_dict(cls: type[_T], data: Dict[str, Any]) -> _T:
         """Create model instance from dictionary."""
         return cls.model_validate(data)
 
     @classmethod
-    def from_json(cls, json_str: str):
+    def from_json(cls: type[_T], json_str: str) -> _T:
         """Create model instance from JSON string."""
         return cls.model_validate_json(json_str)
 
