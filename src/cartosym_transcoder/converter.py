@@ -6,7 +6,7 @@ using Pydantic models for robust validation and serialization.
 """
 
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any
 
 from .models import Style
 from .parser import CartoSymParser
@@ -18,7 +18,7 @@ class Converter:
     def __init__(self) -> None:
         self.parser = CartoSymParser()
 
-    def _resolve_path(self, path: Union[str, Path]) -> Path:
+    def _resolve_path(self, path: str | Path) -> Path:
         """
         Résout le chemin relatif par rapport à la racine du projet
         (là où se trouve pyproject.toml).
@@ -34,7 +34,7 @@ class Converter:
             return abs_path
         return p
 
-    def cscss_to_csjson(self, cscss_input: Union[str, Path, Style]) -> Dict[str, Any]:
+    def cscss_to_csjson(self, cscss_input: str | Path | Style) -> dict[str, Any]:
         """
         Convert CartoSym CSS (CSCSS) to CartoSym JSON (CSJSON) format.
 
@@ -105,7 +105,7 @@ class Converter:
             for item in data:
                 self._fix_invalid_selectors(item)
 
-    def csjson_to_style(self, csjson_input: Union[str, Dict[str, Any], Path]) -> Style:
+    def csjson_to_style(self, csjson_input: str | dict[str, Any] | Path) -> Style:
         """
         Convert CSJSON to CartoSym Style model.
 
@@ -121,7 +121,7 @@ class Converter:
             isinstance(csjson_input, str) and Path(csjson_input).is_file()
         ):
             file_path = self._resolve_path(csjson_input)
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
             return Style.from_json(content)
         elif isinstance(csjson_input, str):
@@ -135,7 +135,7 @@ class Converter:
                 "Invalid input type - expected str, dict, Path, or Style model"
             )
 
-    def csjson_to_cscss(self, csjson_input: Union[str, Dict[str, Any], Path]) -> str:
+    def csjson_to_cscss(self, csjson_input: str | dict[str, Any] | Path) -> str:
         """
         Convert CSJSON to CartoSym CSS (CSCSS) format.
 
@@ -402,9 +402,7 @@ class Converter:
             threshold = entry[0]
             color = entry[1]
             if isinstance(color, (list, tuple)) and len(color) == 3:
-                color_str = "{} {} {}".format(
-                    int(color[0]), int(color[1]), int(color[2])
-                )
+                color_str = f"{int(color[0])} {int(color[1])} {int(color[2])}"
             elif isinstance(color, dict) and "r" in color:
                 color_str = "{} {} {}".format(
                     int(color["r"]), int(color["g"]), int(color["b"])
@@ -671,9 +669,7 @@ class Converter:
         """
         if isinstance(color, list) and len(color) == 3:
             try:
-                return "#{:02x}{:02x}{:02x}".format(
-                    int(color[0]), int(color[1]), int(color[2])
-                )
+                return f"#{int(color[0]):02x}{int(color[1]):02x}{int(color[2]):02x}"
             except (TypeError, ValueError):
                 pass
         if isinstance(color, dict) and all(k in color for k in ("r", "g", "b")):

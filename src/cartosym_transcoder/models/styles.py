@@ -4,7 +4,7 @@ Core style and rule models for CartoSym.
 Based on the JSON Schema definitions for style, stylingRule, and metadata.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 
@@ -21,12 +21,12 @@ class Metadata(BaseCartoSymModel, CommentMixin):
     Based on the 'metadata' definition in the JSON schema.
     """
 
-    title: Optional[str] = Field(None, description="Style title")
-    abstract: Optional[str] = Field(None, description="Style abstract/summary")
-    description: Optional[str] = Field(None, description="Style description")
-    authors: Optional[List[str]] = Field(None, description="List of authors")
-    keywords: Optional[List[str]] = Field(None, description="Keywords for the style")
-    geo_data_classes: Optional[List[str]] = Field(
+    title: str | None = Field(None, description="Style title")
+    abstract: str | None = Field(None, description="Style abstract/summary")
+    description: str | None = Field(None, description="Style description")
+    authors: list[str] | None = Field(None, description="List of authors")
+    keywords: list[str] | None = Field(None, description="Keywords for the style")
+    geo_data_classes: list[str] | None = Field(
         None, alias="geoDataClasses", description="Geographic data classes (URIs)"
     )
 
@@ -38,7 +38,7 @@ class Variable(BaseCartoSymModel):
 
     name: str = Field(..., description="Variable name")
     value: Any = Field(..., description="Variable value")
-    type: Optional[str] = Field(None, description="Variable type (optional)")
+    type: str | None = Field(None, description="Variable type (optional)")
 
 
 class StylingRule(BaseCartoSymModel, CommentMixin):
@@ -51,20 +51,20 @@ class StylingRule(BaseCartoSymModel, CommentMixin):
     symbolizer → nestedRules.
     """
 
-    name: Optional[str] = Field(None, description="Rule name (legacy or fallback)")
-    styling_rule_name: Optional[str] = Field(
+    name: str | None = Field(None, description="Rule name (legacy or fallback)")
+    styling_rule_name: str | None = Field(
         None,
         alias="stylingRuleName",
         description="Explicit styling rule name (from grammar)",
     )
-    selector: Optional[Union[Dict[str, Any], List[str], str]] = Field(
+    selector: dict[str, Any] | list[str] | str | None = Field(
         None,
         description="Selector expression (flexible - can be dict, list, or string)",
     )
-    symbolizer: Optional[Union[Symbolizer, Dict[str, Any]]] = Field(
+    symbolizer: Symbolizer | dict[str, Any] | None = Field(
         None, description="Symbolizer for this rule"
     )
-    nested_rules: Optional[List["StylingRule"]] = Field(
+    nested_rules: list["StylingRule"] | None = Field(
         None, alias="nestedRules", description="Nested rules within this rule"
     )
 
@@ -89,14 +89,14 @@ class Style(BaseCartoSymModel, CommentMixin):
     Now supports explicit variable objects.
     """
 
-    include: Optional[Union[str, List[str]]] = Field(
+    include: str | list[str] | None = Field(
         None, alias="$include", description="Included style files"
     )
-    metadata: Optional[Metadata] = Field(None, description="Style metadata")
-    styling_rules: List[StylingRule] = Field(
+    metadata: Metadata | None = Field(None, description="Style metadata")
+    styling_rules: list[StylingRule] = Field(
         ..., alias="stylingRules", description="List of styling rules"
     )
-    variables: Optional[List[Variable]] = Field(
+    variables: list[Variable] | None = Field(
         None, alias="$variables", description="Style variables (as objects)"
     )
 

@@ -4,7 +4,7 @@ AST to Pydantic converter for CartoSym CSS.
 This module converts ANTLR-generated AST nodes to Pydantic models.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .ast import StyleSheet as AstStyleSheet
 from .ast import StylingRule as AstStylingRule
@@ -452,7 +452,7 @@ class AstToPydanticConverter:
             elif hasattr(val, "__dict__"):
                 self._resolve_ast_variables(val, var_lookup)
 
-    def _convert_styling_rule(self, ast_rule: AstStylingRule) -> Optional[StylingRule]:
+    def _convert_styling_rule(self, ast_rule: AstStylingRule) -> StylingRule | None:
         """Convert AST StylingRule to Pydantic StylingRule.
 
         Includes nested selectors and ``stylingRuleName``.
@@ -550,7 +550,7 @@ class AstToPydanticConverter:
             print(f"Warning: Failed to convert styling rule: {e}")
             return None
 
-    def _convert_symbolizer(self, ast_symbolizer) -> Optional[Symbolizer]:
+    def _convert_symbolizer(self, ast_symbolizer) -> Symbolizer | None:
         """Convert AST Symbolizer to Pydantic Symbolizer."""
         try:
             symbolizer_data = {}
@@ -692,7 +692,7 @@ class AstToPydanticConverter:
             print(f"Warning: Failed to convert symbolizer: {e}")
             return None
 
-    def _convert_fill(self, ast_fill) -> Optional[Fill]:
+    def _convert_fill(self, ast_fill) -> Fill | None:
         """Convert AST Fill to Pydantic Fill with proper value conversion."""
         try:
             fill_data = {}
@@ -713,7 +713,7 @@ class AstToPydanticConverter:
             print(f"Warning: Failed to convert fill: {e}")
             return None
 
-    def _convert_stroke(self, ast_stroke) -> Optional[Stroke]:
+    def _convert_stroke(self, ast_stroke) -> Stroke | None:
         """Convert AST Stroke to Pydantic Stroke with proper value conversion."""
         try:
             stroke_data = {}
@@ -739,7 +739,7 @@ class AstToPydanticConverter:
             print(f"Warning: Failed to convert stroke: {e}")
             return None
 
-    def _convert_marker(self, ast_marker) -> Optional[Marker]:
+    def _convert_marker(self, ast_marker) -> Marker | None:
         """Convert AST Marker to Pydantic Marker.
 
         Includes position and opacity if present, and preserves all element
@@ -988,7 +988,7 @@ class AstToPydanticConverter:
             # It's an identifier - convert to property reference
             return {"property": expr}
 
-    def _convert_label(self, ast_label) -> Optional[Label]:
+    def _convert_label(self, ast_label) -> Label | None:
         """Convert AST Label to Pydantic Label, preserving all element properties."""
         try:
             from .models.symbolizers import Label as PydanticLabel
@@ -1026,7 +1026,7 @@ class AstToPydanticConverter:
             print(f"Warning: Failed to convert label: {e}")
             return None
 
-    def _convert_color_map(self, ast_color_map) -> Optional[Any]:
+    def _convert_color_map(self, ast_color_map) -> Any | None:
         """Convert AST ColorMap to array format per JSON schema."""
         try:
             if isinstance(ast_color_map, (list, tuple)):
@@ -1042,7 +1042,7 @@ class AstToPydanticConverter:
             print(f"Warning: Failed to convert color map: {e}")
             return None
 
-    def _convert_opacity_map(self, ast_opacity_map) -> Optional[Any]:
+    def _convert_opacity_map(self, ast_opacity_map) -> Any | None:
         """Convert AST OpacityMap to array format per JSON schema."""
         try:
             if isinstance(ast_opacity_map, (list, tuple)):
@@ -1058,7 +1058,7 @@ class AstToPydanticConverter:
             print(f"Warning: Failed to convert opacity map: {e}")
             return None
 
-    def _convert_hill_shading(self, ast_hill_shading) -> Optional[Dict[str, Any]]:
+    def _convert_hill_shading(self, ast_hill_shading) -> dict[str, Any] | None:
         """Convert AST HillShading to dictionary per JSON schema."""
         try:
             if isinstance(ast_hill_shading, dict):

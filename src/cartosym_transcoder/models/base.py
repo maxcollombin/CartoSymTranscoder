@@ -2,7 +2,7 @@
 Base Pydantic models and utilities for CartoSym.
 """
 
-from typing import Any, Dict, Optional, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,7 +32,7 @@ class BaseCartoSymModel(BaseModel):
         strict=False,
     )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert model to dictionary, excluding None values."""
         return self.model_dump(exclude_none=True)
 
@@ -41,7 +41,7 @@ class BaseCartoSymModel(BaseModel):
         return self.model_dump_json(exclude_none=True)
 
     @classmethod
-    def from_dict(cls: type[_T], data: Dict[str, Any]) -> _T:
+    def from_dict(cls: type[_T], data: dict[str, Any]) -> _T:
         """Create model instance from dictionary."""
         return cls.model_validate(data)
 
@@ -54,14 +54,12 @@ class BaseCartoSymModel(BaseModel):
 class CommentMixin(BaseModel):
     """Mixin for models that can have comments."""
 
-    comment: Optional[str] = Field(
-        None, alias="$comment", description="Optional comment"
-    )
+    comment: str | None = Field(None, alias="$comment", description="Optional comment")
 
 
 class AlterMixin(BaseModel):
     """Mixin for models that can have alter flag."""
 
-    alter: Optional[bool] = Field(
+    alter: bool | None = Field(
         None, description="Whether this overrides a previous definition"
     )

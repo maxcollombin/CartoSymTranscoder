@@ -11,7 +11,7 @@ issue #10).
 
 import math
 import re
-from typing import Any, Optional
+from typing import Any
 
 from ...models.types import RGBColor, RGBColorNormalized, WebColorName
 
@@ -185,7 +185,7 @@ def format_number(value: Any) -> str:
     return _format_number(value)
 
 
-def parse_number(text: Optional[str]) -> Optional[float]:
+def parse_number(text: str | None) -> float | None:
     """Inverse of :func:`format_number`."""
     if text is None:
         return None
@@ -237,7 +237,7 @@ def format_unit_value(value: Any) -> str:
     raise NotImplementedError(f"Unsupported unit value shape: {value!r}")
 
 
-def parse_unit_value(text: Optional[str]) -> Optional[dict]:
+def parse_unit_value(text: str | None) -> dict | None:
     """Parse a bare SLD numeric string back into a CartoSym ``{"px": v}`` dict.
 
     SLD's implicit unit convention is pixels (see mapping-issues issue #10).
@@ -296,7 +296,7 @@ def format_opacity(value: Any) -> str:
     raise NotImplementedError(f"Unsupported opacity value shape: {value!r}")
 
 
-def parse_opacity(text: Optional[str]) -> Optional[float]:
+def parse_opacity(text: str | None) -> float | None:
     """Parse a bare SLD opacity string back into a CartoSym float."""
     if text is None:
         return None
@@ -345,7 +345,7 @@ def format_color(value: Any) -> str:
     raise NotImplementedError(f"Unsupported color value shape: {value!r}")
 
 
-def parse_color(text: Optional[str]) -> Optional[list]:
+def parse_color(text: str | None) -> list | None:
     """Parse an SLD ``#rrggbb`` hex color string, or a known CSS color
     name, into a CartoSym ``[r, g, b]`` array — schema-valid form,
     matching the same hex-to-array convention used by

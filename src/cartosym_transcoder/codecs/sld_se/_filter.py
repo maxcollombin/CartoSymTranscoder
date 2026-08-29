@@ -12,7 +12,7 @@ Scope, and the mapping-issues entries each boundary is logged under, are
 documented in ``docs/sld_se_mapping_issues.md``.
 """
 
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from lxml import etree
 
@@ -76,7 +76,7 @@ def _is_datalayer_id_eq(expr: Any) -> bool:
     return _is_sysid_eq(expr, "dataLayer.id")
 
 
-def _flatten_and_conjuncts(selector: Any) -> List[Any]:
+def _flatten_and_conjuncts(selector: Any) -> list[Any]:
     """Flatten an arbitrarily-nested (left- or right-nested, or flat
     n-ary) chain of ``{"op": "and", "args": [...]}`` into one flat list of
     leaf conjuncts. Only ``and`` is descended into — ``or``/``not``/
@@ -87,14 +87,14 @@ def _flatten_and_conjuncts(selector: Any) -> List[Any]:
         and selector.get("op") == "and"
         and isinstance(selector.get("args"), list)
     ):
-        out: List[Any] = []
+        out: list[Any] = []
         for arg in selector["args"]:
             out.extend(_flatten_and_conjuncts(arg))
         return out
     return [selector]
 
 
-def _reassemble_and(conjuncts: List[Any]) -> Optional[Any]:
+def _reassemble_and(conjuncts: list[Any]) -> Any | None:
     if not conjuncts:
         return None
     if len(conjuncts) == 1:
@@ -103,8 +103,8 @@ def _reassemble_and(conjuncts: List[Any]) -> Optional[Any]:
 
 
 def extract_feature_type_name(
-    selector: Optional[dict],
-) -> Tuple[Optional[str], Optional[dict]]:
+    selector: dict | None,
+) -> tuple[str | None, dict | None]:
     """Split ``dataLayer.id``/``dataLayer.type``/
     ``dataLayer.featuresGeometryDimensions`` conjuncts out of *selector*,
     from anywhere in an arbitrarily-nested ``and`` chain (real generated
@@ -127,8 +127,8 @@ def extract_feature_type_name(
     if selector is None:
         return None, None
     conjuncts = _flatten_and_conjuncts(selector)
-    id_val: Optional[str] = None
-    remaining: List[Any] = []
+    id_val: str | None = None
+    remaining: list[Any] = []
     for conjunct in conjuncts:
         if id_val is None and _is_sysid_eq(conjunct, "dataLayer.id"):
             id_val = _coerce_id_value(conjunct["args"][1])
@@ -139,9 +139,7 @@ def extract_feature_type_name(
     return id_val, _reassemble_and(remaining)
 
 
-def merge_feature_type_name(
-    name: Optional[str], selector: Optional[dict]
-) -> Optional[dict]:
+def merge_feature_type_name(name: str | None, selector: dict | None) -> dict | None:
     """Reader-side inverse of :func:`extract_feature_type_name`.
 
     Only ``dataLayer.id`` is reconstructed — ``dataLayer.type``/
@@ -161,7 +159,7 @@ def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def _scale_bound(expr: Any) -> Optional[Tuple[str, Any]]:
+def _scale_bound(expr: Any) -> tuple[str, Any] | None:
     """Classify *expr* as a ``viz.sd`` scale-range bound.
 
     Returns ``("min", value)`` for a lower bound (``viz.sd > / >= N``),
@@ -212,8 +210,8 @@ def _scale_bound(expr: Any) -> Optional[Tuple[str, Any]]:
 
 
 def extract_scale_denominators(
-    selector: Optional[dict],
-) -> Tuple[Optional[Any], Optional[Any], Optional[dict]]:
+    selector: dict | None,
+) -> tuple[Any | None, Any | None, dict | None]:
     """Split ``viz.sd`` scale-range conjuncts out of *selector*.
 
     ``viz.sd`` (visualization scale denominator) maps 1:1 to SE's
@@ -236,9 +234,9 @@ def extract_scale_denominators(
     """
     if selector is None:
         return None, None, None
-    min_sd: Optional[Any] = None
-    max_sd: Optional[Any] = None
-    remaining: List[Any] = []
+    min_sd: Any | None = None
+    max_sd: Any | None = None
+    remaining: list[Any] = []
     for conjunct in _flatten_and_conjuncts(selector):
         bound = _scale_bound(conjunct)
         if bound is None:
@@ -255,10 +253,10 @@ def extract_scale_denominators(
 
 
 def merge_scale_denominators(
-    min_sd: Optional[Any],
-    max_sd: Optional[Any],
-    selector: Optional[dict],
-) -> Optional[dict]:
+    min_sd: Any | None,
+    max_sd: Any | None,
+    selector: dict | None,
+) -> dict | None:
     """Reader-side inverse of :func:`extract_scale_denominators`.
 
     ``se:MinScaleDenominator M`` -> ``viz.sd >= M`` and
@@ -267,7 +265,7 @@ def merge_scale_denominators(
     from ``ogc:Filter``. A zero lower bound is SE's implicit default and
     is dropped rather than reconstructed as ``viz.sd >= 0``.
     """
-    conjuncts: List[Any] = []
+    conjuncts: list[Any] = []
     if min_sd is not None and min_sd != 0:
         conjuncts.append({"op": ">=", "args": [{"sysId": _SCALE_SYSID}, min_sd]})
     if max_sd is not None:
@@ -283,7 +281,7 @@ def _coerce_id_value(value: Any) -> str:
     return str(value)
 
 
-def selector_to_filter_xml(selector: Optional[dict]) -> Optional[etree._Element]:
+def selector_to_filter_xml(selector: dict | None) -> etree._Element | None:
     """Convert a CartoSym selector dict into an ``<ogc:Filter>`` element.
 
     *selector* should already have any ``dataLayer.id`` conjunct removed
@@ -413,7 +411,7 @@ def _expr_to_filter_xml(expr: Any) -> etree._Element:
     )
 
 
-def bbox_to_filter_xml(bbox: List[float]) -> etree._Element:
+def bbox_to_filter_xml(bbox: list[float]) -> etree._Element:
     """Build an ``<ogc:BBOX>`` element from a ``[minx, miny, maxx, maxy]`` list."""
     el = ogc_el("BBOX")
     envelope = etree.SubElement(el, f"{GML}Envelope")
@@ -432,7 +430,7 @@ def _local(elem: etree._Element) -> str:
     return str(etree.QName(elem).localname)
 
 
-def _coerce_literal(text: Optional[str]) -> Any:
+def _coerce_literal(text: str | None) -> Any:
     if text is None:
         return None
     if text in ("true", "false"):
@@ -457,7 +455,7 @@ def _operand_from_xml(elem: etree._Element) -> Any:
     raise NotImplementedError(f"Unsupported Filter operand element <{tag}>")
 
 
-def _children(elem: etree._Element) -> List[etree._Element]:
+def _children(elem: etree._Element) -> list[etree._Element]:
     return [c for c in elem if isinstance(c.tag, str)]
 
 

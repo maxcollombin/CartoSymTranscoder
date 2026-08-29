@@ -4,7 +4,7 @@ Symbolizer models for CartoSym.
 Based on the JSON Schema definitions for symbolizer, fill, stroke, marker, label, etc.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
@@ -41,13 +41,11 @@ class Fill(BaseCartoSymModel, AlterMixin):
     """
 
     # For now, using precise types from Phase B
-    color: Optional[FlexibleColor] = Field(None, description="Fill color")
-    opacity: Optional[FlexibleOpacity] = Field(
-        None, description="Fill opacity (0.0-1.0)"
-    )
+    color: FlexibleColor | None = Field(None, description="Fill color")
+    opacity: FlexibleOpacity | None = Field(None, description="Fill opacity (0.0-1.0)")
 
     # Pattern fills
-    pattern: Optional[Dict[str, Any]] = Field(
+    pattern: dict[str, Any] | None = Field(
         None, description="Fill pattern graphic (temporary)"
     )
     hatch: Optional["Hatch"] = Field(None, description="Hatch pattern")
@@ -60,11 +58,9 @@ class Hatch(BaseCartoSymModel, AlterMixin):
     Hatch pattern for fills.
     """
 
-    width: Optional[Union[UnitValue, str, float]] = Field(
-        None, description="Hatch line width"
-    )
-    angle: Optional[FlexibleAngle] = Field(None, description="Hatch angle")
-    distance: Optional[Union[UnitValue, str, float]] = Field(
+    width: UnitValue | str | float | None = Field(None, description="Hatch line width")
+    angle: FlexibleAngle | None = Field(None, description="Hatch angle")
+    distance: UnitValue | str | float | None = Field(
         None, description="Distance between hatch lines"
     )
 
@@ -78,7 +74,7 @@ class DotPattern(BaseCartoSymModel, AlterMixin):
     Dot pattern for fills.
     """
 
-    distance: Optional[Union[UnitValue, str, float]] = Field(
+    distance: UnitValue | str | float | None = Field(
         None, description="Distance between dots"
     )
 
@@ -92,7 +88,7 @@ class Stipple(BaseCartoSymModel, AlterMixin):
     Stipple pattern for fills.
     """
 
-    ratio: Optional[Any] = Field(
+    ratio: Any | None = Field(
         None, description="Stipple ratio (temporary - will be numericExpression)"
     )
 
@@ -102,13 +98,11 @@ class StrokeStyling(BaseCartoSymModel, AlterMixin):
     Basic stroke styling properties.
     """
 
-    color: Optional[FlexibleColor] = Field(None, description="Stroke color")
-    opacity: Optional[FlexibleOpacity] = Field(
+    color: FlexibleColor | None = Field(None, description="Stroke color")
+    opacity: FlexibleOpacity | None = Field(
         None, description="Stroke opacity (0.0-1.0)"
     )
-    width: Optional[Union[UnitValue, str, float]] = Field(
-        None, description="Stroke width"
-    )
+    width: UnitValue | str | float | None = Field(None, description="Stroke width")
 
     @field_validator("width", mode="before")
     def validate_width(cls, v):
@@ -123,11 +117,11 @@ class DashPattern(BaseCartoSymModel):
     """
 
     # This will be a Union type later, for now simplified
-    pattern: Optional[List[int]] = Field(
+    pattern: list[int] | None = Field(
         None, description="Dash pattern as array of integers"
     )
-    index: Optional[int] = Field(None, description="Index for indexed dash patterns")
-    value: Optional[int] = Field(None, description="Value for indexed dash patterns")
+    index: int | None = Field(None, description="Index for indexed dash patterns")
+    value: int | None = Field(None, description="Value for indexed dash patterns")
 
 
 class Stroke(BaseCartoSymModel, AlterMixin):
@@ -138,13 +132,11 @@ class Stroke(BaseCartoSymModel, AlterMixin):
     """
 
     # Basic stroke properties with precise types from Phase B
-    color: Optional[FlexibleColor] = Field(None, description="Stroke color")
-    opacity: Optional[FlexibleOpacity] = Field(
+    color: FlexibleColor | None = Field(None, description="Stroke color")
+    opacity: FlexibleOpacity | None = Field(
         None, description="Stroke opacity (0.0-1.0)"
     )
-    width: Optional[Union[UnitValue, str, float]] = Field(
-        None, description="Stroke width"
-    )
+    width: UnitValue | str | float | None = Field(None, description="Stroke width")
 
     # Extended stroke properties
     casing: Optional["StrokeStyling"] = Field(None, description="Stroke casing")
@@ -154,7 +146,7 @@ class Stroke(BaseCartoSymModel, AlterMixin):
     dash_pattern: Optional["DashPattern"] = Field(
         None, alias="dashPattern", description="Dash pattern"
     )
-    pattern: Optional[Dict[str, Any]] = Field(
+    pattern: dict[str, Any] | None = Field(
         None, description="Stroke pattern graphic (temporary)"
     )
 
@@ -171,10 +163,10 @@ class Marker(BaseCartoSymModel):
     """
 
     # Enhanced with proper structure
-    alter: Optional[bool] = Field(None, description="Alter behavior flag")
+    alter: bool | None = Field(None, description="Alter behavior flag")
     position: Optional["UnitPoint"] = Field(None, description="Marker position")
-    opacity: Optional[FlexibleOpacity] = Field(None, description="Marker opacity")
-    elements: Optional[Any] = Field(
+    opacity: FlexibleOpacity | None = Field(None, description="Marker opacity")
+    elements: Any | None = Field(
         None,
         description=(
             "Graphic elements in marker (list) or indexed override " "{index, value}"
@@ -206,10 +198,10 @@ class Label(BaseCartoSymModel):
     """
 
     # Enhanced with proper structure
-    alter: Optional[bool] = Field(None, description="Alter behavior flag")
+    alter: bool | None = Field(None, description="Alter behavior flag")
     position: Optional["UnitPoint"] = Field(None, description="Label position")
-    opacity: Optional[FlexibleOpacity] = Field(None, description="Label opacity")
-    elements: Optional[List["Graphic"]] = Field(
+    opacity: FlexibleOpacity | None = Field(None, description="Label opacity")
+    elements: list["Graphic"] | None = Field(
         None, description="Graphic elements in label"
     )
     placement: Optional["LabelPlacement"] = Field(
@@ -231,8 +223,8 @@ class Label(BaseCartoSymModel):
 class UnitPoint(BaseCartoSymModel):
     """Point with unit values: [x, y], {x: value, y: value}, or "x y"."""
 
-    x: Union[UnitValue, str, float]
-    y: Union[UnitValue, str, float]
+    x: UnitValue | str | float
+    y: UnitValue | str | float
 
     @model_validator(mode="before")
     @classmethod
@@ -255,58 +247,56 @@ class UnitPoint(BaseCartoSymModel):
 class Resource(BaseCartoSymModel):
     """Resource reference (file, URL, etc.)"""
 
-    uri: Optional[str] = Field(None, description="Resource URI")
-    path: Optional[str] = Field(None, description="File path")
-    id: Optional[str] = Field(None, description="Resource ID")
-    type: Optional[str] = Field(None, description="MIME type")
-    ext: Optional[str] = Field(None, description="File extension")
+    uri: str | None = Field(None, description="Resource URI")
+    path: str | None = Field(None, description="File path")
+    id: str | None = Field(None, description="Resource ID")
+    type: str | None = Field(None, description="MIME type")
+    ext: str | None = Field(None, description="File extension")
 
 
 class Font(BaseCartoSymModel):
     """Font specification."""
 
-    face: Optional[str] = Field(None, description="Font family name")
-    size: Optional[Union[UnitValue, str, float]] = Field(None, description="Font size")
-    bold: Optional[bool] = Field(None, description="Bold weight")
-    italic: Optional[bool] = Field(None, description="Italic style")
-    underline: Optional[bool] = Field(None, description="Underline decoration")
+    face: str | None = Field(None, description="Font family name")
+    size: UnitValue | str | float | None = Field(None, description="Font size")
+    bold: bool | None = Field(None, description="Bold weight")
+    italic: bool | None = Field(None, description="Italic style")
+    underline: bool | None = Field(None, description="Underline decoration")
 
 
 class FontOutline(BaseCartoSymModel):
     """Font outline styling."""
 
-    color: Optional[FlexibleColor] = Field(None, description="Outline color")
-    width: Optional[Union[UnitValue, str, float]] = Field(
-        None, description="Outline width"
-    )
+    color: FlexibleColor | None = Field(None, description="Outline color")
+    width: UnitValue | str | float | None = Field(None, description="Outline width")
 
 
 class TextAlignment(BaseCartoSymModel):
     """Text alignment configuration."""
 
-    h_alignment: Optional[str] = Field(
+    h_alignment: str | None = Field(
         None,
         alias="hAlignment",
         description="Horizontal alignment: left, center, right",
     )
-    v_alignment: Optional[str] = Field(
+    v_alignment: str | None = Field(
         None, alias="vAlignment", description="Vertical alignment: top, middle, bottom"
     )
-    alter: Optional[bool] = Field(None, description="Alter behavior flag")
+    alter: bool | None = Field(None, description="Alter behavior flag")
 
 
 class LabelPlacement(BaseCartoSymModel):
     """Label placement configuration."""
 
-    placement_type: Optional[str] = Field(
+    placement_type: str | None = Field(
         None, alias="type", description="Placement algorithm type"
     )
     # Additional placement properties would go here
-    priority: Optional[NumericExpression] = Field(None, description="Label priority")
-    min_spacing: Optional[Union[UnitValue, str, float]] = Field(
+    priority: NumericExpression | None = Field(None, description="Label priority")
+    min_spacing: UnitValue | str | float | None = Field(
         None, alias="minSpacing", description="Minimum spacing"
     )
-    max_spacing: Optional[Union[UnitValue, str, float]] = Field(
+    max_spacing: UnitValue | str | float | None = Field(
         None, alias="maxSpacing", description="Maximum spacing"
     )
 
@@ -315,8 +305,8 @@ class LabelPlacement(BaseCartoSymModel):
 class AbstractGraphic(BaseCartoSymModel, AlterMixin):
     """Base class for all graphic elements."""
 
-    position: Optional[UnitPoint] = Field(None, description="Graphic position")
-    opacity: Optional[FlexibleOpacity] = Field(None, description="Graphic opacity")
+    position: UnitPoint | None = Field(None, description="Graphic position")
+    opacity: FlexibleOpacity | None = Field(None, description="Graphic opacity")
 
     @field_validator("position", mode="before")
     def validate_position(cls, v):
@@ -328,9 +318,7 @@ class AbstractGraphic(BaseCartoSymModel, AlterMixin):
 class Graphic(AbstractGraphic):
     """Base graphic element - can be Image, Text, Shape, etc."""
 
-    type: Optional[str] = Field(
-        None, description="Graphic type: Image, Text, Shape, etc."
-    )
+    type: str | None = Field(None, description="Graphic type: Image, Text, Shape, etc.")
     model_config = ConfigDict(extra="allow")
 
 
@@ -339,14 +327,14 @@ class ImageGraphic(Graphic):
 
     type: str = Field("Image", description="Graphic type")
     image: Resource = Field(..., description="Image resource")
-    hot_spot: Optional[UnitPoint] = Field(
+    hot_spot: UnitPoint | None = Field(
         None, alias="hotSpot", description="Hot spot position"
     )
-    tint: Optional[FlexibleColor] = Field(None, description="Tint color")
-    black_tint: Optional[FlexibleColor] = Field(
+    tint: FlexibleColor | None = Field(None, description="Tint color")
+    black_tint: FlexibleColor | None = Field(
         None, alias="blackTint", description="Black tint color"
     )
-    alpha_threshold: Optional[FlexibleOpacity] = Field(
+    alpha_threshold: FlexibleOpacity | None = Field(
         None, alias="alphaThreshold", description="Alpha threshold"
     )
     model_config = ConfigDict(extra="allow")
@@ -356,11 +344,11 @@ class TextGraphic(Graphic):
     """Text graphic element."""
 
     type: str = Field("Text", description="Graphic type")
-    text: Union[str, Any] = Field(
+    text: str | Any = Field(
         ..., description="Text content or expression"
     )  # Should be characterExpression
-    font: Optional[Font] = Field(None, description="Font specification")
-    alignment: Optional[TextAlignment] = Field(None, description="Text alignment")
+    font: Font | None = Field(None, description="Font specification")
+    alignment: TextAlignment | None = Field(None, description="Text alignment")
 
 
 # Shape classes (simplified)
@@ -368,47 +356,45 @@ class ShapeGraphic(Graphic):
     """Base class for shape graphics."""
 
     type: str = Field("Shape", description="Graphic type")
-    size: Optional[Union[UnitValue, str, float]] = Field(None, description="Shape size")
-    outline: Optional[Stroke] = Field(None, description="Shape outline")
+    size: UnitValue | str | float | None = Field(None, description="Shape size")
+    outline: Stroke | None = Field(None, description="Shape outline")
 
 
 class CircleGraphic(ShapeGraphic):
     """Circle shape graphic."""
 
-    radius: Union[UnitValue, str, float] = Field(..., description="Circle radius")
+    radius: UnitValue | str | float = Field(..., description="Circle radius")
 
 
 class RectangleGraphic(ShapeGraphic):
     """Rectangle shape graphic."""
 
-    width: Union[UnitValue, str, float] = Field(..., description="Rectangle width")
-    height: Union[UnitValue, str, float] = Field(..., description="Rectangle height")
+    width: UnitValue | str | float = Field(..., description="Rectangle width")
+    height: UnitValue | str | float = Field(..., description="Rectangle height")
 
 
 class ColorMap(BaseCartoSymModel):
     """Color mapping for raster/coverage data."""
 
     # Simplified for now - would contain color ramp definitions
-    colors: Optional[List[FlexibleColor]] = Field(None, description="Color ramp")
-    values: Optional[List[NumericExpression]] = Field(None, description="Value stops")
+    colors: list[FlexibleColor] | None = Field(None, description="Color ramp")
+    values: list[NumericExpression] | None = Field(None, description="Value stops")
 
 
 class OpacityMap(BaseCartoSymModel):
     """Opacity mapping for raster/coverage data."""
 
     # Simplified for now - would contain opacity ramp definitions
-    opacities: Optional[List[FlexibleOpacity]] = Field(None, description="Opacity ramp")
-    values: Optional[List[NumericExpression]] = Field(None, description="Value stops")
+    opacities: list[FlexibleOpacity] | None = Field(None, description="Opacity ramp")
+    values: list[NumericExpression] | None = Field(None, description="Value stops")
 
 
 class HillShading(BaseCartoSymModel):
     """Hill shading configuration for elevation data."""
 
-    azimuth: Optional[FlexibleAngle] = Field(None, description="Light source azimuth")
-    elevation: Optional[FlexibleAngle] = Field(
-        None, description="Light source elevation"
-    )
-    factor: Optional[NumericExpression] = Field(None, description="Shading factor")
+    azimuth: FlexibleAngle | None = Field(None, description="Light source azimuth")
+    elevation: FlexibleAngle | None = Field(None, description="Light source elevation")
+    factor: NumericExpression | None = Field(None, description="Shading factor")
 
 
 # Enhanced Symbolizer with all JSON schema properties
@@ -418,39 +404,37 @@ class SymbolizerEnhanced(BaseCartoSymModel, CommentMixin):
     """
 
     # Basic properties
-    visibility: Optional[BoolExpression] = Field(
-        None, description="Visibility condition"
-    )
-    opacity: Optional[FlexibleOpacity] = Field(None, description="Overall opacity")
-    z_order: Optional[NumericExpression] = Field(
+    visibility: BoolExpression | None = Field(None, description="Visibility condition")
+    opacity: FlexibleOpacity | None = Field(None, description="Overall opacity")
+    z_order: NumericExpression | None = Field(
         None, alias="zOrder", description="Z-order for layering"
     )
 
     # Vector symbolizers
-    fill: Optional[Fill] = Field(None, description="Fill symbolizer")
-    stroke: Optional[Stroke] = Field(None, description="Stroke symbolizer")
+    fill: Fill | None = Field(None, description="Fill symbolizer")
+    stroke: Stroke | None = Field(None, description="Stroke symbolizer")
     marker: Optional["Marker"] = Field(None, description="Marker symbolizer")
     label: Optional["Label"] = Field(None, description="Label symbolizer")
 
     # Raster/coverage symbolizers
-    color_channels: Optional[FlexibleColor] = Field(
+    color_channels: FlexibleColor | None = Field(
         None, alias="colorChannels", description="RGB color channels"
     )
-    alpha_channel: Optional[FlexibleOpacity] = Field(
+    alpha_channel: FlexibleOpacity | None = Field(
         None, alias="alphaChannel", description="Alpha channel"
     )
-    single_channel: Optional[FlexibleOpacity] = Field(
+    single_channel: FlexibleOpacity | None = Field(
         None, alias="singleChannel", description="Single channel value"
     )
-    color_map: Optional[ColorMap] = Field(
+    color_map: ColorMap | None = Field(
         None, alias="colorMap", description="Color mapping"
     )
-    opacity_map: Optional[OpacityMap] = Field(
+    opacity_map: OpacityMap | None = Field(
         None, alias="opacityMap", description="Opacity mapping"
     )
 
     # Elevation symbolizers
-    hill_shading: Optional[HillShading] = Field(
+    hill_shading: HillShading | None = Field(
         None, alias="hillShading", description="Hill shading"
     )
 
@@ -463,47 +447,47 @@ class Symbolizer(BaseCartoSymModel, CommentMixin):
     """
 
     # Core properties
-    visibility: Optional[Any] = Field(
+    visibility: Any | None = Field(
         None, description="Visibility expression (temporary)"
     )
-    opacity: Optional[Any] = Field(
+    opacity: Any | None = Field(
         None, description="Opacity value (temporary - will be zeroToOne)"
     )
-    z_order: Optional[Any] = Field(
+    z_order: Any | None = Field(
         None,
         alias="zOrder",
         description="Z-order value (temporary - will be numericExpression)",
     )
 
     # Vector symbolizers
-    fill: Optional[Fill] = Field(None, description="Fill symbolizer")
-    stroke: Optional[Stroke] = Field(None, description="Stroke symbolizer")
-    marker: Optional[Marker] = Field(None, description="Marker symbolizer")
-    label: Optional[Label] = Field(None, description="Label symbolizer")
+    fill: Fill | None = Field(None, description="Fill symbolizer")
+    stroke: Stroke | None = Field(None, description="Stroke symbolizer")
+    marker: Marker | None = Field(None, description="Marker symbolizer")
+    label: Label | None = Field(None, description="Label symbolizer")
 
     # Raster symbolizers
-    color_channels: Optional[Any] = Field(
+    color_channels: Any | None = Field(
         None,
         alias="colorChannels",
         description="Color channels (temporary - will be color0to1)",
     )
-    alpha_channel: Optional[Any] = Field(
+    alpha_channel: Any | None = Field(
         None,
         alias="alphaChannel",
         description="Alpha channel (temporary - will be zeroToOne)",
     )
-    single_channel: Optional[Any] = Field(
+    single_channel: Any | None = Field(
         None,
         alias="singleChannel",
         description="Single channel (temporary - will be zeroToOne)",
     )
-    color_map: Optional[Any] = Field(
+    color_map: Any | None = Field(
         None, alias="colorMap", description="Color map (temporary)"
     )
-    opacity_map: Optional[Any] = Field(
+    opacity_map: Any | None = Field(
         None, alias="opacityMap", description="Opacity map (temporary)"
     )
-    hill_shading: Optional[Any] = Field(
+    hill_shading: Any | None = Field(
         None, alias="hillShading", description="Hill shading (temporary)"
     )
 

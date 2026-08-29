@@ -6,8 +6,6 @@ these without creating an import cycle.
 
 from __future__ import annotations
 
-from typing import List
-
 
 class CartoSymError(Exception):
     """Base class for all CartoSym transcoder errors."""
@@ -23,7 +21,7 @@ class CartoSymSyntaxError(CartoSymError, ValueError):
         errors: the individual ``"line L:C message"`` strings, in source order.
     """
 
-    def __init__(self, errors: List[str]) -> None:
+    def __init__(self, errors: list[str]) -> None:
         self.errors = list(errors)
         n = len(self.errors)
         joined = "\n  ".join(self.errors)

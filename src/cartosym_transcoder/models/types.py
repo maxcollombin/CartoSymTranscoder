@@ -7,7 +7,7 @@ including colors, units, ranges, and custom validators.
 
 import re
 from enum import Enum
-from typing import Annotated, List, Union
+from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -202,18 +202,21 @@ class RGBColorNormalized(BaseModel):
 
 
 # Color type that accepts all forms
-Color = Union[
-    WebColorName,  # Named colors
-    RGBColor,  # RGB object with 0-255 values
-    RGBColorNormalized,  # RGB object with 0-1 values
-    List[Annotated[int, Field(ge=0, le=255)]],  # RGB array [r, g, b]
-    str,  # Hex colors like "#ff0000" or expressions
-]
+Color = (
+    WebColorName  # Named colors
+    | RGBColor  # RGB object with 0-255 values
+    | RGBColorNormalized  # RGB object with 0-1 values
+    | list[Annotated[int, Field(ge=0, le=255)]]  # RGB array [r, g, b]
+    | str  # Hex colors like "#ff0000" or expressions
+)
 
 # Normalized color for coverage operations
-ColorNormalized = Union[
-    WebColorName, RGBColorNormalized, List[Annotated[float, Field(ge=0.0, le=1.0)]], str
-]
+ColorNormalized = (
+    WebColorName
+    | RGBColorNormalized
+    | list[Annotated[float, Field(ge=0.0, le=1.0)]]
+    | str
+)
 
 
 # =============================================================================
@@ -272,7 +275,7 @@ class UnitValue(BaseModel):
 
 
 # Flexible unit value that accepts expressions or objects
-FlexibleUnitValue = Union[UnitValue, str, float]
+FlexibleUnitValue = UnitValue | str | float
 
 
 # =============================================================================
@@ -352,13 +355,13 @@ def validate_unit_string(v: str) -> str:
 # These are the types actually used in models - they accept both precise
 # types and strings
 
-FlexibleColor = Union[Color, str]
+FlexibleColor = Color | str
 """Color that accepts precise Color types or string expressions."""
 
 # FlexibleUnitValue is defined once, above (line ~275).
 
-FlexibleAngle = Union[Angle, str, float]
+FlexibleAngle = Angle | str | float
 """Angle that accepts Angle objects, strings, or plain numbers (assumed degrees)."""
 
-FlexibleOpacity = Union[ZeroToOne, str]
+FlexibleOpacity = ZeroToOne | str
 """Opacity that accepts 0-1 float or string expressions."""
