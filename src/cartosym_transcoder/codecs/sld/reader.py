@@ -96,11 +96,21 @@ class SldReader(CodecReader):
 
     def _parse_sld(self, root: etree._Element) -> Style:
         self.d = self._dialect_for(root)
-        if not self.d.vendor_options and root.find(f".//{SLD}VendorOption") is not None:
+        vendor_options = root.findall(f".//{SLD}VendorOption")
+        if vendor_options and not self.d.vendor_options:
             raise NotImplementedError(
                 "GeoServer <VendorOption> is a vendor extension with no "
                 "CartoSym mapping in this codec's scope"
             )
+        for vo in vendor_options:
+            parent = vo.getparent()
+            if parent is None or not local_name(parent).endswith("Symbolizer"):
+                where = local_name(parent) if parent is not None else "document root"
+                raise NotImplementedError(
+                    f"<VendorOption name={vo.get('name')!r}> under <{where}> — "
+                    "only symbolizer-level vendor options map to a CartoSym "
+                    "vendor.geoserver.* property"
+                )
         named_layer = root.find(f"{SLD}NamedLayer")
         if named_layer is None:
             raise NotImplementedError(
