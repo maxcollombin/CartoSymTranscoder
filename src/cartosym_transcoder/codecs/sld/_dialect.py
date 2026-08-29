@@ -10,6 +10,10 @@ XML surface differs:
   (SLD 1.0.0);
 * the styling-parameter element — ``se:SvgParameter`` vs. ``CssParameter``;
 * the raster colour-map form — ``se:Categorize`` vs. ``<ColorMapEntry>``;
+* whether style ``Title``/``Abstract`` sit inside a ``se:Description``
+  wrapper (SE 1.1.0) or directly under ``UserStyle`` (SLD 1.0.0);
+* whether a raster group maps to ``se:CoverageStyle`` (SE 1.1.0 only) or
+  stays a plain ``FeatureTypeStyle`` (SLD 1.0.0 has no ``CoverageStyle``);
 * the root ``version`` attribute and the namespace map.
 
 A :class:`SldDialect` captures those points of variation plus the
@@ -57,6 +61,13 @@ class SldDialect:
         raster_colormap: Which raster colour-map encoding this dialect uses
             — ``"categorize"`` (``se:ColorMap/se:Categorize``, SE 1.1.0) or
             ``"entry"`` (``ColorMap/ColorMapEntry``, SLD 1.0.0).
+        description_element: ``True`` if style ``Title``/``Abstract`` are
+            wrapped in a ``se:Description`` element (SE 1.1.0); ``False`` if
+            they are direct ``UserStyle`` children (SLD 1.0.0).
+        coverage_style: ``True`` if a raster group maps to
+            ``se:CoverageStyle`` / ``se:CoverageName`` (SE 1.1.0); ``False``
+            if raster stays in a plain ``FeatureTypeStyle`` (SLD 1.0.0 has
+            no ``CoverageStyle``).
         nsmap: Namespace map for the document root element.
     """
 
@@ -64,6 +75,8 @@ class SldDialect:
     symbology_ns: str
     param_tag: str
     raster_colormap: Literal["categorize", "entry"]
+    description_element: bool
+    coverage_style: bool
     nsmap: dict[str | None, str]
 
     # -- element factories -------------------------------------------------
@@ -141,6 +154,8 @@ SE_1_1_0 = SldDialect(
     symbology_ns=SE_NS,
     param_tag="SvgParameter",
     raster_colormap="categorize",
+    description_element=True,
+    coverage_style=True,
     nsmap=_SE_NSMAP,
 )
 
@@ -149,6 +164,8 @@ SLD_1_0_0 = SldDialect(
     symbology_ns=SLD_NS,
     param_tag="CssParameter",
     raster_colormap="entry",
+    description_element=False,
+    coverage_style=False,
     nsmap=_SLD10_NSMAP,
 )
 
