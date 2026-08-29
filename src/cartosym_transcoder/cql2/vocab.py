@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from typing import get_args
 
+from pydantic import BaseModel
+
 from .model import (
     AccentiExpression,
     ArrayPredicate,
@@ -42,7 +44,7 @@ from .model import (
 )
 
 
-def _ops(model: type, prefix: str = "") -> frozenset[str]:
+def _ops(model: type[BaseModel], prefix: str = "") -> frozenset[str]:
     """Lower-cased ``op`` ``Literal`` values declared by *model*.
 
     ``prefix`` restricts to the canonical CQL2 spelling (``s_`` / ``t_`` /
@@ -56,7 +58,7 @@ def _ops(model: type, prefix: str = "") -> frozenset[str]:
     )
 
 
-def _canon(model: type) -> dict[str, str]:
+def _canon(model: type[BaseModel]) -> dict[str, str]:
     """``lower-case -> declared casing`` map for *model*'s ``op`` values."""
     return {
         str(v).lower(): str(v) for v in get_args(model.model_fields["op"].annotation)

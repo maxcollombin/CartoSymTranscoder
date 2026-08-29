@@ -164,15 +164,17 @@ class Converter:
                 lines.append(f".abstract '{style.metadata.abstract}'")
             if getattr(style.metadata, "description", None):
                 lines.append(f".description '{style.metadata.description}'")
-            if getattr(style.metadata, "authors", None):
+            if style.metadata.authors:
                 for author in style.metadata.authors:
                     lines.append(f'.author "{author}"')
-            if getattr(style.metadata, "keywords", None):
+            if style.metadata.keywords:
                 kw = style.metadata.keywords
                 kw_str = ", ".join(kw) if isinstance(kw, list) else kw
                 lines.append(f".keywords '{kw_str}'")
-            if getattr(style.metadata, "geoDataClasses", None):
-                gc = style.metadata.geoDataClasses
+            # Model field is ``geo_data_classes`` (alias ``geoDataClasses``);
+            # the CSCSS directive keeps the camelCase spelling.
+            if style.metadata.geo_data_classes:
+                gc = style.metadata.geo_data_classes
                 gc_str = ", ".join(gc) if isinstance(gc, list) else gc
                 lines.append(f".geoDataClasses '{gc_str}'")
             lines.append("")  # Empty line after metadata
