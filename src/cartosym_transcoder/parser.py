@@ -6,14 +6,12 @@ This module provides the main parsing functionality for CartoSym CSS files.
 
 from __future__ import annotations
 
-import argparse
-import functools
 import logging
 import re
 from pathlib import Path
-from typing import Optional, Set, Union
+from typing import Set, Union
 
-from antlr4 import *
+from antlr4 import CommonTokenStream, InputStream, ParseTreeWalker
 from antlr4.error.ErrorListener import ErrorListener
 
 from cartosym_transcoder.exceptions import CartoSymSyntaxError
@@ -25,10 +23,19 @@ from cartosym_transcoder.models.symbolizers import Symbolizer as ModelSymbolizer
 
 from .ast import Metadata
 from .ast import PropertyAssignment as AstPropertyAssignment
-from .ast import Stroke, StyleSheet, StylingRule, StylingRuleList
+from .ast import StyleSheet, StylingRule, StylingRuleList
 from .ast_converter import convert_ast_to_pydantic
 from .cql2.from_text import ExpressionParser
-from .cql2.model import *
+from .cql2.model import (
+    BinaryOperationExpression,
+    ConstantExpression,
+    Expression,
+    IdentifierExpression,
+    InstanceExpression,
+    MemberAccessExpression,
+    Selector,
+    StringExpression,
+)
 from .grammar.generated import (
     CartoSymCSSGrammar,
     CartoSymCSSGrammarListener,
@@ -626,8 +633,6 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                     ),
                 }
             )
-        from .ast import StylingRule
-
         self.current_rule = StylingRule()
         self.current_assignments = []
         self.current_selectors = []

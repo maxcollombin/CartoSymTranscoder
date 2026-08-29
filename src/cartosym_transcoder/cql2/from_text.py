@@ -29,17 +29,49 @@ the Pydantic model ``Literal`` fields), not hand-written lists.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Optional
 
-from ..ast import Fill
-from ..ast import Metadata as AstMetadata
-from ..ast import Stroke, StyleSheet, StylingRule, StylingRuleList, Symbolizer
 from ..grammar.generated import CartoSymCSSGrammar as _G
-from ..models.base import BaseCartoSymModel
-from ..models.styles import Metadata, Style, StylingRule
-from ..models.symbolizers import Fill, Marker, Stroke, Symbolizer
 from . import vocab as _v
-from .model import *
+from .model import (
+    AccentiExpression,
+    ArrayExpression,
+    ArrayPredicate,
+    BboxLiteral,
+    BinaryOperationExpression,
+    BinaryOperator,
+    CaseiExpression,
+    ConcatenateExpression,
+    ConditionalExpression,
+    ConstantExpression,
+    Expression,
+    FormatExpression,
+    FunctionCallExpression,
+    GeometryBuffer,
+    GeometryLiteral,
+    GeometryManipulationBinary,
+    GeometryManipulationUnary,
+    IdentifierExpression,
+    InstanceExpression,
+    IsBetweenPredicate,
+    IsInListPredicate,
+    IsLikePredicate,
+    IsNullPredicate,
+    LowerUpperCaseExpression,
+    MemberAccessExpression,
+    NotExpression,
+    NullLiteral,
+    PropertyAssignment,
+    SpatialPredicate,
+    SpatialRelatePredicate,
+    StringExpression,
+    SubstituteExpression,
+    TemporalLiteral,
+    TemporalPredicate,
+    TextOpPredicate,
+    UnaryOperationExpression,
+    UnaryOperator,
+)
 
 # ---------------------------------------------------------------------------
 # CQL2 vocabulary — derived from the Pydantic models (see cql2.vocab), not
