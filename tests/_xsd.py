@@ -1,6 +1,6 @@
 """XML-Schema validation of SLD/SE output against the vendored OGC schemas.
 
-Helper for ``tests/test_sld_se_xsd.py`` — not a test module itself.
+Helper for ``tests/test_sld_xsd.py`` — not a test module itself.
 
 The schema graph (``tests/schemas/ogc-sld-se-1.1.0/``) is built once per
 session. It is built with ``validation='lax'`` because GML 3.1.1 — pulled

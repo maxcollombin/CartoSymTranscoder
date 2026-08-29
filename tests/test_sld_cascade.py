@@ -1,5 +1,5 @@
 """Tests for CartoSym nested-rule cascade flattening in the SLD/SE writer
-(``codecs/sld_se/_cascade.py``).
+(``codecs/sld/_cascade.py``).
 
 A selector-bearing ``nestedRules`` entry is a cascading refinement: its
 selector is AND-ed with the parent's and its symbolizer is merged onto the
