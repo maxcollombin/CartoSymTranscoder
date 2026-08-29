@@ -1,0 +1,10 @@
+repo:      https://github.com/geostyler/geostyler-sld-parser
+path:      data/slds/1.1/
+commit:    48f761c812d5d04df44cfa09f3969b5c78778131
+retrieved: 2026-08-28
+license:   BSD-2-Clause (see the upstream repository's LICENSE)
+modified:  file contents unchanged; only sorted into in-scope/ and
+           out-of-scope/ subdirectories (upstream keeps them flat)
+
+See README.md for how the tests use this corpus. To refresh: re-pull the
+path above at a newer commit, update this file, re-sort, review the diff.

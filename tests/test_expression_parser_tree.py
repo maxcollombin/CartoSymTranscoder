@@ -5,7 +5,7 @@ walking the ``ExpressionContext`` parse tree the grammar already built. This
 module locks the observable contract of that refactor:
 
 1. **Golden snapshot** — every ``selector`` dict emitted for the real
-   ``input/*.cscss`` corpus (keys ``file:*``) *plus* a set of synthetic selector
+   ``examples/*.cscss`` corpus (keys ``file:*``) *plus* a set of synthetic selector
    snippets (keys ``expr:*``) is snapshotted in
    ``tests/fixtures/expression_selectors_golden.json``. The ``file:*`` entries
    are the hard no-regression contract; the ``expr:*`` entries are allowed to
@@ -27,7 +27,7 @@ import pytest
 from cartosym_transcoder.converter import Converter
 
 ROOT = Path(__file__).resolve().parent.parent
-INPUT_DIR = ROOT / "input"
+EXAMPLES_DIR = ROOT / "examples"
 GOLDEN = (
     Path(__file__).resolve().parent / "fixtures" / "expression_selectors_golden.json"
 )
@@ -94,7 +94,7 @@ def _snapshot() -> dict:
     conv = Converter()
     snap: dict = {}
 
-    for cscss in sorted(INPUT_DIR.glob("*.cscss")):
+    for cscss in sorted(EXAMPLES_DIR.glob("*.cscss")):
         try:
             result = conv.cscss_to_csjson(cscss)
             found: list = []

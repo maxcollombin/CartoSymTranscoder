@@ -22,7 +22,7 @@ from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
 from cartosym_transcoder.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
-FIXTURES = sorted((ROOT / "input" / "sld").glob("*.sld"))
+FIXTURES = sorted((ROOT / "examples" / "sld").glob("*.sld"))
 # Fixture 10 is a deliberate out-of-scope negative case
 # (RasterSymbolizer/ContrastEnhancement); it cannot round-trip since the
 # reader raises on it. Filtered by filename convention rather than a
@@ -100,7 +100,7 @@ class TestDataLayerMetadataStripping:
 
 class TestCliSmokeTest:
     def test_sld_to_csjson_and_back_via_cli(self, tmp_path):
-        src = ROOT / "input" / "sld" / "1-polygon-fill-stroke.sld"
+        src = ROOT / "examples" / "sld" / "1-polygon-fill-stroke.sld"
         csjson_out = tmp_path / "out.cs.json"
         sld_out = tmp_path / "out.sld"
 

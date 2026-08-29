@@ -64,9 +64,9 @@ def _create_convert_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  cartosym input/example.cscss -o output/example.cs.json\n"
-            "  cartosym output/example.cs.json -o output/example.cscss\n"
-            "  cartosym input/example.cscss --print\n"
+            "  cartosym examples/0-basic.cscss -o output/0-basic.cs.json\n"
+            "  cartosym output/0-basic.cs.json -o output/0-basic.cscss\n"
+            "  cartosym examples/0-basic.cscss --print\n"
             "\n"
             "Other commands:\n"
             "  cartosym parse <input>     Parse a CSCSS file\n"

@@ -16,7 +16,7 @@ from cartosym_transcoder.converter import Converter
 from cartosym_transcoder.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
-INPUT_DIR = ROOT / "input"
+EXAMPLES_DIR = ROOT / "examples"
 
 NS = {
     "sld": "http://www.opengis.net/sld",
@@ -79,7 +79,7 @@ class TestWriteBasicSymbolizers:
     def test_stroke_width_as_raw_unit_string_is_parsed(self):
         """CscssReader bypasses Converter._fix_unit_values, so some
         UnitValue fields reach this codec as a raw 'N unit' string (e.g.
-        input/3-vector-line.cscss's alter-overridden width) rather than a
+        examples/3-vector-line.cscss's alter-overridden width) rather than a
         {unit: value} dict — must still parse, not raise issue #11."""
         root = _write(_rule_style({"stroke": {"color": "red", "width": "8.0 m"}}))
         line = root.find(".//se:LineSymbolizer", NS)
@@ -839,13 +839,13 @@ def _find_raster_symbolizer_dict(rules):
 
 class TestRealRasterFixturesRegression:
     """Sanity-check the writer against real generated CS-JSON for the
-    project's own raster fixtures (input/5..9-coverage-*.cscss). Only
+    project's own raster fixtures (examples/5..9-coverage-*.cscss). Only
     fixture 5 is expected to fully succeed after this pass — 6/7/8/9 each
     hit a distinct, correctly-documented out-of-scope construct. See the
     plan's Context section / docs/sld_se_mapping_issues.md #24/#25/#32."""
 
     def _symbolizer_for(self, stem):
-        data = Converter().cscss_to_csjson(INPUT_DIR / f"{stem}.cscss")
+        data = Converter().cscss_to_csjson(EXAMPLES_DIR / f"{stem}.cscss")
         raw = _find_raster_symbolizer_dict(data["stylingRules"])
         assert raw is not None, f"no raster symbolizer found in {stem}.cs.json"
         style = Style.from_dict({"stylingRules": [{"symbolizer": raw}]})
