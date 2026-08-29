@@ -6,7 +6,6 @@ Delegates to :meth:`~cartosym_transcoder.converter.Converter.cscss_to_csjson`
 """
 
 import json
-from typing import Union
 
 from ...converter import Converter
 from ...models.styles import Style
@@ -19,7 +18,7 @@ class CsjsonWriter(CodecWriter):
     def __init__(self) -> None:
         self._converter = Converter()
 
-    def write(self, style: Style, *, as_string: bool = False) -> Union[dict, str]:
+    def write(self, style: Style, *, as_string: bool = False) -> dict | str:
         """Return the CS-JSON representation of *style*.
 
         Parameters

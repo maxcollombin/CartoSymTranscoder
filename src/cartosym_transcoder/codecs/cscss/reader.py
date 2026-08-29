@@ -5,7 +5,6 @@ Delegates to the existing :class:`~cartosym_transcoder.parser.CartoSymParser`.
 """
 
 from pathlib import Path
-from typing import Union
 
 from ...models.styles import Style
 from ...parser import CartoSymParser
@@ -18,7 +17,7 @@ class CscssReader(CodecReader):
     def __init__(self) -> None:
         self._parser = CartoSymParser()
 
-    def read(self, source: Union[str, Path]) -> Style:
+    def read(self, source: str | Path) -> Style:
         """Parse *source* and return a validated Style.
 
         Parameters

@@ -12,7 +12,6 @@ project's lossless-transcoding requirement.
 
 import logging
 from collections import OrderedDict
-from typing import List, Optional, Tuple, Union
 
 from lxml import etree
 
@@ -30,7 +29,7 @@ from ._xml_helpers import NSMAP, se_el, sld_el
 logger = logging.getLogger(__name__)
 
 
-def _scale_text(value: Union[int, float]) -> str:
+def _scale_text(value: int | float) -> str:
     """Render a scale denominator, dropping a redundant ``.0`` on whole numbers."""
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
@@ -119,8 +118,8 @@ class SldSeWriter(CodecWriter):
         return user_style
 
     def _group_rules_by_feature_type(
-        self, rules: List[StylingRule]
-    ) -> "OrderedDict[Optional[str], List[Tuple[StylingRule, Optional[dict]]]]":
+        self, rules: list[StylingRule]
+    ) -> "OrderedDict[str | None, list[tuple[StylingRule, dict | None]]]":
         """Group top-level rules by their ``dataLayer.id`` conjunct.
 
         Rules with no ``dataLayer.id`` conjunct are grouped under the key
@@ -131,9 +130,9 @@ class SldSeWriter(CodecWriter):
         ``_filter.py::extract_feature_type_name`` and mapping-issues
         issue #31.
         """
-        groups: (
-            "OrderedDict[Optional[str], List[Tuple[StylingRule, Optional[dict]]]]"
-        ) = OrderedDict()
+        groups: OrderedDict[str | None, list[tuple[StylingRule, dict | None]]] = (
+            OrderedDict()
+        )
         for rule in rules:
             selector = rule.selector
             if selector is not None and not isinstance(selector, dict):
@@ -148,9 +147,9 @@ class SldSeWriter(CodecWriter):
 
     def _build_feature_type_style(
         self,
-        feature_type_name: Optional[str],
-        rules_and_selectors: List[Tuple[StylingRule, Optional[dict]]],
-    ) -> Optional[etree._Element]:
+        feature_type_name: str | None,
+        rules_and_selectors: list[tuple[StylingRule, dict | None]],
+    ) -> etree._Element | None:
         # A group styling a coverage (any rule carries raster fields) maps
         # to se:CoverageStyle/se:CoverageName; a feature group maps to
         # se:FeatureTypeStyle/se:FeatureTypeName. se:CoverageName only
@@ -188,7 +187,7 @@ class SldSeWriter(CodecWriter):
             return True
         return any(self._rule_has_raster(n) for n in rule.nested_rules or [])
 
-    def _flatten_nested_rules(self, rule: StylingRule) -> List[etree._Element]:
+    def _flatten_nested_rules(self, rule: StylingRule) -> list[etree._Element]:
         """Emit the remaining (selector-less) ``nested_rules`` as sibling
         ``se:Rule`` elements carrying ``se:ElseFilter`` (mapping-issues
         issue #1 for the namespace, #19 for the semantics).
@@ -210,9 +209,9 @@ class SldSeWriter(CodecWriter):
     def _build_rule(
         self,
         rule: StylingRule,
-        remaining_selector: Optional[dict],
+        remaining_selector: dict | None,
         is_else: bool = False,
-    ) -> Optional[etree._Element]:
+    ) -> etree._Element | None:
         sym_elements = (
             symbolizer_to_elements(rule.symbolizer)
             if rule.symbolizer is not None

@@ -5,7 +5,6 @@ Delegates to :meth:`~cartosym_transcoder.converter.Converter.csjson_to_style`.
 """
 
 from pathlib import Path
-from typing import Union
 
 from ...converter import Converter
 from ...models.styles import Style
@@ -18,7 +17,7 @@ class CsjsonReader(CodecReader):
     def __init__(self) -> None:
         self._converter = Converter()
 
-    def read(self, source: Union[str, Path, dict]) -> Style:
+    def read(self, source: str | Path | dict) -> Style:
         """Parse *source* and return a validated Style.
 
         Parameters

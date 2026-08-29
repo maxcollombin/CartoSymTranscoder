@@ -6,7 +6,6 @@ MapLibre / MapBox GL Style reader — parse MapLibre style JSON into Style model
 """
 
 from pathlib import Path
-from typing import Union
 
 from ...models.styles import Style
 from ..base import CodecReader
@@ -18,7 +17,7 @@ class MaplibreReader(CodecReader):
     .. warning:: Not yet implemented — raises :exc:`NotImplementedError`.
     """
 
-    def read(self, source: Union[str, Path]) -> Style:
+    def read(self, source: str | Path) -> Style:
         raise NotImplementedError(
             "MapLibre reader is not yet implemented (see ROADMAP §3.4)"
         )

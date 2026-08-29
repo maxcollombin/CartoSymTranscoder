@@ -29,7 +29,8 @@ the Pydantic model ``Literal`` fields), not hand-written lists.
 """
 
 import re
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from collections.abc import Iterator
+from typing import Any
 
 from ..grammar.generated import CartoSymCSSGrammar as _G
 from . import vocab as _v
@@ -123,7 +124,7 @@ class ExpressionParser:
     _PREC_POW = 6
 
     @staticmethod
-    def parse_expression_ctx(ctx) -> Optional[_ExprNode]:
+    def parse_expression_ctx(ctx) -> _ExprNode | None:
         """Convert an ANTLR ``ExpressionContext`` to a Pydantic ``Expression``.
 
         Dispatches on the grammar's labelled ``expression`` alternatives
@@ -224,8 +225,8 @@ class ExpressionParser:
 
     @staticmethod
     def _first_token_op(
-        op_ctx, table: Dict[str, BinaryOperator]
-    ) -> Optional[BinaryOperator]:
+        op_ctx, table: dict[str, BinaryOperator]
+    ) -> BinaryOperator | None:
         """First ``BinaryOperator`` in *table* whose token accessor is set on
         *op_ctx* (``table`` is keyed by grammar token name, e.g. ``"IDIV"``)."""
         for token_name, operator in table.items():
@@ -380,7 +381,7 @@ class ExpressionParser:
 
         if rel_ctx.IN() is not None:
             if isinstance(right, ArrayExpression):
-                items: List[Expression] = list(right.elements)
+                items: list[Expression] = list(right.elements)
             elif isinstance(right, list):
                 items = right
             else:
@@ -442,7 +443,7 @@ class ExpressionParser:
         )
 
     @staticmethod
-    def parse_expression(ctx) -> Optional[_ExprNode]:
+    def parse_expression(ctx) -> _ExprNode | None:
         """Convert ANTLR expression context to Pydantic Expression."""
         if not ctx:
             return None
@@ -907,7 +908,7 @@ class ExpressionParser:
         return " and " not in rest and " or " not in rest
 
     @staticmethod
-    def _try_parse_cql2_operator(text: str) -> Optional[_ExprNode]:
+    def _try_parse_cql2_operator(text: str) -> _ExprNode | None:
         """Try to parse CQL2 postfix operators: BETWEEN, IN, LIKE, IS NULL.
 
         Returns the parsed Expression or None if no CQL2 operator was found.
@@ -986,7 +987,7 @@ class ExpressionParser:
         return None
 
     @staticmethod
-    def _try_parse_cql2_function(text: str) -> Optional[_ExprNode]:
+    def _try_parse_cql2_function(text: str) -> _ExprNode | None:
         """Try to parse CQL2 function-style expressions.
 
         Handles: spatial predicates, temporal predicates, array predicates,
@@ -1270,7 +1271,7 @@ class ExpressionParser:
         return text
 
     @staticmethod
-    def _iter_top_level(text: str) -> Iterator[Tuple[int, str]]:
+    def _iter_top_level(text: str) -> Iterator[tuple[int, str]]:
         """Yield ``(index, char)`` for every character of *text* that sits at
         bracket depth 0 and outside any single/double-quoted string literal.
 
@@ -1347,7 +1348,7 @@ class ExpressionParser:
         return args
 
     @staticmethod
-    def _try_parse_temporal_braces(text: str) -> Optional[_ExprNode]:
+    def _try_parse_temporal_braces(text: str) -> _ExprNode | None:
         """Try to parse curly-brace temporal literals.
 
         DATE{...}, TIMESTAMP{...}, INTERVAL{...}.

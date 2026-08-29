@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Optional, Set, Union
 
 from antlr4 import CommonTokenStream, InputStream, ParseTreeWalker
 from antlr4.error.ErrorListener import ErrorListener
@@ -103,7 +102,7 @@ class CartoSymParser:
     # Regex matching  .include 'path'  or  .include "path"
     _INCLUDE_RE = re.compile(r"^\s*\.include\s+['\"](.+?)['\"]\s*$", re.MULTILINE)
 
-    def parse_file(self, file_path: Union[str, Path]) -> StyleSheet:
+    def parse_file(self, file_path: str | Path) -> StyleSheet:
         """Parse a CartoSym CSS file and return an AST.
 
         Resolves `.include` directives before parsing: each directive is
@@ -118,7 +117,7 @@ class CartoSymParser:
 
         self.logger.info(f"Parsing file: {file_path}")
 
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             content = file.read()
 
         # Resolve .include directives (textual preprocessor)
@@ -138,7 +137,7 @@ class CartoSymParser:
         self,
         content: str,
         base_dir: Path,
-        seen: Set[Path],
+        seen: set[Path],
     ) -> str:
         """Recursively resolve `.include` directives by textual substitution.
 
@@ -172,7 +171,7 @@ class CartoSymParser:
                 )
 
             seen.add(abs_path)
-            with open(abs_path, "r", encoding="utf-8") as f:
+            with open(abs_path, encoding="utf-8") as f:
                 included = f.read()
 
             # Strip metadata directives from included files — the ANTLR
@@ -197,7 +196,7 @@ class CartoSymParser:
 
         return self._INCLUDE_RE.sub(_replacer, content)
 
-    def parse_file_to_pydantic(self, file_path: Union[str, Path]) -> Style:
+    def parse_file_to_pydantic(self, file_path: str | Path) -> Style:
         """Parse a CartoSym CSS file and return a Pydantic Style model."""
         ast_stylesheet = self.parse_file(file_path)
         return convert_ast_to_pydantic(ast_stylesheet)
@@ -398,8 +397,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         element_dict[key] = v
 
     def __init__(self) -> None:
-        self.stylesheet: Optional[StyleSheet] = None
-        self.current_rule: Optional[StylingRule] = None
+        self.stylesheet: StyleSheet | None = None
+        self.current_rule: StylingRule | None = None
         self.current_assignments: list = []
         self.rule_stack: list = []  # Stack for nested rules
         self.current_selectors: list = []  # Current selectors being processed

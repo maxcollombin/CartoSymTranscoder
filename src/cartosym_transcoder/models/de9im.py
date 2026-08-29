@@ -21,8 +21,6 @@ OGC standards:
   - OGC 21-065 (CQL2) — spatial predicates ``s_intersects``, ``s_relate`` etc.
 """
 
-from typing import Dict, List
-
 # ---------------------------------------------------------------------------
 # DE-9IM predicate → pattern(s) lookup table
 # ---------------------------------------------------------------------------
@@ -42,7 +40,7 @@ from typing import Dict, List
 # geometryEquals, geometryContains, geometryWithin, geometryTouches,
 # geometryCovers, geometryCrosses, geometryOverlaps, geometryDisjoint.
 
-DE9IM_PREDICATES: Dict[str, List[str]] = {
+DE9IM_PREDICATES: dict[str, list[str]] = {
     # Simple predicates — one pattern each
     "equals": ["T*F**FFF*"],
     "disjoint": ["FF*FF****"],
@@ -67,7 +65,7 @@ DE9IM_PREDICATES: Dict[str, List[str]] = {
 
 # CQL2 operator name → predicate name mapping
 # CQL2 uses s_ prefix for spatial predicates
-CQL2_SPATIAL_PREDICATES: Dict[str, str] = {
+CQL2_SPATIAL_PREDICATES: dict[str, str] = {
     "s_equals": "equals",
     "s_disjoint": "disjoint",
     "s_intersects": "intersects",
@@ -171,7 +169,7 @@ def predicate_matches(matrix: str, predicate_name: str) -> bool:
     return any(match_pattern(matrix, p) for p in patterns)
 
 
-def get_patterns(predicate_name: str) -> List[str]:
+def get_patterns(predicate_name: str) -> list[str]:
     """Return the DE-9IM pattern(s) for a named spatial predicate.
 
     >>> get_patterns("contains")

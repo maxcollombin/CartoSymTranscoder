@@ -3,7 +3,7 @@ XML namespace constants and small ``lxml`` element-building helpers shared
 by :mod:`_filter`, :mod:`_symbolizer`, :mod:`reader`, and :mod:`writer`.
 """
 
-from typing import Optional, cast
+from typing import cast
 
 from lxml import etree
 
@@ -30,8 +30,8 @@ XLINK = f"{{{XLINK_NS}}}"
 
 def se_el(
     tag: str,
-    parent: Optional[etree._Element] = None,
-    text: Optional[str] = None,
+    parent: etree._Element | None = None,
+    text: str | None = None,
 ) -> etree._Element:
     """Create a ``se:<tag>`` element, optionally appended to *parent*."""
     el = (
@@ -46,8 +46,8 @@ def se_el(
 
 def sld_el(
     tag: str,
-    parent: Optional[etree._Element] = None,
-    text: Optional[str] = None,
+    parent: etree._Element | None = None,
+    text: str | None = None,
 ) -> etree._Element:
     """Create an unprefixed ``sld:<tag>`` element, optionally appended to *parent*."""
     el = (
@@ -62,8 +62,8 @@ def sld_el(
 
 def ogc_el(
     tag: str,
-    parent: Optional[etree._Element] = None,
-    text: Optional[str] = None,
+    parent: etree._Element | None = None,
+    text: str | None = None,
 ) -> etree._Element:
     """Create an ``ogc:<tag>`` element, optionally appended to *parent*."""
     el = (
@@ -107,9 +107,9 @@ def findall_se(elem: etree._Element, tag: str):
     return elem.findall(f"{SE}{tag}")
 
 
-def get_svg_param(elem: etree._Element, name: str) -> Optional[str]:
+def get_svg_param(elem: etree._Element, name: str) -> str | None:
     """Return the text of the ``se:SvgParameter[@name=...]`` child, if present."""
     for param in findall_se(elem, "SvgParameter"):
         if param.get("name") == name:
-            return cast(Optional[str], param.text)
+            return cast(str | None, param.text)
     return None
