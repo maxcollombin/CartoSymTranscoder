@@ -7,7 +7,7 @@ including colors, units, ranges, and custom validators.
 
 import re
 from enum import Enum
-from typing import Annotated, Any, List, Literal, Union
+from typing import Annotated, List, Union
 
 from pydantic import BaseModel, Field, field_validator
 

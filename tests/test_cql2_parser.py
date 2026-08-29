@@ -31,10 +31,8 @@ from cartosym_transcoder.cql2.model import (
     NotExpression,
     SpatialPredicate,
     SpatialRelatePredicate,
-    StringExpression,
     TemporalLiteral,
     TemporalPredicate,
-    UnaryOperationExpression,
 )
 
 

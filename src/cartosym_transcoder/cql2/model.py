@@ -3,7 +3,7 @@ Complete Expression System for CartoSym CSS and JSON Schema
 Supports complex expressions, conditions, function calls, and JSON Schema expression types.
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
@@ -825,17 +825,8 @@ class ArrayPredicate(BoolExpression):
 # =====================================================
 # Character Expression Types (Phase B Priority 2)
 # =====================================================
-
-
-class AnyExpressionWrapper(Expression):
-    """Wrapper for AnyExpression with proper Pydantic handling."""
-
-    type: ExpressionType = ExpressionType.IDENTIFIER
-    expression: Any = Field(..., description="Wrapped expression of any type")
-
-    def get_expression_type(self) -> str:
-        """Get the actual type of the wrapped expression."""
-        return type(self.expression).__name__
+# NOTE: AnyExpressionWrapper is defined once, below, under "Polymorphic
+# Expressions" — an earlier duplicate definition here was removed.
 
 
 class CharacterExpression(Expression):
@@ -1067,7 +1058,7 @@ class AnyExpressionWrapper(Expression):
         return type(self.expression).__name__
 
 
-### **1.3 TypedArray - Arrays typés avec validation**
+# 1.3 TypedArray - Arrays typés avec validation
 
 
 class TypedArray(Expression):
@@ -1104,7 +1095,7 @@ class TypedArray(Expression):
         return True
 
 
-### **1.4 IdOrFnExpression - Union identifier/fonction**
+# 1.4 IdOrFnExpression - Union identifier/fonction
 
 
 class IdOrFnExpressionWrapper(Expression):

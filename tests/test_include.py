@@ -38,7 +38,7 @@ class TestIncludeDirective:
         child.write_text("[Landuse]\n{\n   visibility: false;\n}\n")
 
         parent = tmp_path / "parent.cscss"
-        parent.write_text(f".include 'child.cscss'\n")
+        parent.write_text(".include 'child.cscss'\n")
 
         result = self.parser.parse_file(parent)
         assert result.styling_rules is not None

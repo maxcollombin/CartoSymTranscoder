@@ -190,7 +190,6 @@ def convert_command(args) -> int:
     try:
         # Validate input before conversion
         input_path = args.input_file
-        ext = input_path.suffix.lower()
         has_errors = False
         if from_format == "cscss":
             from antlr4 import CommonTokenStream, FileStream
@@ -213,7 +212,7 @@ def convert_command(args) -> int:
             parser.styleSheet()
             if parser.getNumberOfSyntaxErrors() > 0:
                 print(
-                    f"Error: Input CSCSS file contains syntax errors. Conversion aborted.",
+                    "Error: Input CSCSS file contains syntax errors. Conversion aborted.",
                     file=sys.stderr,
                 )
                 has_errors = True
@@ -313,7 +312,7 @@ def validate_command(args) -> int:
             from antlr4.error.ErrorListener import ConsoleErrorListener
 
             parser.addErrorListener(ConsoleErrorListener())
-            tree = parser.styleSheet()
+            parser.styleSheet()
             if parser.getNumberOfSyntaxErrors() == 0:
                 print(f"Syntaxe CSCSS valide : {input_path}")
                 return 0

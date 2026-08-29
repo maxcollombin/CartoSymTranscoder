@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from cartosym_transcoder.parser import CartoSymParser
 
 INPUT_DIR = Path(__file__).resolve().parent.parent / "input"

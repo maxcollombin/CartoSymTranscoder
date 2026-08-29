@@ -6,7 +6,7 @@ Delegates to :meth:`~cartosym_transcoder.converter.Converter.cscss_to_csjson`
 """
 
 import json
-from typing import Any, Union
+from typing import Union
 
 from ...converter import Converter
 from ...models.styles import Style

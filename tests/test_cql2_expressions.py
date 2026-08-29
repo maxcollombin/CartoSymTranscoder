@@ -11,7 +11,6 @@ from cartosym_transcoder.cql2.model import (
     GeometryLiteral,
     SpatialPredicate,
     SpatialRelatePredicate,
-    TemporalExpression,
     TemporalLiteral,
     TemporalPredicate,
 )

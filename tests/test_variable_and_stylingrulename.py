@@ -1,8 +1,4 @@
-import json
-
-import pytest
-
-from cartosym_transcoder.models.styles import Style, StylingRule
+from cartosym_transcoder.models.styles import Style
 from cartosym_transcoder.parser import CartoSymParser
 
 

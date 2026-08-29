@@ -2,8 +2,7 @@
 Base Pydantic models and utilities for CartoSym.
 """
 
-from abc import ABC
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 

@@ -5,7 +5,6 @@ This module contains the data structures representing parsed CartoSym CSS.
 """
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 

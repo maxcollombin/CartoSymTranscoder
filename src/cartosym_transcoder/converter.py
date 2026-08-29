@@ -5,8 +5,6 @@ This module provides conversion capabilities between CartoSym CSS and other form
 using Pydantic models for robust validation and serialization.
 """
 
-import json
-import os
 from pathlib import Path
 from typing import Any, Dict, Union
 
@@ -89,7 +87,6 @@ class Converter:
                 ):
                     # Invalid standalone property selector - this is likely a parsing error
                     # where a member access like 'viz.timeInterval.start.date' was incorrectly split
-                    prop_name = selector["property"]
                     # Remove the invalid selector entirely
                     del data["selector"]
                 elif isinstance(selector, dict) and "property" in selector:
@@ -202,8 +199,8 @@ class Converter:
         if getattr(rule, "styling_rule_name", None):
             lines.append(f"{pad}    .name '{rule.styling_rule_name}'")
         if rule.symbolizer:
-            for l in self._symbolizer_to_css(rule.symbolizer, indent=indent + 1):
-                lines.append(f"{pad}    {l.lstrip()}")
+            for line in self._symbolizer_to_css(rule.symbolizer, indent=indent + 1):
+                lines.append(f"{pad}    {line.lstrip()}")
         # Emit nested rules only within this block
         if emit_nested and getattr(rule, "nested_rules", None):
             for nested_rule in rule.nested_rules:

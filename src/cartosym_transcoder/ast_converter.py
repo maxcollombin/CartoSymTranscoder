@@ -4,10 +4,8 @@ AST to Pydantic converter for CartoSym CSS.
 This module converts ANTLR-generated AST nodes to Pydantic models.
 """
 
-import re as _re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
-from .ast import Metadata as AstMetadata
 from .ast import StyleSheet as AstStyleSheet
 from .ast import StylingRule as AstStylingRule
 from .cql2.to_json import (
@@ -16,7 +14,6 @@ from .cql2.to_json import (
     post_process_selector,
 )
 from .models import (
-    BaseCartoSymModel,
     Fill,
     Label,
     Marker,
