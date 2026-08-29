@@ -96,6 +96,11 @@ class SldReader(CodecReader):
 
     def _parse_sld(self, root: etree._Element) -> Style:
         self.d = self._dialect_for(root)
+        if root.find(f".//{SLD}VendorOption") is not None:
+            raise NotImplementedError(
+                "GeoServer <VendorOption> is a vendor extension with no "
+                "CartoSym mapping in this codec's scope"
+            )
         named_layer = root.find(f"{SLD}NamedLayer")
         if named_layer is None:
             raise NotImplementedError(
