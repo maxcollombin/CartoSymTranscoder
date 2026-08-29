@@ -35,7 +35,7 @@ class ExpressionType(str, Enum):
     ARRAY = "array"
     INSTANCE = "instance"
     NULL = "null"
-    # Additional types for Phase C
+    # Additional expression-type discriminants
     NUMERIC = "numeric"
     OBJECT = "object"
 
@@ -266,7 +266,7 @@ class ArithmeticExpression(NumericExpression):
 
 
 class ArithmeticOperands(NumericExpression):
-    """Advanced arithmetic operands with multiple operations (Phase B Priority 4)."""
+    """Advanced arithmetic operands with multiple operations."""
 
     operations: list[ArithmeticExpression]
 
@@ -394,7 +394,7 @@ class ConditionalExpressionJSON(Expression):
 
 # Temporal Expressions (for date/time)
 class TemporalExpression(Expression):
-    """Base class for temporal expressions (Phase B Priority 4)."""
+    """Base class for temporal expressions."""
 
     type: ExpressionType = (
         ExpressionType.FUNCTION_CALL
@@ -572,7 +572,7 @@ class SpatialRelatePredicate(BoolExpression):
 
 
 class GeometryExpression(Expression):
-    """Base class for geometry expressions (Phase B Priority 3)."""
+    """Base class for geometry expressions."""
 
     type: ExpressionType = (
         ExpressionType.INSTANCE
@@ -732,7 +732,7 @@ class AzimuthElevation(Expression):
 
 
 # =====================================================
-# Color and Graphics Expressions (Phase B Priority 4)
+# Color and Graphics Expressions
 # =====================================================
 
 
@@ -781,7 +781,7 @@ class Shape(Expression):
 
 
 # =====================================================
-# Alignment and Layout Expressions (Phase B Priority 4)
+# Alignment and Layout Expressions
 # =====================================================
 
 
@@ -840,10 +840,9 @@ class ArrayPredicate(BoolExpression):
 
 
 # =====================================================
-# Character Expression Types (Phase B Priority 2)
+# Character Expression Types
 # =====================================================
-# NOTE: AnyExpressionWrapper is defined once, below, under "Polymorphic
-# Expressions" — an earlier duplicate definition here was removed.
+# AnyExpressionWrapper is defined below, under "Polymorphic Expressions".
 
 
 class CharacterExpression(Expression):
@@ -976,7 +975,7 @@ __all__ = [
     "ScalarLiteral",
     "FunctionCallJSON",
     "ConditionalExpressionJSON",
-    # Character expressions (Phase B Priority 2)
+    # Character expressions
     "CharacterExpression",
     "CaseiExpression",
     "AccentiExpression",
@@ -1010,17 +1009,17 @@ __all__ = [
     "IntervalArray",
     "TemporalInstantExpression",
     "TemporalOperands",
-    # Arithmetic expressions (Phase B Priority 4)
+    # Arithmetic expressions
     "ArithmeticOperands",
     "ScalarOperands",
-    # Color and graphics expressions (Phase B Priority 4)
+    # Color and graphics expressions
     "ColorExpression",
     "Color0to1",
     "ColorComponent0to255",
     "HexNumber",
     "ZeroToOne",
     "Shape",
-    # Alignment and layout expressions (Phase B Priority 4)
+    # Alignment and layout expressions
     "HAlignment",
     "VAlignment",
     "Horizontal",
@@ -1028,29 +1027,29 @@ __all__ = [
     "Dot",
     # Miscellaneous
     "ArrayPredicate",
-    # Polymorphic expressions (Phase C Priority 1)
+    # Polymorphic expressions
     "AnyExpressionType",
     "AnyExpressionWrapper",
     "TypedArray",
     "IdOrFnExpression",
-    # Font expressions (Phase C Priority 2.1)
+    # Font expressions
     "FontFamily",
     "FontSize",
     "FontWeight",
     "FontStyle",
     "FontExpression",
-    # Geometry transformations (Phase C Priority 2.2)
+    # Geometry transformations
     "TransformationMatrix",
     "RotationTransform",
     "ScaleTransform",
     "TranslationTransform",
     "GeometryTransformation",
-    # DateTime calendar expressions (Phase C Priority 2.3)
+    # DateTime calendar expressions
     "CalendarField",
     "DateTimeFormat",
     "CalendarInterval",
     "DateTimeCalendar",
-    # Unit/Measure expressions (Phase C Priority 2.4)
+    # Unit/Measure expressions
     "UnitType",
     "UnitConversion",
     "MeasureExpression",
@@ -1060,7 +1059,7 @@ __all__ = [
 
 
 # =====================================================
-# Polymorphic Expressions (Phase C Priority 1)
+# Polymorphic Expressions
 # =====================================================
 
 
@@ -1187,7 +1186,7 @@ IdOrFnExpression = IdentifierExpression | FunctionCallExpression
 
 
 # =====================================================
-# Phase C Priority 2.1 - Font Expressions
+# Font Expressions
 # =====================================================
 
 
@@ -1345,7 +1344,7 @@ class FontExpression(Expression):
 
 
 # =====================================================
-# Phase C Priority 2.2 - Geometry Transformations
+# Geometry Transformations
 # =====================================================
 
 
@@ -1581,7 +1580,7 @@ class GeometryTransformation(Expression):
 
 
 # =====================================================
-# Phase C Priority 2.3 - DateTime Calendar Expressions
+# DateTime Calendar Expressions
 # =====================================================
 
 
@@ -1751,7 +1750,7 @@ class DateTimeCalendar(Expression):
 
 
 # =====================================================
-# Phase C Priority 2.4 - Unit/Measure Expressions
+# Unit/Measure Expressions
 # =====================================================
 
 

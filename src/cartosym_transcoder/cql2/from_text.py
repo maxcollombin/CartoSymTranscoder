@@ -105,7 +105,7 @@ class ExpressionParser:
     """Parser for converting ANTLR expression contexts to Pydantic expressions."""
 
     # =================================================================
-    # Parse-tree walk (primary path — ROADMAP §4.2 / Phase A1)
+    # Parse-tree walk (primary path)
     #
     # The grammar's left-recursive ``expression`` rule is already an
     # operator-precedence tree; we walk it instead of re-scanning text.

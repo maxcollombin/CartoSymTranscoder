@@ -3,29 +3,27 @@ CartoSym ``Symbolizer`` <-> SLD/SE ``{Point,Line,Polygon,Text,Raster}Symbolizer`
 mapping, both directions.
 
 Scope: vector symbolizers plus basic Part-1 raster/coverage styling
-(channels, color map, shaded relief) — see
-``docs/sld_se_mapping_issues.md`` issues #3/#24/#25/#31/#32/#33 for the
-exact boundary. ``Fill.hatch/dotpattern/stipple``, ``Stroke.casing/centerLine``,
-``Label.placement``, ``Symbolizer.alphaChannel``, ``Symbolizer.opacityMap``,
-and ``HillShading.sun``/``colorMap``/``opacityMap`` are all out of scope
-and raise :exc:`NotImplementedError` naming the field — per this project's
+(channels, color map, shaded relief). ``Fill.hatch/dotpattern/stipple``,
+``Stroke.casing/centerLine``, ``Label.placement``,
+``Symbolizer.alphaChannel``, ``Symbolizer.opacityMap``, and
+``HillShading.sun``/``colorMap``/``opacityMap`` are all out of scope and
+raise :exc:`NotImplementedError` naming the field — per this project's
 lossless-transcoding requirement, out-of-scope content must fail loudly
 rather than silently drop data.
 
 ``Symbolizer.opacity`` has no whole-symbolizer equivalent in SE 1.1.0 and
 is folded multiplicatively into every leaf opacity produced
 (``fill-opacity``, ``stroke-opacity``, ``se:Graphic/se:Opacity``,
-``se:RasterSymbolizer/se:Opacity``) — round-trips cleanly only for raster
-(mapping-issues issue #38).
+``se:RasterSymbolizer/se:Opacity``) — round-trips cleanly only for raster.
 
 ``Dot``, ``Image``, and ``Text`` graphic elements (found in either
 ``Symbolizer.marker.elements`` or ``Symbolizer.label.elements`` — CartoSym
 allows Text under either) are in scope (``Shape``/``Circle``/``Rectangle``
-are not, see mapping-issues issue #8); on read, an ``se:Mark``/
+are not); on read, an ``se:Mark``/
 ``se:ExternalGraphic`` always reconstructs into ``marker.elements`` and an
 ``se:TextSymbolizer`` always reconstructs into ``label.elements`` (SLD/SE
 has no construct distinguishing CartoSym's separate marker-text vs
-label-text concepts — see mapping-issues issue on this asymmetry).
+label-text concepts, so this read direction is inherently lossy).
 """
 
 from __future__ import annotations
@@ -110,7 +108,7 @@ def _opacity_float(value: Any) -> float | None:
     """Numeric opacity (0..1) for *value*, or ``None`` if unset.
 
     ``format_opacity`` already raises ``NotImplementedError`` for
-    expression/property-driven opacity (mapping-issues issue #11), so any
+    expression/property-driven opacity, so any
     value that survives is numeric.
     """
     if value is None:
@@ -142,7 +140,7 @@ def symbolizer_to_elements(sym: Any) -> list[etree._Element]:
     marker = _g(sym, "marker")
     label = _g(sym, "label")
     # SE 1.1.0 has no whole-symbolizer opacity — fold Symbolizer.opacity
-    # into every leaf opacity produced below (mapping-issues issue #38).
+    # into every leaf opacity produced below.
     s_op = _opacity_float(_g(sym, "opacity"))
 
     if fill is not None:
@@ -160,7 +158,7 @@ def symbolizer_to_elements(sym: Any) -> list[etree._Element]:
         if _g(label, "placement") is not None:
             raise NotImplementedError(
                 "Label.placement (line placement / priority / spacing) has "
-                "no SLD/SE mapping in this codec (see mapping-issues issue #18)"
+                "no SLD/SE mapping in this codec"
             )
         elements.extend(_graphic_elements_to_symbolizers(_g(label, "elements"), s_op))
 
@@ -168,7 +166,7 @@ def symbolizer_to_elements(sym: Any) -> list[etree._Element]:
     # intent (only visibility / opacity / zOrder, or nothing). SE 1.1.0
     # forbids a se:Rule without a se:Symbolizer, so the caller decides
     # whether such a rule can be dropped faithfully or must fail loudly
-    # (see writer.SldSeWriter._build_rule and mapping-issues issue #36).
+    # (see writer.SldSeWriter._build_rule).
     return elements
 
 
@@ -197,8 +195,7 @@ def _graphic_elements_to_symbolizers(
         else:
             raise NotImplementedError(
                 f"Graphic element type {el_type!r} has no SLD/SE mapping in "
-                "this codec's scope (Shape/Circle/Rectangle — see "
-                "mapping-issues issue #8)"
+                "this codec's scope (only Dot/Image/Text are supported)"
             )
     return result
 
@@ -207,8 +204,7 @@ def _raise_if_fill_out_of_scope(fill: Any) -> None:
     for attr in ("hatch", "dotpattern", "stipple", "pattern"):
         if _g(fill, attr) is not None:
             raise NotImplementedError(
-                f"Fill.{attr} has no SLD/SE mapping in this codec (see "
-                "mapping-issues issue #7)"
+                f"Fill.{attr} has no SLD/SE mapping in this codec"
             )
 
 
@@ -226,19 +222,14 @@ def _build_fill_element(fill: Any, base_opacity: float | None = None) -> etree._
 
 def _raise_if_stroke_out_of_scope(stroke: Any) -> None:
     if _g(stroke, "casing") is not None:
-        raise NotImplementedError(
-            "Stroke.casing has no SLD/SE mapping in this codec (see "
-            "mapping-issues issue #8)"
-        )
+        raise NotImplementedError("Stroke.casing has no SLD/SE mapping in this codec")
     if _g(stroke, "center_line") is not None:
         raise NotImplementedError(
-            "Stroke.centerLine has no SLD/SE mapping in this codec (see "
-            "mapping-issues issue #8)"
+            "Stroke.centerLine has no SLD/SE mapping in this codec"
         )
     if _g(stroke, "pattern") is not None:
         raise NotImplementedError(
-            "Stroke.pattern (graphic stroke) has no SLD/SE mapping in this "
-            "codec (see mapping-issues issue #8)"
+            "Stroke.pattern (graphic stroke) has no SLD/SE mapping in this codec"
         )
 
 
@@ -306,8 +297,7 @@ def _channel_source_name(channel_expr: Any, field_label: str) -> str:
     raise NotImplementedError(
         f"Symbolizer.{field_label} entries other than a bare property "
         f"reference ({{'property': X}}) have no se:SourceChannelName "
-        f"mapping in this codec (got {channel_expr!r}; see mapping-issues "
-        "issue #32)"
+        f"mapping in this codec (got {channel_expr!r})"
     )
 
 
@@ -353,7 +343,7 @@ def _build_categorize(pairs: list) -> etree._Element:
 
     Per ``se:Categorize``'s own semantics, the first ``se:Value`` has no
     preceding ``se:Threshold`` (it's the below/at-first-value bucket) —
-    ``pairs[0][0]`` is therefore never written (mapping-issues issue #33).
+    ``pairs[0][0]`` is therefore never written.
     """
     categorize = se_el("Categorize")
     # fallbackValue is required on se:FunctionType (SE 1.1.0). It is the
@@ -381,17 +371,17 @@ def _build_shaded_relief(hill_shading: Any) -> etree._Element:
         raise NotImplementedError(
             "HillShading.sun (azimuth/elevation) has no SE 1.1.0 "
             "se:ShadedRelief mapping — confirmed N/A by Annex B, a "
-            "permanent gap (see mapping-issues issue #25)"
+            "permanent gap"
         )
     if _g2(hill_shading, "color_map", "colorMap") is not None:
         raise NotImplementedError(
             "HillShading.colorMap has no documented SE 1.1.0 mapping — "
-            "Annex B is silent (see mapping-issues issue #25)"
+            "Annex B is silent"
         )
     if _g2(hill_shading, "opacity_map", "opacityMap") is not None:
         raise NotImplementedError(
             "HillShading.opacityMap has no documented SE 1.1.0 mapping — "
-            "Annex B is silent (see mapping-issues issue #25)"
+            "Annex B is silent"
         )
     sr = se_el("ShadedRelief")
     factor = _g2(hill_shading, "factor", "factor")
@@ -424,14 +414,12 @@ def _build_raster_symbolizer(
     if _g(sym, "alpha_channel") is not None:
         raise NotImplementedError(
             "Symbolizer.alphaChannel has no SE 1.1.0 RasterSymbolizer "
-            "construct — confirmed N/A by Annex B, a permanent gap (see "
-            "mapping-issues issue #24)"
+            "construct — confirmed N/A by Annex B, a permanent gap"
         )
     if _g(sym, "opacity_map") is not None:
         raise NotImplementedError(
             "Symbolizer.opacityMap has no clear SE 1.1.0 mapping — Annex "
-            "B's own table is self-contradictory here (see mapping-issues "
-            "issues #24/#28)"
+            "B's own table is self-contradictory here"
         )
 
     color_map = _g(sym, "color_map")
@@ -473,8 +461,7 @@ def _build_point_symbolizer(
         if (px or 0) != 0 or (py or 0) != 0:
             raise NotImplementedError(
                 "Non-zero Dot.position (offset) has no verified SLD/SE "
-                "PointSymbolizer displacement mapping in this codec (see "
-                "mapping-issues issue #15)"
+                "PointSymbolizer displacement mapping in this codec"
             )
     return ps
 
@@ -485,7 +472,7 @@ def _percent_to_fraction(value: Any) -> float:
     raise NotImplementedError(
         f"ImageGraphic.hotSpot component {value!r} is not a percent (pc) "
         "unit value — only pc-unit hotSpot maps to se:AnchorPoint in this "
-        "codec (see mapping-issues issue #35)"
+        "codec"
     )
 
 
@@ -506,8 +493,7 @@ def _raise_if_image_out_of_scope(image_graphic: Any) -> None:
         if _g(image_graphic, attr) is not None:
             raise NotImplementedError(
                 f"ImageGraphic.{attr} has no SLD/SE mapping in this codec "
-                "— Annex B is silent on it entirely (see mapping-issues "
-                "issue #34)"
+                "— Annex B is silent on it entirely"
             )
 
 
@@ -523,8 +509,7 @@ def _build_image_symbolizer(
     if uri is None:
         raise NotImplementedError(
             "Resource.path-only images (no uri) have no SLD/SE mapping in "
-            "this codec — no local-file resolution (see mapping-issues "
-            "issue #34)"
+            "this codec — no local-file resolution"
         )
     mime_type = _g(resource, "type")
 
@@ -549,8 +534,7 @@ def _build_image_symbolizer(
         if (px or 0) != 0 or (py or 0) != 0:
             raise NotImplementedError(
                 "Non-zero ImageGraphic.position (offset) has no verified "
-                "SLD/SE PointSymbolizer displacement mapping in this codec "
-                "(see mapping-issues issue #15)"
+                "SLD/SE PointSymbolizer displacement mapping in this codec"
             )
 
     hot_spot = _g(image_graphic, "hotSpot")
@@ -600,8 +584,7 @@ def _build_text_symbolizer(
     if font is not None:
         if _g(font, "underline"):
             raise NotImplementedError(
-                "Font.underline has no se:Font mapping in this codec (see "
-                "mapping-issues issue #16)"
+                "Font.underline has no se:Font mapping in this codec"
             )
         font_el = se_el("Font", parent=ts)
         face = _g(font, "face")
@@ -672,11 +655,10 @@ def elements_to_symbolizer(sym_elements: list[etree._Element]) -> dict:
             # model (empty rc-symbolizer-geometry.adoc, no `geometry`
             # field on the CS-JSON `symbolizer`), so there is nothing to
             # map it to — raise rather than silently drop it, per the
-            # lossless-transcoding requirement (mapping-issues issue #43).
+            # lossless-transcoding requirement.
             raise NotImplementedError(
                 f"se:{tag}/se:Geometry (symbolizer geometry) has no CartoSym "
-                "conceptual-model representation yet — see "
-                "docs/sld_se_mapping_issues.md issue #43"
+                "conceptual-model representation yet"
             )
         if tag == "PolygonSymbolizer":
             fill_el = find_se_direct(el, "Fill")
@@ -712,7 +694,7 @@ def _parse_fill_element(fill_el: etree._Element) -> dict:
     if find_se_direct(fill_el, "GraphicFill") is not None:
         raise NotImplementedError(
             "se:Fill/se:GraphicFill (hatch/pattern fills) is out of scope "
-            "for this codec (see mapping-issues issue #7)"
+            "for this codec"
         )
     result: dict = {}
     color = get_svg_param(fill_el, "fill")
@@ -730,8 +712,7 @@ def _parse_stroke_element(stroke_el: etree._Element) -> dict:
         or find_se_direct(stroke_el, "GraphicFill") is not None
     ):
         raise NotImplementedError(
-            "se:Stroke graphic-fill/-stroke patterns are out of scope for "
-            "this codec (see mapping-issues issue #8)"
+            "se:Stroke graphic-fill/-stroke patterns are out of scope for this codec"
         )
     result: dict = {}
     color = get_svg_param(stroke_el, "stroke")
@@ -760,8 +741,7 @@ def _parse_selected_channel(channel_el: etree._Element) -> dict:
     if find_se_direct(channel_el, "ContrastEnhancement") is not None:
         raise NotImplementedError(
             "se:SelectedChannelType/se:ContrastEnhancement has no "
-            "CartoSym mapping in this codec's scope (see mapping-issues "
-            "issue #26)"
+            "CartoSym mapping in this codec's scope"
         )
     name_el = find_se_direct(channel_el, "SourceChannelName")
     if name_el is None or not (name_el.text and name_el.text.strip()):
@@ -798,7 +778,7 @@ def _parse_color_map(cm_el: etree._Element) -> list:
         raise NotImplementedError(
             "se:ColorMap without se:Categorize (se:Interpolate, or the "
             "SLD 1.0.0-only se:ColorMapEntry form) is out of scope for "
-            "this codec (see mapping-issues issue #3)"
+            "this codec"
         )
     children = [
         c
@@ -820,7 +800,7 @@ def _parse_color_map(cm_el: etree._Element) -> list:
     colors = [parse_color(v) for v in values]
     numeric_thresholds = [parse_number(t) for t in thresholds]
 
-    # colorMap[0][0] has no XML representation (mapping-issues issue #33)
+    # colorMap[0][0] has no XML representation
     # — synthesized as a duplicate of the first real threshold, a
     # deterministic, round-trip-stable, but explicitly arbitrary
     # convention.
@@ -834,7 +814,7 @@ def _parse_shaded_relief(sr_el: etree._Element) -> dict:
     if find_se_direct(sr_el, "BrightnessOnly") is not None:
         raise NotImplementedError(
             "se:ShadedRelief/se:BrightnessOnly has no CartoSym HillShading "
-            "mapping in this codec's scope (see mapping-issues issue #25)"
+            "mapping in this codec's scope"
         )
     result: dict = {}
     factor_el = find_se_direct(sr_el, "ReliefFactor")
@@ -848,7 +828,7 @@ def _parse_raster_symbolizer(el: etree._Element) -> dict:
         if find_se_direct(el, tag) is not None:
             raise NotImplementedError(
                 f"se:RasterSymbolizer/se:{tag} has no CartoSym mapping in "
-                "this codec's scope (see mapping-issues issue #26)"
+                "this codec's scope"
             )
     result: dict = {}
     opacity_el = find_se_direct(el, "Opacity")
@@ -1004,8 +984,7 @@ def _parse_text_symbolizer(ts_el: etree._Element) -> dict:
         point_placement_el = find_se_direct(placement_el, "PointPlacement")
         if point_placement_el is None:
             raise NotImplementedError(
-                "se:LabelPlacement/se:LinePlacement is out of scope for "
-                "this codec (see mapping-issues issue #18)"
+                "se:LabelPlacement/se:LinePlacement is out of scope for this codec"
             )
         anchor_el = find_se_direct(point_placement_el, "AnchorPoint")
         if anchor_el is not None:

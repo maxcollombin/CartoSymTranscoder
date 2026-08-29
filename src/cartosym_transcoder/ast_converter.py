@@ -597,7 +597,7 @@ class AstToPydanticConverter:
                 if label:
                     symbolizer_data["label"] = label
 
-            # Coverage/Raster properties - Phase B Priority 1
+            # Coverage/Raster properties
             if (
                 hasattr(ast_symbolizer, "single_channel")
                 and ast_symbolizer.single_channel is not None

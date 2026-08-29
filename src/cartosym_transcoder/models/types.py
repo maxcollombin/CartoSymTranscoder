@@ -1,5 +1,5 @@
 """
-Precise type definitions for CartoSym Phase B.
+Precise type definitions for CartoSym.
 
 This module contains precise types based on the JSON Schema analysis,
 including colors, units, ranges, and custom validators.

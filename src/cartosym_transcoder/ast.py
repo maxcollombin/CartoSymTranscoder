@@ -52,7 +52,7 @@ class StylingRule:
     """Individual styling rule with selector and properties."""
 
     name: str | None = None
-    styling_rule_name: str | None = None  # New: explicit stylingRuleName from grammar
+    styling_rule_name: str | None = None  # explicit stylingRuleName from grammar
     selector: Selector | None = None
     # all selectors (for nested rules)
     selectors: list = field(default_factory=list)
@@ -84,7 +84,7 @@ class Symbolizer:
     marker: Marker | None = None
     label: Label | None = None
 
-    # Coverage/Raster properties (Phase B Priority 1)
+    # Coverage/Raster properties
     single_channel: str | None = None  # e.g., "elevation"
     singleChannel: str | None = None  # camelCase alternative
     color_channels: Any | None = None  # RGB color channels

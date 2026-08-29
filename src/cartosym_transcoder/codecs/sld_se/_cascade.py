@@ -1,6 +1,6 @@
 """
 Resolve CartoSym nested-rule *cascades* into a flat list of independent
-rules for SLD/SE emission (mapping-issues issue #19).
+rules for SLD/SE emission.
 
 A ``StylingRule.nestedRules`` entry **with its own selector** is a
 cascading refinement: its selector is implicitly AND-ed with the parent's
@@ -80,8 +80,7 @@ def _flatten_else(
     if any(n.get("selector") is not None for n in sub):
         raise NotImplementedError(
             "a cascade refinement (selector-bearing nestedRule) nested inside "
-            "an else (selector-less) rule has no SLD/SE mapping "
-            "(mapping-issues issue #19)"
+            "an else (selector-less) rule has no SLD/SE mapping"
         )
     node = _carry_name(else_rule)
     if merged_sym:

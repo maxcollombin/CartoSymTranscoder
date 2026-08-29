@@ -40,9 +40,6 @@ from .types import (  # Color types; Unit types; Angle types; Range types
     ZeroToOne,
 )
 
-# Import order will be important due to forward references
-# from .expressions import *     # Phase 4
-
 __all__ = [
     # Base types
     "BaseCartoSymModel",
@@ -52,7 +49,7 @@ __all__ = [
     "Style",
     "StylingRule",
     "Metadata",
-    # Phase B precise types
+    # Precise value types
     "WebColorName",
     "RGBColor",
     "RGBColorNormalized",

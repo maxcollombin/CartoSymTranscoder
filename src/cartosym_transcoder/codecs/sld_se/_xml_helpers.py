@@ -82,7 +82,8 @@ def svg_param(parent: etree._Element, name: str, value: str) -> etree._Element:
     """Append an ``se:SvgParameter name="...">value</se:SvgParameter>`` child.
 
     Always ``se:SvgParameter`` — never the SLD 1.0.0 ``CssParameter``
-    (see ``docs/sld_se_mapping_issues.md`` issue #2).
+    (SE 1.1.0 renamed the element; some Annex B examples still show the
+    old spelling).
     """
     el = se_el("SvgParameter", parent, text=value)
     el.set("name", name)

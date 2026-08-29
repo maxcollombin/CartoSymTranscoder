@@ -200,7 +200,7 @@ class TestReadMetadata:
 class TestReadSymbolizerGeometry:
     """se:Geometry (symbolizer geometry, 3-geometry) has no CartoSym
     conceptual-model representation yet — the reader must raise, not drop
-    it silently (docs/sld_se_mapping_issues.md issue #43)."""
+    it silently."""
 
     def test_se_geometry_child_raises(self):
         xml = (
@@ -217,7 +217,7 @@ class TestReadSymbolizerGeometry:
             "</se:Rule></se:FeatureTypeStyle></UserStyle></NamedLayer>"
             "</StyledLayerDescriptor>"
         )
-        with pytest.raises(NotImplementedError, match="issue #43"):
+        with pytest.raises(NotImplementedError, match="symbolizer geometry"):
             SldSeReader().read(xml)
 
 

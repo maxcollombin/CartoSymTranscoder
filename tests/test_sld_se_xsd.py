@@ -27,7 +27,7 @@ SLD_FIXTURES = sorted((ROOT / "examples" / "sld").glob("*.sld"))
 CSCSS_CONVERTIBLE = ["5-coverage-dem", "11-natural_earth_continents"]
 # .cscss examples that are valid CartoSym but have no SLD/SE-renderable
 # content (visibility/opacity/zOrder-only rules) — must raise, not emit
-# an invalid document (see docs/sld_se_mapping_issues.md issue #36).
+# an invalid document (SE 1.1.0 forbids a se:Rule without a symbolizer).
 CSCSS_NO_RENDERABLE_CONTENT = ["0-basic", "1-core"]
 
 
