@@ -48,9 +48,9 @@ class TestRoundTrip:
 class TestDataLayerMetadataStripping:
     def test_datalayer_type_and_dims_conjuncts_are_dropped_not_round_tripped(self):
         """dataLayer.type/featuresGeometryDimensions have no SLD/SE
-        representation (mapping-issues issue #31) — writing then reading
-        back a selector that uses them, alongside dataLayer.id, drops
-        them permanently rather than round-tripping."""
+        representation — writing then reading back a selector that uses
+        them, alongside dataLayer.id, drops them permanently rather than
+        round-tripping."""
         style_dict = {
             "stylingRules": [
                 {

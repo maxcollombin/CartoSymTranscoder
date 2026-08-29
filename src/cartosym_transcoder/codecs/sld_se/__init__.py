@@ -1,7 +1,5 @@
 """
-OGC SLD/SE codec — ``.sld`` reader and writer (stub).
-
-Implementation tracked in ROADMAP §3.3.
+OGC SLD/SE codec — ``.sld`` reader and writer.
 """
 
 from __future__ import annotations

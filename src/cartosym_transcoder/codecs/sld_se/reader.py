@@ -2,12 +2,11 @@
 SLD/SE reader — parse OGC Styled Layer Descriptor / Symbology Encoding XML
 into Style models.
 
-Scope: vector symbolizers plus basic Part-1 raster/coverage styling. See
-``writer.py``'s module docstring and ``docs/sld_se_mapping_issues.md`` for
-the exact scope boundary. Out-of-scope SLD/SE constructs (e.g. advanced
-raster, graphic fills, external graphics) raise :exc:`NotImplementedError`
-rather than being silently skipped, per this project's lossless-transcoding
-requirement.
+Scope: vector symbolizers plus basic Part-1 raster/coverage styling; see
+``writer.py``'s module docstring for the exact scope boundary. Out-of-scope
+SLD/SE constructs (e.g. advanced raster, graphic fills, external graphics)
+raise :exc:`NotImplementedError` rather than being silently skipped, per
+this project's lossless-transcoding requirement.
 """
 
 from __future__ import annotations

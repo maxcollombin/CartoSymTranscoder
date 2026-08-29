@@ -317,7 +317,7 @@ class TestWriteElseRule:
         assert len(rules) == 2
         assert rules[0].find("se:ElseFilter", NS) is None
         assert rules[1].find("se:ElseFilter", NS) is not None
-        # Regression guard for mapping-issues issue #1: never ogc:ElseFilter.
+        # Regression guard: SE 1.1.0 se:ElseFilter, never SLD 1.0.0 ogc:ElseFilter.
         assert root.find(".//ogc:ElseFilter", NS) is None
 
 
@@ -840,9 +840,9 @@ def _find_raster_symbolizer_dict(rules):
 class TestRealRasterFixturesRegression:
     """Sanity-check the writer against real generated CS-JSON for the
     project's own raster fixtures (examples/5..9-coverage-*.cscss). Only
-    fixture 5 is expected to fully succeed after this pass — 6/7/8/9 each
-    hit a distinct, correctly-documented out-of-scope construct. See the
-    plan's Context section / docs/sld_se_mapping_issues.md #24/#25/#32."""
+    fixture 5 is expected to fully succeed — 6/7/8/9 each hit a distinct,
+    correctly-documented out-of-scope construct (alphaChannel, HillShading
+    sun/colorMap/opacityMap, arithmetic raster channels)."""
 
     def _symbolizer_for(self, stem):
         data = Converter().cscss_to_csjson(EXAMPLES_DIR / f"{stem}.cscss")
@@ -879,8 +879,7 @@ class TestRealRasterFixturesRegression:
 
 class TestSymbolizerOpacity:
     """Symbolizer.opacity has no whole-symbolizer equivalent in SE 1.1.0 —
-    it is folded (multiplicatively) into every leaf opacity produced
-    (mapping-issues issue #38)."""
+    it is folded (multiplicatively) into every leaf opacity produced."""
 
     def test_folds_into_fill_and_stroke_opacity(self):
         root = _write(

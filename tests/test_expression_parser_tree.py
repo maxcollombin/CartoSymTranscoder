@@ -1,4 +1,4 @@
-"""Regression guard for the ANTLR-tree expression parser (ROADMAP §4.2 / Phase A1).
+"""Regression guard for the ANTLR-tree expression parser.
 
 ``ExpressionParser`` historically re-parsed selector *text* by hand instead of
 walking the ``ExpressionContext`` parse tree the grammar already built. This

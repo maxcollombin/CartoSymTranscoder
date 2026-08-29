@@ -8,8 +8,8 @@ at runtime, not the ``Expression`` Pydantic hierarchy in
 ``models/expressions.py`` (that hierarchy is not wired into selector
 validation).
 
-Scope, and the mapping-issues entries each boundary is logged under, are
-documented in ``docs/sld_se_mapping_issues.md``.
+Selector constructs with no faithful Filter Encoding equivalent are noted
+inline at each such site.
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ _COMPARISON_TAGS = {v: k for k, v in _COMPARISON_OPS.items()}
 
 # CQL2 named spatial-relation predicate -> Filter 1.1.0 spatial operator
 # element (all ogc:BinarySpatialOpType, substitutionGroup ogc:spatialOps).
-# Annex B (3-geometry) maps these to <ogc:Function>, which is wrong — see
-# docs/sld_se_mapping_issues.md issues #41/#42. s_covers/s_coveredBy have
+# Annex B (3-geometry) maps these to <ogc:Function>, which is wrong: they
+# are proper ogc:BinarySpatialOpType elements. s_covers/s_coveredBy have
 # no Filter 1.1.0 element (FES 2.0 only) and stay unmapped.
 _SPATIAL_OPS = {
     "s_intersects": "Intersects",
@@ -113,11 +113,11 @@ def extract_feature_type_name(
     CS-JSON right-nests these three conjuncts, not a flat 3-ary ``and``).
 
     ``dataLayer.id`` is captured and returned for the caller to emit as
-    ``<se:FeatureTypeName>`` (mapping-issues issue #6). ``dataLayer.type``/
+    ``<se:FeatureTypeName>``. ``dataLayer.type``/
     ``dataLayer.featuresGeometryDimensions`` are silently dropped — SLD/SE
-    has no representation for either; this is a permanent, write-only
-    lossy simplification (mapping-issues issue #31). Mirrors the same
-    detection logic as ``converter.py:217-244`` / ``ast_converter.py:1014,1038``.
+    has no representation for either; this is a permanent, write-only lossy
+    simplification. Mirrors the same detection logic as
+    ``converter.py:217-244`` / ``ast_converter.py:1014,1038``.
 
     Returns
     -------
@@ -135,7 +135,7 @@ def extract_feature_type_name(
         if id_val is None and _is_sysid_eq(conjunct, "dataLayer.id"):
             id_val = _coerce_id_value(conjunct["args"][1])
         elif any(_is_sysid_eq(conjunct, s) for s in _DATALAYER_METADATA_SYSIDS):
-            continue  # dropped, write-only — mapping-issues issue #31
+            continue  # dropped, write-only (no SLD/SE representation)
         else:
             remaining.append(conjunct)
     return id_val, _reassemble_and(remaining)
@@ -146,8 +146,8 @@ def merge_feature_type_name(name: str | None, selector: dict | None) -> dict | N
 
     Only ``dataLayer.id`` is reconstructed — ``dataLayer.type``/
     ``dataLayer.featuresGeometryDimensions`` have no SLD/SE representation
-    to reconstruct from (mapping-issues issue #31), so a selector written
-    with those conjuncts will not round-trip them back.
+    to reconstruct from, so a selector written with those conjuncts will
+    not round-trip them back.
     """
     if name is None:
         return selector
@@ -173,8 +173,7 @@ def _scale_bound(expr: Any) -> tuple[str, Any] | None:
     ------
     NotImplementedError
         If *expr* compares ``viz.sd`` with ``=``/``!=`` — neither can be
-        expressed as an ``se:Min/MaxScaleDenominator`` range
-        (mapping-issues issue #39).
+        expressed as an ``se:Min/MaxScaleDenominator`` range.
     """
     if not (
         isinstance(expr, dict)
@@ -206,8 +205,7 @@ def _scale_bound(expr: Any) -> tuple[str, Any] | None:
         return "min", value
     raise NotImplementedError(
         f"viz.sd {expr.get('op')!r} comparison has no se:ScaleDenominator "
-        "mapping — only <, <=, >, >= define a scale range (mapping-issues "
-        "issue #39)"
+        "mapping — only <, <=, >, >= define a scale range"
     )
 
 
@@ -218,8 +216,8 @@ def extract_scale_denominators(
 
     ``viz.sd`` (visualization scale denominator) maps 1:1 to SE's
     ``se:MinScaleDenominator`` / ``se:MaxScaleDenominator`` on
-    ``se:RuleType`` (mapping-issues issue #39). This pulls the ``viz.sd``
-    comparison conjuncts out of an arbitrarily-nested ``and`` chain (same
+    ``se:RuleType``. This pulls the ``viz.sd`` comparison conjuncts out of
+    an arbitrarily-nested ``and`` chain (same
     flatten/reassemble pattern as :func:`extract_feature_type_name`) for
     the caller to emit as those two elements; whatever is left stays for
     the ``ogc:Filter``.
@@ -320,7 +318,7 @@ def _operand_to_xml(operand: Any) -> etree._Element:
         if "sysId" in operand:
             raise NotImplementedError(
                 f"sysId {operand['sysId']!r} other than 'dataLayer.id' has no "
-                "SLD/SE mapping in this codec (see mapping-issues issue #14)"
+                "SLD/SE mapping in this codec"
             )
         if "date" in operand and len(operand) == 1:
             return ogc_el("Literal", text=str(operand["date"]))
@@ -328,8 +326,7 @@ def _operand_to_xml(operand: Any) -> etree._Element:
             return ogc_el("Literal", text=str(operand["timestamp"]))
         raise NotImplementedError(
             f"Selector operand shape {operand!r} (interval / geometry literal "
-            "/ other CQL2 construct) has no SLD/SE mapping in this codec "
-            "(see mapping-issues issue #12)"
+            "/ other CQL2 construct) has no SLD/SE mapping in this codec"
         )
     if isinstance(operand, bool):
         return ogc_el("Literal", text="true" if operand else "false")
@@ -390,8 +387,7 @@ def _expr_to_filter_xml(expr: Any) -> etree._Element:
         val, pattern = args
         if not isinstance(pattern, str):
             raise NotImplementedError(
-                f"{op} with a non-literal pattern has no SLD/SE mapping "
-                "(see mapping-issues issue #13)"
+                f"{op} with a non-literal pattern has no SLD/SE mapping"
             )
         el = ogc_el("PropertyIsLike")
         el.set("wildCard", "%")
@@ -409,7 +405,7 @@ def _expr_to_filter_xml(expr: Any) -> etree._Element:
 
     raise NotImplementedError(
         f"Selector operator {op!r} has no SLD/SE Filter Encoding mapping in "
-        "this codec's scope (see mapping-issues issue #12)"
+        "this codec's scope"
     )
 
 
@@ -519,5 +515,5 @@ def _filter_xml_to_expr(elem: etree._Element) -> dict:
 
     raise NotImplementedError(
         f"ogc:Filter construct <{tag}> has no CartoSym selector mapping in "
-        "this codec's scope (see mapping-issues issue #12)"
+        "this codec's scope"
     )

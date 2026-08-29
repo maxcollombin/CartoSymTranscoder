@@ -4,10 +4,9 @@ Symbology Encoding XML.
 
 Scope: vector symbolizers (Point/Line/Polygon/Text) plus basic Part-1
 raster/coverage styling. GeoServer vendor extensions and advanced/Part-4
-raster are out of scope — see ``docs/sld_se_mapping_issues.md`` for the
-exact boundary. Out-of-scope content raises :exc:`NotImplementedError`
-naming the unsupported field rather than being silently dropped, per this
-project's lossless-transcoding requirement.
+raster are out of scope. Out-of-scope content raises
+:exc:`NotImplementedError` naming the unsupported field rather than being
+silently dropped, per this project's lossless-transcoding requirement.
 """
 
 from __future__ import annotations
@@ -54,8 +53,7 @@ class SldSeWriter(CodecWriter):
         named_layer = sld_el("NamedLayer", parent=root)
         # SLD 1.1.0 requires se:Name as the first child of NamedLayer
         # (minOccurs=1). CartoSym has no layer-name concept, so this is
-        # synthesised from the style title (write-only; the reader ignores
-        # it) — see docs/sld_se_mapping_issues.md.
+        # synthesised from the style title (write-only; the reader ignores it).
         title = getattr(style.metadata, "title", None) if style.metadata else None
         se_el("Name", parent=named_layer, text=title or "CartoSym Style")
         named_layer.append(self._build_user_style(style))
@@ -69,8 +67,7 @@ class SldSeWriter(CodecWriter):
             for field in ("authors", "keywords", "geo_data_classes"):
                 if getattr(metadata, field, None):
                     raise NotImplementedError(
-                        f"Style.metadata.{field} has no SLD/SE mapping in "
-                        "this codec (see mapping-issues issue #9)"
+                        f"Style.metadata.{field} has no SLD/SE mapping in this codec"
                     )
             if metadata.title or metadata.abstract:
                 description = se_el("Description", parent=user_style)
@@ -80,20 +77,18 @@ class SldSeWriter(CodecWriter):
                     se_el("Abstract", parent=description, text=metadata.abstract)
         if style.variables:
             raise NotImplementedError(
-                "Style.$variables has no SLD/SE mapping in this codec (see "
-                "mapping-issues issue #9)"
+                "Style.$variables has no SLD/SE mapping in this codec"
             )
         if style.include:
             raise NotImplementedError(
-                "Style.$include has no SLD/SE mapping in this codec (see "
-                "mapping-issues issue #9)"
+                "Style.$include has no SLD/SE mapping in this codec"
             )
 
         # Resolve CartoSym nested-rule cascades (selector AND-ing +
         # symbolizer partial-override merge) into a flat list of
-        # independent rules before grouping — SE 1.1.0 has no cascade
-        # (mapping-issues issue #19). Selector-less nestedRules stay
-        # nested and keep their OGC "else" meaning.
+        # independent rules before grouping — SE 1.1.0 has no cascade.
+        # Selector-less nestedRules stay nested and keep their OGC "else"
+        # meaning.
         if any(r.nested_rules for r in style.styling_rules):
             flat_rules = [
                 StylingRule.from_dict(d)
@@ -114,8 +109,7 @@ class SldSeWriter(CodecWriter):
             raise NotImplementedError(
                 "Style has no SLD/SE-renderable content — every styling rule "
                 "is symbolizer-less (visibility / opacity / zOrder only). SE "
-                "1.1.0 forbids a se:Rule without a symbolizer (see "
-                "mapping-issues issue #36)"
+                "1.1.0 forbids a se:Rule without a symbolizer"
             )
         return user_style
 
@@ -129,8 +123,8 @@ class SldSeWriter(CodecWriter):
         ``se:FeatureTypeName`` child. Also strips (without re-emitting)
         any ``dataLayer.type``/``dataLayer.featuresGeometryDimensions``
         conjuncts found alongside it — see
-        ``_filter.py::extract_feature_type_name`` and mapping-issues
-        issue #31.
+        ``_filter.py::extract_feature_type_name``. SLD/SE has no
+        representation for either, so this is a write-only lossy strip.
         """
         groups: OrderedDict[str | None, list[tuple[StylingRule, dict | None]]] = (
             OrderedDict()
@@ -191,8 +185,8 @@ class SldSeWriter(CodecWriter):
 
     def _flatten_nested_rules(self, rule: StylingRule) -> list[etree._Element]:
         """Emit the remaining (selector-less) ``nested_rules`` as sibling
-        ``se:Rule`` elements carrying ``se:ElseFilter`` (mapping-issues
-        issue #1 for the namespace, #19 for the semantics).
+        ``se:Rule`` elements carrying ``se:ElseFilter`` (the SE 1.1.0
+        namespace form, not the SLD 1.0.0 ``ogc:ElseFilter``).
 
         By the time this runs, ``flatten_cascade_rules`` has already
         pulled every *selector-bearing* nested rule out into an

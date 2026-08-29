@@ -3,7 +3,7 @@ MapLibre / MapBox GL Style writer — serialise Style models to MapLibre
 style JSON.
 
 .. note::
-   This is a **stub**. Implementation is tracked in ROADMAP §3.4.
+   This is a **stub** — not yet implemented.
 """
 
 from __future__ import annotations
@@ -19,6 +19,4 @@ class MaplibreWriter(CodecWriter):
     """
 
     def write(self, style: Style) -> dict:
-        raise NotImplementedError(
-            "MapLibre writer is not yet implemented (see ROADMAP §3.4)"
-        )
+        raise NotImplementedError("MapLibre writer is not yet implemented")

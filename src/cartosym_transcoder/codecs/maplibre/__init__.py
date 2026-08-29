@@ -1,7 +1,5 @@
 """
 MapLibre / MapBox GL Style codec — ``.maplibre.json`` reader and writer (stub).
-
-Implementation tracked in ROADMAP §3.4.
 """
 
 from __future__ import annotations

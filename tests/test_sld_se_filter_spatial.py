@@ -1,8 +1,8 @@
 """Spatial-relation predicate mapping in the SLD/SE codec's Filter layer.
 
-Covers the outcome of the ``3-geometry`` Annex B audit
-(``docs/sld_se_mapping_issues.md`` issues #41/#42): the named CQL2 spatial
-predicates map 1:1 to Filter 1.1.0 ``ogc:BinarySpatialOpType`` elements —
+Covers the outcome of the ``3-geometry`` Annex B audit: the named CQL2
+spatial predicates map 1:1 to Filter 1.1.0 ``ogc:BinarySpatialOpType``
+elements —
 *not* to ``<ogc:Function>`` as Annex B claims — and ``s_equals`` is one of
 them (Annex B wrongly marks it N/A). ``s_covers``/``s_coveredBy`` have no
 Filter 1.1.0 element and stay unmapped.

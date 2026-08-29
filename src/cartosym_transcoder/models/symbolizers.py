@@ -42,7 +42,6 @@ class Fill(BaseCartoSymModel, AlterMixin):
     Can be either an expression reference or a fill object.
     """
 
-    # For now, using precise types from Phase B
     color: FlexibleColor | None = Field(None, description="Fill color")
     opacity: FlexibleOpacity | None = Field(None, description="Fill opacity (0.0-1.0)")
 
@@ -133,7 +132,7 @@ class Stroke(BaseCartoSymModel, AlterMixin):
     Based on the 'stroke' definition in the JSON schema.
     """
 
-    # Basic stroke properties with precise types from Phase B
+    # Basic stroke properties
     color: FlexibleColor | None = Field(None, description="Stroke color")
     opacity: FlexibleOpacity | None = Field(
         None, description="Stroke opacity (0.0-1.0)"

@@ -777,7 +777,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         ):
             try:
                 # Walk the ANTLR ExpressionContext parse tree directly
-                # (ROADMAP §4.2) instead of re-scanning the selector text.
+                # instead of re-scanning the selector text.
                 expr_ctx = ctx.expression()
                 expr = ExpressionParser.parse_expression_ctx(expr_ctx)
                 if expr is None:
@@ -1042,7 +1042,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                             properties[key_stripped] = value.strip()
 
         # Apply properties to symbolizer
-        # Coverage/Raster object properties (Phase B Priority 1)
+        # Coverage/Raster object properties
         if prop_name in ["hillshading", "hill_shading"]:
             # Handle hillShading: {factor: 56; sun: {azimuth: 45.0; elevation: 60.0}}
             symbolizer.hill_shading = self._parse_hill_shading_object(properties)

@@ -5,8 +5,7 @@ SLD/SE ``se:SvgParameter`` values and XML attributes are bare numeric/hex
 strings — unlike CartoSym's ``{unit: value}`` dict convention for
 :class:`~cartosym_transcoder.models.types.UnitValue`, SE 1.1.0 core has no
 unit-of-measure attribute on these parameters, so unit information is lost
-on write (documented as a known gap, see ``docs/sld_se_mapping_issues.md``
-issue #10).
+on write (a known, confirmed gap).
 """
 
 from __future__ import annotations
@@ -213,7 +212,7 @@ def format_unit_value(value: Any) -> str:
     ``Stroke.width``/etc. values are therefore still a raw "N unit" string
     rather than a coerced ``UnitValue``/dict at this point. Non-pixel units
     are silently stripped and only the numeric magnitude is kept — a known,
-    documented lossy conversion (mapping-issues issue #10).
+    documented lossy conversion.
 
     Raises
     ------
@@ -234,7 +233,7 @@ def format_unit_value(value: Any) -> str:
             return _format_number(float(match.group(1)))
         raise NotImplementedError(
             f"Property-driven / expression unit value {value!r} has no "
-            "SLD/SE mapping in this codec (see mapping-issues issue #11)"
+            "SLD/SE mapping in this codec"
         )
     raise NotImplementedError(f"Unsupported unit value shape: {value!r}")
 
@@ -242,7 +241,7 @@ def format_unit_value(value: Any) -> str:
 def parse_unit_value(text: str | None) -> dict | None:
     """Parse a bare SLD numeric string back into a CartoSym ``{"px": v}`` dict.
 
-    SLD's implicit unit convention is pixels (see mapping-issues issue #10).
+    SLD's implicit unit convention is pixels.
     """
     if text is None:
         return None
@@ -278,7 +277,7 @@ def format_angle(value: Any) -> str:
         except ValueError:
             raise NotImplementedError(
                 f"Property-driven / expression angle value {value!r} has no "
-                "SLD/SE mapping in this codec (see mapping-issues issue #11)"
+                "SLD/SE mapping in this codec"
             )
     raise NotImplementedError(f"Unsupported angle value shape: {value!r}")
 
@@ -293,7 +292,7 @@ def format_opacity(value: Any) -> str:
         except ValueError:
             raise NotImplementedError(
                 f"Property-driven / expression opacity value {value!r} has "
-                "no SLD/SE mapping in this codec (see mapping-issues issue #11)"
+                "no SLD/SE mapping in this codec"
             )
     raise NotImplementedError(f"Unsupported opacity value shape: {value!r}")
 
@@ -312,7 +311,7 @@ def format_color(value: Any) -> str:
     :class:`RGBColorNormalized`, an ``[r, g, b]`` list, or a bare hex
     string. Any other string (a CQL2 expression) raises
     :exc:`NotImplementedError` — property-driven color has no mapping in
-    this codec's scope (mapping-issues issue #11).
+    this codec's scope.
     """
     if isinstance(value, WebColorName):
         return _WEB_COLOR_HEX[value.value]
@@ -342,7 +341,7 @@ def format_color(value: Any) -> str:
             return _WEB_COLOR_HEX[value]
         raise NotImplementedError(
             f"Property-driven / expression color value {value!r} has no "
-            "SLD/SE mapping in this codec (see mapping-issues issue #11)"
+            "SLD/SE mapping in this codec"
         )
     raise NotImplementedError(f"Unsupported color value shape: {value!r}")
 
@@ -359,7 +358,7 @@ def parse_color(text: str | None) -> list | None:
     legitimately be a plain CSS name — SE's ``ParameterValueType`` is just
     a string, nothing in the XSD forbids it) is looked up and converted
     the same way; names are not preserved as names on read (same
-    precedent as hex, mapping-issues issue #20).
+    precedent as hex).
     """
     if text is None:
         return None

@@ -39,8 +39,7 @@ sizes and that no `.sld` is left uncategorised in the corpus root.
 
 ## Out-of-scope breakdown (25 files)
 
-The scope boundary, mapped against this corpus (see
-`docs/sld_se_mapping_issues.md` for the full analysis):
+The scope boundary, mapped against this corpus:
 
 | SE/SLD construct rejected | files | assessment |
 |---|---|---|
