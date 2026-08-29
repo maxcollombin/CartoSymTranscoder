@@ -29,7 +29,7 @@ the Pydantic model ``Literal`` fields), not hand-written lists.
 """
 
 import re
-from typing import Any, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from ..grammar.generated import CartoSymCSSGrammar as _G
 from . import vocab as _v
@@ -91,6 +91,12 @@ _GEOM_MANIPULATION_UNARY = _v.GEOM_MANIPULATION_UNARY
 _GEOM_BUFFER = _v.GEOM_BUFFER
 _KNOWN_CQL2_CALLS = _v.KNOWN_CQL2_CALLS
 
+# The expression model hierarchy is split: value/operator nodes subclass
+# ``Expression``, while predicates subclass ``BoolExpression`` /
+# ``ComparisonPredicate`` (no common ancestor but ``BaseModel``). Parser
+# helpers hand back nodes from either side, so their return type is loose.
+_ExprNode = Any
+
 
 class ExpressionParser:
     """Parser for converting ANTLR expression contexts to Pydantic expressions."""
@@ -117,7 +123,7 @@ class ExpressionParser:
     _PREC_POW = 6
 
     @staticmethod
-    def parse_expression_ctx(ctx) -> Optional[Expression]:
+    def parse_expression_ctx(ctx) -> Optional[_ExprNode]:
         """Convert an ANTLR ``ExpressionContext`` to a Pydantic ``Expression``.
 
         Dispatches on the grammar's labelled ``expression`` alternatives
@@ -131,7 +137,7 @@ class ExpressionParser:
         return ExpressionParser._expr_from_ctx(ctx)
 
     @staticmethod
-    def _expr_from_ctx(ctx) -> Any:
+    def _expr_from_ctx(ctx) -> _ExprNode:
         atom = ExpressionParser._atom_from_ctx(ctx)
         if atom is not None:
             return atom
@@ -217,7 +223,9 @@ class ExpressionParser:
         return None
 
     @staticmethod
-    def _first_token_op(op_ctx, table: dict) -> Optional[BinaryOperator]:
+    def _first_token_op(
+        op_ctx, table: Dict[str, BinaryOperator]
+    ) -> Optional[BinaryOperator]:
         """First ``BinaryOperator`` in *table* whose token accessor is set on
         *op_ctx* (``table`` is keyed by grammar token name, e.g. ``"IDIV"``)."""
         for token_name, operator in table.items():
@@ -304,7 +312,7 @@ class ExpressionParser:
         try:
             start = ctx.start.start
             stop = ctx.stop.stop
-            return ctx.start.getInputStream().getText(start, stop)
+            return str(ctx.start.getInputStream().getText(start, stop))
         except Exception:  # noqa: BLE001 - fall back to token-joined text
             return ctx.getText() if hasattr(ctx, "getText") else str(ctx)
 
@@ -434,7 +442,7 @@ class ExpressionParser:
         )
 
     @staticmethod
-    def parse_expression(ctx) -> Expression:
+    def parse_expression(ctx) -> Optional[_ExprNode]:
         """Convert ANTLR expression context to Pydantic Expression."""
         if not ctx:
             return None
@@ -532,7 +540,7 @@ class ExpressionParser:
         return IdentifierExpression(name=original_text)
 
     @staticmethod
-    def _parse_logical_expression(text: str) -> Expression:
+    def _parse_logical_expression(text: str) -> _ExprNode:
         """Parse logical expressions like 'a and b' or 'x or y'.
 
         Splits at the *last* top-level occurrence of the operator, not the
@@ -568,9 +576,7 @@ class ExpressionParser:
         return ExpressionParser._parse_single_expression(text)
 
     @staticmethod
-    def _parse_relational_expression(
-        text: str, operator_str: str
-    ) -> BinaryOperationExpression:
+    def _parse_relational_expression(text: str, operator_str: str) -> _ExprNode:
         """Parse relational expressions like 'a = b' or 'x < 5'."""
         # A top-level (depth 0, unquoted) logical operator outranks the
         # relational one — hand back to the logical parser. The guard is
@@ -606,7 +612,7 @@ class ExpressionParser:
         return IdentifierExpression(name=text)
 
     @staticmethod
-    def _parse_member_access_from_text(text: str) -> MemberAccessExpression:
+    def _parse_member_access_from_text(text: str) -> _ExprNode:
         """Parse member access from text like 'dataLayer.type'."""
         parts = text.split(".")
         if len(parts) == 2:
@@ -615,7 +621,7 @@ class ExpressionParser:
             )
         elif len(parts) > 2:
             # Chain of member accesses: a.b.c.d
-            base = IdentifierExpression(name=parts[0])
+            base: Any = IdentifierExpression(name=parts[0])
             for i in range(1, len(parts) - 1):
                 base = MemberAccessExpression(object=base, member=parts[i])
             return MemberAccessExpression(object=base, member=parts[-1])
@@ -623,7 +629,7 @@ class ExpressionParser:
         return IdentifierExpression(name=text)
 
     @staticmethod
-    def _parse_function_call_from_text(text: str) -> FunctionCallExpression:
+    def _parse_function_call_from_text(text: str) -> _ExprNode:
         """Parse function calls like 'Text(...)' from text."""
         if "(" not in text:
             return IdentifierExpression(name=text)
@@ -662,7 +668,7 @@ class ExpressionParser:
         return InstanceExpression(class_name=None, properties=properties)
 
     @staticmethod
-    def _parse_expression_text(text: str) -> Expression:
+    def _parse_expression_text(text: str) -> _ExprNode:
         """Helper to parse expression from text string."""
         text = text.strip()
 
@@ -799,7 +805,7 @@ class ExpressionParser:
         return mapping.get(op_text.lower(), BinaryOperator.EQUAL)
 
     @staticmethod
-    def _parse_single_expression(text: str) -> Expression:
+    def _parse_single_expression(text: str) -> _ExprNode:
         """Parse a single expression without logical operators."""
         text = text.strip()
 
@@ -834,7 +840,7 @@ class ExpressionParser:
         if (text.startswith('"') and text.endswith('"')) or (
             text.startswith("'") and text.endswith("'")
         ):
-            result = StringExpression(value=text[1:-1])
+            result: Any = StringExpression(value=text[1:-1])
             return result
 
         # Handle function calls — CQL2 functions first
@@ -901,7 +907,7 @@ class ExpressionParser:
         return " and " not in rest and " or " not in rest
 
     @staticmethod
-    def _try_parse_cql2_operator(text: str) -> Optional[Expression]:
+    def _try_parse_cql2_operator(text: str) -> Optional[_ExprNode]:
         """Try to parse CQL2 postfix operators: BETWEEN, IN, LIKE, IS NULL.
 
         Returns the parsed Expression or None if no CQL2 operator was found.
@@ -980,7 +986,7 @@ class ExpressionParser:
         return None
 
     @staticmethod
-    def _try_parse_cql2_function(text: str) -> Optional[Expression]:
+    def _try_parse_cql2_function(text: str) -> Optional[_ExprNode]:
         """Try to parse CQL2 function-style expressions.
 
         Handles: spatial predicates, temporal predicates, array predicates,
@@ -1264,7 +1270,7 @@ class ExpressionParser:
         return text
 
     @staticmethod
-    def _iter_top_level(text: str):
+    def _iter_top_level(text: str) -> Iterator[Tuple[int, str]]:
         """Yield ``(index, char)`` for every character of *text* that sits at
         bracket depth 0 and outside any single/double-quoted string literal.
 
@@ -1341,7 +1347,7 @@ class ExpressionParser:
         return args
 
     @staticmethod
-    def _try_parse_temporal_braces(text: str) -> Optional[Expression]:
+    def _try_parse_temporal_braces(text: str) -> Optional[_ExprNode]:
         """Try to parse curly-brace temporal literals.
 
         DATE{...}, TIMESTAMP{...}, INTERVAL{...}.
