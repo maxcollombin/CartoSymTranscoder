@@ -21,9 +21,8 @@ from cartosym_transcoder.models.symbolizers import Marker as ModelMarker
 from cartosym_transcoder.models.symbolizers import Stroke as ModelStroke
 from cartosym_transcoder.models.symbolizers import Symbolizer as ModelSymbolizer
 
-from .ast import Metadata
+from .ast import Metadata, StyleSheet, StylingRule, StylingRuleList
 from .ast import PropertyAssignment as AstPropertyAssignment
-from .ast import StyleSheet, StylingRule, StylingRuleList
 from .ast_converter import convert_ast_to_pydantic
 from .cql2.from_text import ExpressionParser
 from .cql2.model import (
