@@ -345,7 +345,7 @@ class AstToPydanticConverter:
             # Convert metadata
             metadata = None
             if ast_stylesheet.metadata:
-                metadata_dict = {}
+                metadata_dict: dict[str, Any] = {}
                 _list_fields = {"keywords", "authors", "geoDataClasses"}
                 _multiline_fields = {"abstract", "description", "title"}
                 for meta in ast_stylesheet.metadata:

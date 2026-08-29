@@ -470,7 +470,7 @@ class Converter:
         * Normal list → ``marker: { elements: [ Type { ... }, ... ] };``
         * Indexed override → ``marker.elements[N]: Type { ... };``
         """
-        lines = []
+        lines: list[str] = []
         elements = getattr(marker, "elements", None)
         if not elements:
             return lines
@@ -497,7 +497,7 @@ class Converter:
 
     def _label_to_css(self, label) -> list:
         """Convert Label model to CSS lines."""
-        lines = []
+        lines: list[str] = []
         elements = getattr(label, "elements", None)
         if not elements:
             return lines

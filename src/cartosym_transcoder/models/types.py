@@ -355,8 +355,7 @@ def validate_unit_string(v: str) -> str:
 FlexibleColor = Union[Color, str]
 """Color that accepts precise Color types or string expressions."""
 
-FlexibleUnitValue = Union[UnitValue, str, float]
-"""Unit value that accepts UnitValue objects, strings like '10px', or plain numbers."""
+# FlexibleUnitValue is defined once, above (line ~275).
 
 FlexibleAngle = Union[Angle, str, float]
 """Angle that accepts Angle objects, strings, or plain numbers (assumed degrees)."""

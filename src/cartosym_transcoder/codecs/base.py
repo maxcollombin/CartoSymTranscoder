@@ -6,7 +6,7 @@ Each codec provides a reader (format → Style) and a writer (Style → format).
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 
 from ..models.styles import Style
 
@@ -72,8 +72,8 @@ class Codec:
         self,
         format_name: str,
         extensions: List[str],
-        reader: CodecReader = None,
-        writer: CodecWriter = None,
+        reader: Optional[CodecReader] = None,
+        writer: Optional[CodecWriter] = None,
     ):
         self.format_name = format_name
         self.extensions = extensions

@@ -21,7 +21,7 @@ class Variable:
 class StyleSheet:
     """Root node of a CartoSym CSS stylesheet."""
 
-    metadata: List["Metadata"] = None
+    metadata: Optional[List["Metadata"]] = None
     styling_rules: Optional["StylingRuleList"] = None
     variables: Optional[List["Variable"]] = None
 
@@ -64,8 +64,8 @@ class StylingRule:
         None  # <-- Add this line to store all selectors (for nested rules)
     )
     symbolizer: Optional["Symbolizer"] = None
-    nested_rules: List["StylingRule"] = None
-    property_assignments: list = (
+    nested_rules: Optional[List["StylingRule"]] = None
+    property_assignments: Optional[list] = (
         None  # <-- Store all property assignments for post-processing
     )
 
