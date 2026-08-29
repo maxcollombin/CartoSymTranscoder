@@ -42,9 +42,10 @@ class SldSeWriter(CodecWriter):
 
     def write(self, style: Style) -> str:
         root = self._build_sld(style)
-        return etree.tostring(
+        xml: bytes = etree.tostring(
             root, pretty_print=True, xml_declaration=True, encoding="UTF-8"
-        ).decode("utf-8")
+        )
+        return xml.decode("utf-8")
 
     def _build_sld(self, style: Style) -> etree._Element:
         root = etree.Element(f"{{{NSMAP[None]}}}StyledLayerDescriptor", nsmap=NSMAP)

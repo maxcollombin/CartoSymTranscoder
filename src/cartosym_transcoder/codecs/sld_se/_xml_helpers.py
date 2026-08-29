@@ -3,7 +3,7 @@ XML namespace constants and small ``lxml`` element-building helpers shared
 by :mod:`_filter`, :mod:`_symbolizer`, :mod:`reader`, and :mod:`writer`.
 """
 
-from typing import Optional
+from typing import Optional, cast
 
 from lxml import etree
 
@@ -89,7 +89,7 @@ def svg_param(parent: etree._Element, name: str, value: str) -> etree._Element:
 
 def local_name(elem: etree._Element) -> str:
     """Return the local (unprefixed) tag name of *elem*."""
-    return etree.QName(elem).localname
+    return str(etree.QName(elem).localname)
 
 
 def find_se(elem: etree._Element, tag: str):
@@ -111,5 +111,5 @@ def get_svg_param(elem: etree._Element, name: str) -> Optional[str]:
     """Return the text of the ``se:SvgParameter[@name=...]`` child, if present."""
     for param in findall_se(elem, "SvgParameter"):
         if param.get("name") == name:
-            return param.text
+            return cast(Optional[str], param.text)
     return None

@@ -71,11 +71,11 @@ def _number_of(value: Any) -> Optional[float]:
     if value is None:
         return None
     if hasattr(value, "value"):
-        return value.value
+        return float(value.value)
     if isinstance(value, dict) and len(value) == 1:
-        return next(iter(value.values()))
+        return float(next(iter(value.values())))
     if isinstance(value, (int, float)):
-        return value
+        return float(value)
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -481,7 +481,7 @@ def _build_point_symbolizer(
 
 def _percent_to_fraction(value: Any) -> float:
     if isinstance(value, dict) and set(value) == {"pc"}:
-        return value["pc"] / 100
+        return float(value["pc"]) / 100
     raise NotImplementedError(
         f"ImageGraphic.hotSpot component {value!r} is not a percent (pc) "
         "unit value — only pc-unit hotSpot maps to se:AnchorPoint in this "

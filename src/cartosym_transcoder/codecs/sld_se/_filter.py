@@ -94,7 +94,7 @@ def _flatten_and_conjuncts(selector: Any) -> List[Any]:
     return [selector]
 
 
-def _reassemble_and(conjuncts: List[Any]) -> Optional[dict]:
+def _reassemble_and(conjuncts: List[Any]) -> Optional[Any]:
     if not conjuncts:
         return None
     if len(conjuncts) == 1:
@@ -279,8 +279,8 @@ def merge_scale_denominators(
 
 def _coerce_id_value(value: Any) -> str:
     if isinstance(value, dict) and "property" in value:
-        return value["property"]
-    return value
+        return str(value["property"])
+    return str(value)
 
 
 def selector_to_filter_xml(selector: Optional[dict]) -> Optional[etree._Element]:
@@ -429,7 +429,7 @@ def bbox_to_filter_xml(bbox: List[float]) -> etree._Element:
 
 
 def _local(elem: etree._Element) -> str:
-    return etree.QName(elem).localname
+    return str(etree.QName(elem).localname)
 
 
 def _coerce_literal(text: Optional[str]) -> Any:
