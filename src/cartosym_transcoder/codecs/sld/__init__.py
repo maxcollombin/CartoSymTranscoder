@@ -11,7 +11,7 @@ The reader and writer are dialect-parametrised (:class:`._dialect.SldDialect`).
 from __future__ import annotations
 
 from ..base import Codec
-from ._dialect import SE_1_1_0, SLD_1_0_0, SldDialect
+from ._dialect import SE_1_1_0, SLD_1_0_0, SLD_1_0_0_GEOSERVER, SldDialect
 from .reader import SldReader
 from .writer import SldWriter
 
@@ -36,13 +36,25 @@ codec_sld_1_0_0 = Codec(
     writer=SldWriter(SLD_1_0_0),
 )
 
+# SLD 1.0.0 + GeoServer <VendorOption> pass-through (mapped to
+# ``vendor.geoserver.*`` symbolizer properties). Opt-in only: the standard
+# ``sld`` / ``sld:1.0.0`` / ``sld:1.1.0`` codecs still reject <VendorOption>.
+codec_sld_geoserver = Codec(
+    format_name="sld:geoserver",
+    extensions=[],
+    reader=SldReader(SLD_1_0_0_GEOSERVER),
+    writer=SldWriter(SLD_1_0_0_GEOSERVER),
+)
+
 __all__ = [
     "codec",
     "codec_sld_1_1_0",
     "codec_sld_1_0_0",
+    "codec_sld_geoserver",
     "SldReader",
     "SldWriter",
     "SldDialect",
     "SE_1_1_0",
     "SLD_1_0_0",
+    "SLD_1_0_0_GEOSERVER",
 ]

@@ -3,9 +3,10 @@
 These checks keep the vendored files honest (count, SLD version, the
 handful that carry a ``<VendorOption>``). The SLD 1.0.0 dialect of the
 ``sld`` codec reads and writes these — ``tests/test_sld10_corpus.py``
-covers the round trip; the four ``<VendorOption>`` files are still
-out of scope (a GeoServer vendor-extension follow-up). See the fixtures
-README.
+covers the round trip. The ``<VendorOption>`` files need the
+``sld:geoserver`` dialect (``tests/test_sld_geoserver_corpus.py``):
+``poly_landmarks.sld`` round-trips there, the other three stay out for
+unrelated reasons. See the fixtures README.
 """
 
 from pathlib import Path

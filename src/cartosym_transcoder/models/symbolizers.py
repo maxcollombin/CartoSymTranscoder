@@ -5,6 +5,7 @@ Based on the JSON Schema definitions for symbolizer, fill, stroke, marker, label
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
@@ -12,6 +13,13 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 from ..cql2.model import BoolExpression, NumericExpression
 from .base import AlterMixin, BaseCartoSymModel, CommentMixin
 from .types import FlexibleAngle, FlexibleColor, FlexibleOpacity, UnitValue
+
+# A vendor-extension property on a symbolizer, per the conceptual model's
+# generic vendor-extension mechanism: a symbolizer property named
+# ``vendor.<vendorName>.<propertyName>``, any datatype, that consumers
+# ignore when they do not understand it. Used to carry e.g. GeoServer
+# ``<VendorOption>`` values losslessly through CS-JSON.
+_VENDOR_KEY_RE = re.compile(r"^vendor\.[A-Za-z0-9_-]+\.[A-Za-z0-9_.-]+$")
 
 
 def parse_flexible_unit_value(v):
@@ -437,7 +445,13 @@ class Symbolizer(BaseCartoSymModel, CommentMixin):
     """Main symbolizer containing all rendering properties.
 
     Based on the 'symbolizer' definition in the JSON schema.
+
+    Extra keys are permitted only for vendor extensions — a property named
+    ``vendor.<vendorName>.<propertyName>`` (see :data:`_VENDOR_KEY_RE`).
+    Any other unknown key is rejected as a likely typo.
     """
+
+    model_config = ConfigDict(extra="allow")
 
     # Core properties
     visibility: Any | None = Field(
@@ -483,6 +497,18 @@ class Symbolizer(BaseCartoSymModel, CommentMixin):
     hill_shading: Any | None = Field(
         None, alias="hillShading", description="Hill shading (temporary)"
     )
+
+    @model_validator(mode="after")
+    def _reject_non_vendor_extras(self) -> Symbolizer:
+        """Allow only ``vendor.<name>.<prop>`` extension keys as extras."""
+        for key in self.__pydantic_extra__ or {}:
+            if not _VENDOR_KEY_RE.match(key):
+                raise ValueError(
+                    f"unknown symbolizer property {key!r}: only vendor "
+                    "extensions named 'vendor.<vendorName>.<propertyName>' "
+                    "are accepted as extra keys"
+                )
+        return self
 
 
 # Enable forward references for nested types
