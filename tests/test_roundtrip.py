@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from cartosym_transcoder.converter import Converter
+from cartosym_transcoder.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
 INPUT_DIR = ROOT / "input"
@@ -304,6 +305,22 @@ class TestMetadataParsing:
         meta = result.get("metadata", {})
         assert meta.get("title") == "Styling line vector features"
         assert "abstract" in meta
+
+    def test_geo_data_classes_roundtrip(self):
+        """.geoDataClasses must survive CSCSS → CS-JSON → CSCSS write-back
+        (regression: the writer read a wrong attribute name and dropped it)."""
+        cscss = (
+            ".title 'T'\n"
+            ".geoDataClasses 'https://ex.org/a, https://ex.org/b'\n"
+            "[Base]\n{ visibility: true; }"
+        )
+        result = self.converter.cscss_to_csjson(cscss)
+        assert result["metadata"]["geoDataClasses"] == [
+            "https://ex.org/a",
+            "https://ex.org/b",
+        ]
+        back = self.converter.style_to_cscss(Style.from_dict(result))
+        assert ".geoDataClasses 'https://ex.org/a, https://ex.org/b'" in back
 
 
 # ---------------------------------------------------------------------------
