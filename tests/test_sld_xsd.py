@@ -15,8 +15,8 @@ from pathlib import Path
 import pytest
 
 from cartosym_transcoder.codecs import get_codec
-from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
-from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
+from cartosym_transcoder.codecs.sld.reader import SldReader
+from cartosym_transcoder.codecs.sld.writer import SldWriter
 
 from ._xsd import assert_sld_valid
 
@@ -43,20 +43,20 @@ def test_fixture_is_valid_sld(fixture):
 @pytest.mark.parametrize("fixture", SLD_FIXTURES, ids=[f.name for f in SLD_FIXTURES])
 def test_writer_output_from_fixture_is_valid_sld(fixture):
     try:
-        style = SldSeReader().read(fixture)
+        style = SldReader().read(fixture)
     except NotImplementedError:
         pytest.skip(f"{fixture.name} is deliberately out of reader scope")
-    xml = SldSeWriter().write(style)
+    xml = SldWriter().write(style)
     assert_sld_valid(xml, label=f"{fixture.name} (round-tripped)")
 
 
 @pytest.mark.parametrize("stem", CSCSS_CONVERTIBLE)
 def test_cscss_writer_output_is_valid_sld(stem):
-    xml = SldSeWriter().write(_cscss_to_style(stem))
+    xml = SldWriter().write(_cscss_to_style(stem))
     assert_sld_valid(xml, label=f"{stem}.cscss -> SLD")
 
 
 @pytest.mark.parametrize("stem", CSCSS_NO_RENDERABLE_CONTENT)
 def test_cscss_without_renderable_content_raises(stem):
     with pytest.raises(NotImplementedError):
-        SldSeWriter().write(_cscss_to_style(stem))
+        SldWriter().write(_cscss_to_style(stem))

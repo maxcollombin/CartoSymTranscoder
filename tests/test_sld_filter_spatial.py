@@ -11,7 +11,7 @@ Filter 1.1.0 element and stay unmapped.
 import pytest
 from lxml import etree
 
-from cartosym_transcoder.codecs.sld_se._filter import (
+from cartosym_transcoder.codecs.sld._filter import (
     filter_xml_to_selector,
     selector_to_filter_xml,
 )

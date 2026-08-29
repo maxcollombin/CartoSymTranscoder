@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
+from cartosym_transcoder.codecs.sld.reader import SldReader
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "examples" / "sld"
 
 
 def _read(name):
-    return SldSeReader().read(FIXTURES / name)
+    return SldReader().read(FIXTURES / name)
 
 
 class TestReadBasicSymbolizers:
@@ -64,7 +64,7 @@ class TestReadBasicSymbolizers:
             "</se:TextSymbolizer></se:Rule></se:FeatureTypeStyle>"
             "</UserStyle></NamedLayer></StyledLayerDescriptor>"
         )
-        style = SldSeReader().read(xml)
+        style = SldReader().read(xml)
         el = style.styling_rules[0].symbolizer.label.elements[0]
         assert el.text == "myText"
 
@@ -113,7 +113,7 @@ class TestReadScaleDenominator:
 
     def _read(self, *, filter="", min="", max=""):
         xml = self._RULE.format(filter=filter, min=min, max=max)
-        return SldSeReader().read(xml).styling_rules[0].selector
+        return SldReader().read(xml).styling_rules[0].selector
 
     def test_min_and_max_become_viz_sd_range(self):
         selector = self._read(
@@ -220,7 +220,7 @@ class TestReadSymbolizerGeometry:
             "</StyledLayerDescriptor>"
         )
         with pytest.raises(NotImplementedError, match="symbolizer geometry"):
-            SldSeReader().read(xml)
+            SldReader().read(xml)
 
 
 class TestReadOutOfScopeRaises:
@@ -229,7 +229,7 @@ class TestReadOutOfScopeRaises:
             _read("10-out-of-scope-raster.sld")
 
     def _read_string(self, xml):
-        return SldSeReader().read(xml)
+        return SldReader().read(xml)
 
     def test_graphic_fill_raises(self):
         xml = """<?xml version='1.0' encoding='UTF-8'?>
@@ -373,6 +373,6 @@ class TestReadRaster:
 class TestReadPathVsStringHeuristic:
     def test_path_and_raw_string_give_identical_results(self):
         path = FIXTURES / "1-polygon-fill-stroke.sld"
-        from_path = SldSeReader().read(path)
-        from_string = SldSeReader().read(path.read_text(encoding="utf-8"))
+        from_path = SldReader().read(path)
+        from_string = SldReader().read(path.read_text(encoding="utf-8"))
         assert from_path == from_string

@@ -1,16 +1,14 @@
-"""OGC SLD/SE codec — ``.sld`` reader and writer."""
+"""Back-compat shim — the SLD/SE codec moved to :mod:`cartosym_transcoder.codecs.sld`.
+
+Kept so ``from cartosym_transcoder.codecs.sld_se ...`` imports (and the
+vendored-corpus test that exercises the SE 1.1.0 dialect) keep working.
+New code should import from :mod:`cartosym_transcoder.codecs.sld`.
+"""
 
 from __future__ import annotations
 
-from ..base import Codec
+from ..sld import codec
 from .reader import SldSeReader
 from .writer import SldSeWriter
-
-codec = Codec(
-    format_name="sld",
-    extensions=[".sld", ".se"],
-    reader=SldSeReader(),
-    writer=SldSeWriter(),
-)
 
 __all__ = ["codec", "SldSeReader", "SldSeWriter"]

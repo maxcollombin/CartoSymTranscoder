@@ -1,6 +1,6 @@
 """Codec registry — automatic format detection and routing.
 
-Each sub-package (``cscss``, ``csjson``, ``sld_se``, ``maplibre``) registers
+Each sub-package (``cscss``, ``csjson``, ``sld``, ``maplibre``) registers
 its codec here so the CLI and public API can route conversions transparently.
 """
 
@@ -69,9 +69,9 @@ from .maplibre import codec as _maplibre_codec  # noqa: E402, F401
 
 # SLD/SE and MapLibre are registered only if their modules are importable
 # (they may raise NotImplementedError but the codec objects exist).
-from .sld_se import codec as _sld_se_codec  # noqa: E402, F401
+from .sld import codec as _sld_codec  # noqa: E402, F401
 
-register(_sld_se_codec)
+register(_sld_codec)
 register(_maplibre_codec)
 
 __all__ = [

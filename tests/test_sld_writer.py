@@ -10,8 +10,9 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from cartosym_transcoder.codecs.sld_se._symbolizer import symbolizer_to_elements
-from cartosym_transcoder.codecs.sld_se.writer import SldSeWriter
+from cartosym_transcoder.codecs.sld._dialect import SE_1_1_0
+from cartosym_transcoder.codecs.sld._symbolizer import symbolizer_to_elements
+from cartosym_transcoder.codecs.sld.writer import SldWriter
 from cartosym_transcoder.converter import Converter
 from cartosym_transcoder.models.styles import Style
 
@@ -29,7 +30,7 @@ NS = {
 
 def _write(style_dict) -> etree._Element:
     style = Style.from_dict(style_dict)
-    xml = SldSeWriter().write(style)
+    xml = SldWriter().write(style)
     return etree.fromstring(xml.encode("utf-8"))
 
 
@@ -291,7 +292,7 @@ class TestWriteScaleDenominator:
             )
 
     def test_roundtrip_through_read(self):
-        from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
+        from cartosym_transcoder.codecs.sld.reader import SldReader
 
         selector = {
             "op": "and",
@@ -301,8 +302,8 @@ class TestWriteScaleDenominator:
             ],
         }
         style1 = Style.from_dict(_rule_style({"fill": {"color": "red"}}, selector))
-        xml = SldSeWriter().write(style1)
-        style2 = SldSeReader().read(xml)
+        xml = SldWriter().write(style1)
+        style2 = SldReader().read(xml)
         assert style2.styling_rules[0].selector == selector
 
 
@@ -857,28 +858,28 @@ class TestRealRasterFixturesRegression:
 
     def test_dem_succeeds(self):
         sym = self._symbolizer_for("5-coverage-dem")
-        elements = symbolizer_to_elements(sym)
+        elements = symbolizer_to_elements(SE_1_1_0, sym)
         assert any(etree.QName(e).localname == "RasterSymbolizer" for e in elements)
 
     def test_sentinel2_raises_on_alpha_channel(self):
         sym = self._symbolizer_for("6-coverage-sentinel2")
         with pytest.raises(NotImplementedError, match="alphaChannel"):
-            symbolizer_to_elements(sym)
+            symbolizer_to_elements(SE_1_1_0, sym)
 
     def test_ndvi_raises_on_arithmetic_single_channel(self):
         sym = self._symbolizer_for("7-coverage-ndvi")
         with pytest.raises(NotImplementedError, match="singleChannel"):
-            symbolizer_to_elements(sym)
+            symbolizer_to_elements(SE_1_1_0, sym)
 
     def test_hillshading_raises_on_sun(self):
         sym = self._symbolizer_for("8-coverage-hillshading")
         with pytest.raises(NotImplementedError, match="sun"):
-            symbolizer_to_elements(sym)
+            symbolizer_to_elements(SE_1_1_0, sym)
 
     def test_hillshading_opacity_raises_on_sun(self):
         sym = self._symbolizer_for("9-coverage-hillshading-opacity")
         with pytest.raises(NotImplementedError, match="sun"):
-            symbolizer_to_elements(sym)
+            symbolizer_to_elements(SE_1_1_0, sym)
 
 
 class TestSymbolizerOpacity:
@@ -910,14 +911,14 @@ class TestSymbolizerOpacity:
         style_dict = _rule_style(
             {"opacity": 0.5, "singleChannel": {"property": "elevation"}}
         )
-        xml = SldSeWriter().write(Style.from_dict(style_dict))
+        xml = SldWriter().write(Style.from_dict(style_dict))
         root = etree.fromstring(xml.encode("utf-8"))
         op = root.find(".//se:RasterSymbolizer/se:Opacity", NS)
         assert op is not None and op.text == "0.5"
 
-        from cartosym_transcoder.codecs.sld_se.reader import SldSeReader
+        from cartosym_transcoder.codecs.sld.reader import SldReader
 
-        back = SldSeReader().read(xml)
+        back = SldReader().read(xml)
         assert back.styling_rules[0].symbolizer.opacity == 0.5
 
     def test_folds_into_point_graphic_opacity(self):
@@ -935,7 +936,7 @@ class TestSymbolizerOpacity:
     def test_output_stays_xsd_valid(self):
         from ._xsd import assert_sld_valid
 
-        xml = SldSeWriter().write(
+        xml = SldWriter().write(
             Style.from_dict(
                 _rule_style(
                     {
