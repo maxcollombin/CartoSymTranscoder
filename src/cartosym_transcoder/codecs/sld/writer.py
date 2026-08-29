@@ -77,11 +77,17 @@ class SldWriter(CodecWriter):
                         f"Style.metadata.{field} has no SLD/SE mapping in this codec"
                     )
             if metadata.title or metadata.abstract:
-                description = self.d.el("Description", parent=user_style)
+                # SE 1.1.0 wraps Title/Abstract in se:Description; SLD 1.0.0
+                # puts them directly under UserStyle.
+                desc = (
+                    self.d.el("Description", parent=user_style)
+                    if self.d.description_element
+                    else user_style
+                )
                 if metadata.title:
-                    self.d.el("Title", parent=description, text=metadata.title)
+                    self.d.el("Title", parent=desc, text=metadata.title)
                 if metadata.abstract:
-                    self.d.el("Abstract", parent=description, text=metadata.abstract)
+                    self.d.el("Abstract", parent=desc, text=metadata.abstract)
         if style.variables:
             raise NotImplementedError(
                 "Style.$variables has no SLD/SE mapping in this codec"
@@ -154,13 +160,12 @@ class SldWriter(CodecWriter):
         rules_and_selectors: list[tuple[StylingRule, dict | None]],
     ) -> etree._Element | None:
         # A group styling a coverage (any rule carries raster fields) maps
-        # to se:CoverageStyle/se:CoverageName; a feature group maps to
-        # se:FeatureTypeStyle/se:FeatureTypeName. se:CoverageName only
-        # exists on se:CoverageStyleType (SE 1.1.0).
+        # to se:CoverageStyle/se:CoverageName in SE 1.1.0; SLD 1.0.0 has no
+        # CoverageStyle, so raster stays in a plain FeatureTypeStyle.
         is_coverage = any(
             self._rule_has_raster(rule) for rule, _ in rules_and_selectors
         )
-        if is_coverage:
+        if is_coverage and self.d.coverage_style:
             fts = self.d.el("CoverageStyle")
             if feature_type_name is not None:
                 self.d.el("CoverageName", parent=fts, text=str(feature_type_name))
