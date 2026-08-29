@@ -6,14 +6,13 @@ its codec here so the CLI and public API can route conversions transparently.
 """
 
 from pathlib import Path
-from typing import Dict, Optional
 
 from .base import Codec, CodecReader, CodecWriter
 
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
-_REGISTRY: Dict[str, Codec] = {}
+_REGISTRY: dict[str, Codec] = {}
 
 
 def register(codec: Codec) -> Codec:
@@ -25,12 +24,12 @@ def register(codec: Codec) -> Codec:
     return codec
 
 
-def get_codec(key: str) -> Optional[Codec]:
+def get_codec(key: str) -> Codec | None:
     """Look up a codec by extension (e.g. ``".cscss"``) or format name."""
     return _REGISTRY.get(key.lower())
 
 
-def detect_codec(path: Path) -> Optional[Codec]:
+def detect_codec(path: Path) -> Codec | None:
     """Auto-detect the codec for *path* from its file extension.
 
     Handles compound extensions like ``.cs.json`` by trying the longest

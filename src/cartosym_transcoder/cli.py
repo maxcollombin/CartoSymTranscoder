@@ -6,7 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from antlr4 import CommonTokenStream, FileStream
 from jsonschema import ValidationError
@@ -162,7 +162,7 @@ def parse_command(args) -> int:
         return 1
 
 
-def detect_format(path: Path) -> Optional[str]:
+def detect_format(path: Path) -> str | None:
     """Detect the format of a file from its extension."""
     name = path.name.lower()
     if name.endswith(".cscss"):
@@ -219,12 +219,12 @@ def convert_command(args) -> int:
                 has_errors = True
         elif from_format == "csjson":
             try:
-                with open(input_path, "r", encoding="utf-8") as f:
+                with open(input_path, encoding="utf-8") as f:
                     data = json.load(f)
                 schema_path = (
                     Path(__file__).parent / "schemas" / "CartoSym-JSON.schema.json"
                 )
-                with open(schema_path, "r", encoding="utf-8") as sf:
+                with open(schema_path, encoding="utf-8") as sf:
                     schema = json.load(sf)
                 from jsonschema import ValidationError
                 from jsonschema import validate as jsonschema_validate
@@ -323,12 +323,12 @@ def validate_command(args) -> int:
                 print(f"Erreurs de syntaxe CSCSS dans {input_path}", file=sys.stderr)
                 return 1
         elif ext == ".json" and input_path.name.endswith(".cs.json"):
-            with open(input_path, "r", encoding="utf-8") as f:
+            with open(input_path, encoding="utf-8") as f:
                 data = json.load(f)
             schema_path = (
                 Path(__file__).parent / "schemas" / "CartoSym-JSON.schema.json"
             )
-            with open(schema_path, "r", encoding="utf-8") as sf:
+            with open(schema_path, encoding="utf-8") as sf:
                 schema = json.load(sf)
             try:
                 jsonschema_validate(instance=data, schema=schema)

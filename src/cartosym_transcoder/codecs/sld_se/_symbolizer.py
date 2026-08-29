@@ -28,7 +28,7 @@ has no construct distinguishing CartoSym's separate marker-text vs
 label-text concepts — see mapping-issues issue on this asymmetry).
 """
 
-from typing import Any, List, Optional
+from typing import Any
 
 from lxml import etree
 
@@ -67,7 +67,7 @@ def _g(obj: Any, key: str, default: Any = None) -> Any:
     return getattr(obj, key, default)
 
 
-def _number_of(value: Any) -> Optional[float]:
+def _number_of(value: Any) -> float | None:
     if value is None:
         return None
     if hasattr(value, "value"):
@@ -104,7 +104,7 @@ def has_raster_fields(sym: Any) -> bool:
     return any(_g(sym, attr) is not None for attr in _RASTER_FIELD_ATTRS)
 
 
-def _opacity_float(value: Any) -> Optional[float]:
+def _opacity_float(value: Any) -> float | None:
     """Numeric opacity (0..1) for *value*, or ``None`` if unset.
 
     ``format_opacity`` already raises ``NotImplementedError`` for
@@ -116,7 +116,7 @@ def _opacity_float(value: Any) -> Optional[float]:
     return float(format_opacity(value))
 
 
-def _combine_opacity(base: Optional[float], own: Any) -> Optional[str]:
+def _combine_opacity(base: float | None, own: Any) -> str | None:
     """Formatted product of a symbolizer-level opacity *base* and an
     element's *own* opacity.
 
@@ -132,9 +132,9 @@ def _combine_opacity(base: Optional[float], own: Any) -> Optional[str]:
     return format_opacity(factor)
 
 
-def symbolizer_to_elements(sym: Any) -> List[etree._Element]:
+def symbolizer_to_elements(sym: Any) -> list[etree._Element]:
     """Convert one CartoSym ``Symbolizer`` into 1..N sibling SLD/SE elements."""
-    elements: List[etree._Element] = []
+    elements: list[etree._Element] = []
     fill = _g(sym, "fill")
     stroke = _g(sym, "stroke")
     marker = _g(sym, "marker")
@@ -171,8 +171,8 @@ def symbolizer_to_elements(sym: Any) -> List[etree._Element]:
 
 
 def _graphic_elements_to_symbolizers(
-    elements: Any, base_opacity: Optional[float] = None
-) -> List[etree._Element]:
+    elements: Any, base_opacity: float | None = None
+) -> list[etree._Element]:
     if elements is None:
         return []
     if isinstance(elements, dict) and "index" in elements and "value" in elements:
@@ -210,9 +210,7 @@ def _raise_if_fill_out_of_scope(fill: Any) -> None:
             )
 
 
-def _build_fill_element(
-    fill: Any, base_opacity: Optional[float] = None
-) -> etree._Element:
+def _build_fill_element(fill: Any, base_opacity: float | None = None) -> etree._Element:
     _raise_if_fill_out_of_scope(fill)
     el = se_el("Fill")
     color = _g(fill, "color")
@@ -243,7 +241,7 @@ def _raise_if_stroke_out_of_scope(stroke: Any) -> None:
 
 
 def _build_stroke_element(
-    stroke: Any, base_opacity: Optional[float] = None
+    stroke: Any, base_opacity: float | None = None
 ) -> etree._Element:
     _raise_if_stroke_out_of_scope(stroke)
     el = se_el("Stroke")
@@ -265,7 +263,7 @@ def _build_stroke_element(
 
 
 def _build_polygon_symbolizer(
-    fill: Any, stroke: Any, base_opacity: Optional[float] = None
+    fill: Any, stroke: Any, base_opacity: float | None = None
 ) -> etree._Element:
     el = se_el("PolygonSymbolizer")
     if fill is not None:
@@ -276,7 +274,7 @@ def _build_polygon_symbolizer(
 
 
 def _build_line_symbolizer(
-    stroke: Any, base_opacity: Optional[float] = None
+    stroke: Any, base_opacity: float | None = None
 ) -> etree._Element:
     el = se_el("LineSymbolizer")
     el.append(_build_stroke_element(stroke, base_opacity))
@@ -401,7 +399,7 @@ def _build_shaded_relief(hill_shading: Any) -> etree._Element:
 
 
 def _build_raster_symbolizer(
-    sym: Any, base_opacity: Optional[float] = None
+    sym: Any, base_opacity: float | None = None
 ) -> etree._Element:
     rs = se_el("RasterSymbolizer")
 
@@ -446,7 +444,7 @@ def _build_raster_symbolizer(
 
 
 def _build_point_symbolizer(
-    dot: Any, base_opacity: Optional[float] = None
+    dot: Any, base_opacity: float | None = None
 ) -> etree._Element:
     ps = se_el("PointSymbolizer")
     graphic = se_el("Graphic", parent=ps)
@@ -512,7 +510,7 @@ def _raise_if_image_out_of_scope(image_graphic: Any) -> None:
 
 
 def _build_image_symbolizer(
-    image_graphic: Any, base_opacity: Optional[float] = None
+    image_graphic: Any, base_opacity: float | None = None
 ) -> etree._Element:
     _raise_if_image_out_of_scope(image_graphic)
 
@@ -578,7 +576,7 @@ def _alignment_hv(alignment: Any):
 
 
 def _build_text_symbolizer(
-    text_graphic: Any, base_opacity: Optional[float] = None
+    text_graphic: Any, base_opacity: float | None = None
 ) -> etree._Element:
     ts = se_el("TextSymbolizer")
 
@@ -654,13 +652,13 @@ def _build_text_symbolizer(
 # ---------------------------------------------------------------------------
 
 
-def elements_to_symbolizer(sym_elements: List[etree._Element]) -> dict:
+def elements_to_symbolizer(sym_elements: list[etree._Element]) -> dict:
     """Convert the SLD/SE symbolizer elements of one ``se:Rule`` into a
     CartoSym ``symbolizer`` dict (CS-JSON shape, ready for ``Style.from_dict``).
     """
     result: dict = {}
-    marker_elements: List[dict] = []
-    label_elements: List[dict] = []
+    marker_elements: list[dict] = []
+    label_elements: list[dict] = []
 
     for el in sym_elements:
         tag = local_name(el)
@@ -936,14 +934,14 @@ def _parse_external_graphic(ext_el: etree._Element, graphic_el: etree._Element) 
     return result
 
 
-def _parsed_px_or_zero(el: Optional[etree._Element]) -> float:
+def _parsed_px_or_zero(el: etree._Element | None) -> float:
     if el is None or el.text is None:
         return 0
     parsed = parse_unit_value(el.text)
     return parsed["px"] if parsed is not None else 0
 
 
-def _parsed_number_or(el: Optional[etree._Element], default: float) -> float:
+def _parsed_number_or(el: etree._Element | None, default: float) -> float:
     if el is None or el.text is None:
         return default
     parsed = parse_number(el.text)

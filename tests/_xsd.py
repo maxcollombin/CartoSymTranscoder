@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import functools
 from pathlib import Path
-from typing import List
 
 import xmlschema
 
@@ -28,12 +27,12 @@ def sld_se_schema() -> xmlschema.XMLSchema:
     return xmlschema.XMLSchema(str(_ENTRY_POINT), validation="lax")
 
 
-def sld_validation_errors(xml: str) -> List[str]:
+def sld_validation_errors(xml: str) -> list[str]:
     """Return a list of human-readable schema-validation errors for *xml*.
 
     Empty list means *xml* is a schema-valid SLD document.
     """
-    errors: List[str] = []
+    errors: list[str] = []
     seen = set()
     for err in sld_se_schema().iter_errors(xml):
         line = f"{err.reason} | at {err.path}"

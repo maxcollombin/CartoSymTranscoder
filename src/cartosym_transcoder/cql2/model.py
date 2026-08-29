@@ -6,7 +6,7 @@ expression types.
 
 from abc import ABC
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -100,8 +100,8 @@ class ConstantExpression(Expression):
     """Constant value (number, boolean, etc.)."""
 
     type: ExpressionType = ExpressionType.CONSTANT
-    value: Union[int, float, bool, str]
-    unit: Optional[str] = None  # For values like "2.0 px"
+    value: int | float | bool | str
+    unit: str | None = None  # For values like "2.0 px"
 
 
 class StringExpression(Expression):
@@ -137,7 +137,7 @@ class FunctionCallExpression(Expression):
 
     type: ExpressionType = ExpressionType.FUNCTION_CALL
     function_name: str
-    arguments: List["Expression"]
+    arguments: list["Expression"]
 
 
 class BinaryOperationExpression(Expression):
@@ -170,7 +170,7 @@ class ArrayExpression(Expression):
     """Array literal like '[a, b, c]'."""
 
     type: ExpressionType = ExpressionType.ARRAY
-    elements: List["Expression"]
+    elements: list["Expression"]
 
 
 class PropertyAssignment(BaseModel):
@@ -184,8 +184,8 @@ class InstanceExpression(Expression):
     """Instance creation like '{color: red; opacity: 0.5}' or 'Text(...)'."""
 
     type: ExpressionType = ExpressionType.INSTANCE
-    class_name: Optional[str] = None  # For Text(...) vs {...}
-    properties: List[PropertyAssignment] = []
+    class_name: str | None = None  # For Text(...) vs {...}
+    properties: list[PropertyAssignment] = []
 
 
 # Update forward references
@@ -202,8 +202,8 @@ PropertyAssignment.model_rebuild()
 class Selector(BaseModel):
     """Enhanced selector that can include expressions."""
 
-    name: Optional[str] = None  # Simple name like "Landuse"
-    conditions: List[Expression] = []  # Conditions like [dataLayer.type = vector]
+    name: str | None = None  # Simple name like "Landuse"
+    conditions: list[Expression] = []  # Conditions like [dataLayer.type = vector]
 
     def is_simple(self) -> bool:
         """Check if this is a simple selector (name only)."""
@@ -214,9 +214,9 @@ class Selector(BaseModel):
 class StylingRuleExpression(BaseModel):
     """Styling rule that can contain expressions and nested rules."""
 
-    selectors: List[Selector] = []
-    properties: Dict[str, Expression] = {}  # property_name -> expression
-    nested_rules: List["StylingRuleExpression"] = []
+    selectors: list[Selector] = []
+    properties: dict[str, Expression] = {}  # property_name -> expression
+    nested_rules: list["StylingRuleExpression"] = []
 
 
 # Update forward reference
@@ -232,41 +232,41 @@ StylingRuleExpression.model_rebuild()
 class BoolExpression(BaseExpression):
     """Base class for boolean expressions from JSON schema."""
 
-    type: Optional[str] = None
+    type: str | None = None
 
 
 class AndOrExpression(BoolExpression):
     """Logical AND/OR expression: {"op": "and|or", "args": [...]}"""
 
     op: Literal["and", "or"]
-    args: List[BoolExpression] = Field(min_length=2)
+    args: list[BoolExpression] = Field(min_length=2)
 
 
 class NotExpression(BoolExpression):
     """Logical NOT expression: {"op": "not", "args": [...]}"""
 
     op: Literal["not"] = "not"
-    args: List[BoolExpression] = Field(min_length=1, max_length=1)
+    args: list[BoolExpression] = Field(min_length=1, max_length=1)
 
 
 # Numeric Expressions (JSON Schema: numericExpression)
 class NumericExpression(BaseExpression):
     """Base class for numeric expressions from JSON schema."""
 
-    type: Optional[str] = None
+    type: str | None = None
 
 
 class ArithmeticExpression(NumericExpression):
     """Arithmetic expression: {"op": "+|-|*|/|%|**", "args": [...]}"""
 
     op: Literal["+", "-", "*", "/", "%", "**"]
-    args: List[NumericExpression] = Field(min_length=2)
+    args: list[NumericExpression] = Field(min_length=2)
 
 
 class ArithmeticOperands(NumericExpression):
     """Advanced arithmetic operands with multiple operations (Phase B Priority 4)."""
 
-    operations: List[ArithmeticExpression]
+    operations: list[ArithmeticExpression]
 
     @property
     def result_type(self) -> str:
@@ -277,28 +277,28 @@ class ScalarOperands(Expression):
     """Scalar operands for various operations on single values."""
 
     op: str
-    args: List[Union[NumericExpression, "ScalarExpression"]] = Field(min_length=1)
+    args: list[Union[NumericExpression, "ScalarExpression"]] = Field(min_length=1)
 
 
 class BitwiseLogical(NumericExpression):
     """Bitwise logical: {"op": "&|||^", "args": [...]}"""
 
     op: Literal["&", "|", "^"]
-    args: List[NumericExpression] = Field(min_length=2)
+    args: list[NumericExpression] = Field(min_length=2)
 
 
 class BitwiseShift(NumericExpression):
     """Bitwise shift: {"op": "<<|>>", "args": [...]}"""
 
     op: Literal["<<", ">>"]
-    args: List[NumericExpression] = Field(min_length=2)
+    args: list[NumericExpression] = Field(min_length=2)
 
 
 class BitwiseNot(NumericExpression):
     """Bitwise NOT: {"op": "~", "args": [...]}"""
 
     op: Literal["~"] = "~"
-    args: List[NumericExpression] = Field(min_length=1, max_length=1)
+    args: list[NumericExpression] = Field(min_length=1, max_length=1)
 
 
 # Comparison Predicates
@@ -312,7 +312,7 @@ class BinaryComparisonPredicate(ComparisonPredicate):
     """Binary comparison: {"op": "=|!=|<|<=|>|>=", "args": [...]}"""
 
     op: Literal["=", "!=", "<", "<=", ">", ">="]
-    args: List[Union[NumericExpression, "ScalarExpression"]] = Field(
+    args: list[Union[NumericExpression, "ScalarExpression"]] = Field(
         min_length=2, max_length=2
     )
 
@@ -321,28 +321,28 @@ class IsNullPredicate(ComparisonPredicate):
     """Null check: {"op": "isNull", "args": [...]}"""
 
     op: Literal["isNull"] = "isNull"
-    args: List[Expression] = Field(min_length=1, max_length=1)
+    args: list[Expression] = Field(min_length=1, max_length=1)
 
 
 class IsInListPredicate(ComparisonPredicate):
     """In list check: {"op": "in", "args": [...]}"""
 
     op: Literal["in"] = "in"
-    args: List[Union[Expression, List[Expression]]] = Field(min_length=2)
+    args: list[Expression | list[Expression]] = Field(min_length=2)
 
 
 class IsBetweenPredicate(ComparisonPredicate):
     """Between check: {"op": "between", "args": [...]}"""
 
     op: Literal["between"] = "between"
-    args: List[Expression] = Field(min_length=3, max_length=3)  # [value, min, max]
+    args: list[Expression] = Field(min_length=3, max_length=3)  # [value, min, max]
 
 
 class IsLikePredicate(ComparisonPredicate):
     """Pattern matching: {"op": "like|ilike", "args": [...]}"""
 
     op: Literal["like", "ilike"]
-    args: List[Expression] = Field(
+    args: list[Expression] = Field(
         min_length=2, max_length=3
     )  # [value, pattern, escape?]
 
@@ -370,7 +370,7 @@ class ScalarExpression(Expression):
 class ScalarLiteral(ScalarExpression):
     """Scalar literal value."""
 
-    value: Union[str, int, float, bool]
+    value: str | int | float | bool
 
 
 # Enhanced Function Calls (JSON Schema format)
@@ -378,7 +378,7 @@ class FunctionCallJSON(Expression):
     """JSON Schema function call: {"op": "functionName", "args": [...]}"""
 
     op: str  # Function name
-    args: List[Expression] = Field(default_factory=list)
+    args: list[Expression] = Field(default_factory=list)
 
 
 # Enhanced Conditional Expressions (JSON Schema format)
@@ -389,7 +389,7 @@ class ConditionalExpressionJSON(Expression):
     """
 
     op: Literal["if"] = "if"
-    args: List[Expression] = Field(min_length=3, max_length=3)
+    args: list[Expression] = Field(min_length=3, max_length=3)
 
 
 # Temporal Expressions (for date/time)
@@ -405,7 +405,7 @@ class DateInstant(TemporalExpression):
     """Date instant: {"op": "date", "args": [year, month, day]}"""
 
     op: Literal["date"] = "date"
-    args: List[Union[int, float]] = Field(
+    args: list[int | float] = Field(
         min_length=3, max_length=3
     )  # [year, month, day] - use simple types
 
@@ -417,7 +417,7 @@ class TimestampInstant(TemporalExpression):
     """
 
     op: Literal["timestamp"] = "timestamp"
-    args: List[NumericExpression] = Field(
+    args: list[NumericExpression] = Field(
         min_length=6, max_length=7
     )  # [y,m,d,h,min,s,ms?]
 
@@ -426,7 +426,7 @@ class DateString(TemporalExpression):
     """Date from string: {"op": "dateString", "args": [dateString, format?]}"""
 
     op: Literal["dateString"] = "dateString"
-    args: List[Expression] = Field(min_length=1, max_length=2)
+    args: list[Expression] = Field(min_length=1, max_length=2)
 
 
 class TimestampString(TemporalExpression):
@@ -436,14 +436,14 @@ class TimestampString(TemporalExpression):
     """
 
     op: Literal["timestampString"] = "timestampString"
-    args: List[Expression] = Field(min_length=1, max_length=2)
+    args: list[Expression] = Field(min_length=1, max_length=2)
 
 
 class InstantInstance(TemporalExpression):
     """Generic instant instance for temporal operations."""
 
     instant_type: Literal["date", "timestamp"]
-    value: Union[str, int, float]
+    value: str | int | float
 
 
 class IntervalInstance(TemporalExpression):
@@ -456,21 +456,21 @@ class IntervalInstance(TemporalExpression):
 class IntervalArray(TemporalExpression):
     """Array of time intervals."""
 
-    intervals: List[IntervalInstance]
+    intervals: list[IntervalInstance]
 
 
 class TemporalInstantExpression(TemporalExpression):
     """Complex temporal instant with operations."""
 
     op: str
-    args: List[TemporalExpression]
+    args: list[TemporalExpression]
 
 
 class TemporalOperands(Expression):
     """Temporal operands for arithmetic operations on time values."""
 
     op: Literal["add", "subtract", "duration"]
-    args: List[TemporalExpression] = Field(min_length=2)
+    args: list[TemporalExpression] = Field(min_length=2)
 
 
 class TemporalPredicate(BoolExpression):
@@ -503,7 +503,7 @@ class TemporalPredicate(BoolExpression):
         "meets",
         "overlaps",
     ]
-    args: List[Expression]
+    args: list[Expression]
 
     def normalised_op(self) -> str:
         """Return the CQL2-standard t_ prefixed operator name."""
@@ -543,7 +543,7 @@ class SpatialPredicate(BoolExpression):
         "covers",
         "coveredBy",
     ]
-    args: List[Expression]
+    args: list[Expression]
 
     def normalised_op(self) -> str:
         """Return the CQL2-standard s_ prefixed operator name."""
@@ -561,7 +561,7 @@ class SpatialRelatePredicate(BoolExpression):
     """
 
     op: Literal["s_relate"] = "s_relate"
-    args: List[Expression] = Field(min_length=2, max_length=2)
+    args: list[Expression] = Field(min_length=2, max_length=2)
     pattern: str = Field(
         ...,
         min_length=9,
@@ -583,7 +583,7 @@ class GeometryBuffer(GeometryExpression):
     """Geometry buffer operation: {"op": "s_buffer", "args": [geometry, distance]}"""
 
     op: Literal["buffer", "s_buffer"] = "s_buffer"
-    args: List[Expression] = Field(min_length=2, max_length=2)  # [geometry, distance]
+    args: list[Expression] = Field(min_length=2, max_length=2)  # [geometry, distance]
 
 
 class GeometryManipulationUnary(GeometryExpression):
@@ -595,7 +595,7 @@ class GeometryManipulationUnary(GeometryExpression):
     op: Literal[
         "centroid", "envelope", "convexHull", "boundary", "s_convexHull", "s_envelope"
     ]
-    args: List[Expression] = Field(min_length=1, max_length=1)
+    args: list[Expression] = Field(min_length=1, max_length=1)
 
 
 class GeometryManipulationBinary(GeometryExpression):
@@ -615,7 +615,7 @@ class GeometryManipulationBinary(GeometryExpression):
         "s_difference",
         "s_symDifference",
     ]
-    args: List[Expression] = Field(min_length=2, max_length=2)
+    args: list[Expression] = Field(min_length=2, max_length=2)
 
 
 class SpatialInstance(GeometryExpression):
@@ -629,8 +629,8 @@ class SpatialInstance(GeometryExpression):
         "MultiLineString",
         "MultiPolygon",
     ]
-    coordinates: List[Any]  # Coordinate arrays, structure depends on geometry type
-    crs: Optional[str] = Field(None, description="Coordinate Reference System")
+    coordinates: list[Any]  # Coordinate arrays, structure depends on geometry type
+    crs: str | None = Field(None, description="Coordinate Reference System")
 
 
 class GeometryLiteral(GeometryExpression):
@@ -653,13 +653,13 @@ class GeometryLiteral(GeometryExpression):
         "MultiPolygon",
         "GeometryCollection",
     ]
-    coordinates: Optional[List[Any]] = None
-    geometries: Optional[List["GeometryLiteral"]] = None  # For GeometryCollection
-    crs: Optional[str] = None
+    coordinates: list[Any] | None = None
+    geometries: list["GeometryLiteral"] | None = None  # For GeometryCollection
+    crs: str | None = None
 
-    def to_geojson(self) -> Dict[str, Any]:
+    def to_geojson(self) -> dict[str, Any]:
         """Serialise as a GeoJSON geometry dict (for CQL2-JSON output)."""
-        result: Dict[str, Any] = {"type": self.geom_type}
+        result: dict[str, Any] = {"type": self.geom_type}
         if self.geom_type == "GeometryCollection" and self.geometries:
             result["geometries"] = [g.to_geojson() for g in self.geometries]
         elif self.coordinates is not None:
@@ -667,7 +667,7 @@ class GeometryLiteral(GeometryExpression):
         return result
 
     @classmethod
-    def from_geojson(cls, data: Dict[str, Any]) -> "GeometryLiteral":
+    def from_geojson(cls, data: dict[str, Any]) -> "GeometryLiteral":
         """Deserialise from a GeoJSON geometry dict."""
         geom_type = data["type"]
         if geom_type == "GeometryCollection":
@@ -685,9 +685,9 @@ class BboxLiteral(GeometryExpression):
     CQL2-JSON:  {"bbox": [x1, y1, x2, y2]}  (4 or 6 values)
     """
 
-    bbox: List[float] = Field(min_length=4, max_length=6)
+    bbox: list[float] = Field(min_length=4, max_length=6)
 
-    def to_cql2_json(self) -> Dict[str, Any]:
+    def to_cql2_json(self) -> dict[str, Any]:
         return {"bbox": self.bbox}
 
 
@@ -701,10 +701,10 @@ class TemporalLiteral(TemporalExpression):
     """
 
     temporal_type: Literal["date", "timestamp", "interval"]
-    value: Optional[str] = None  # For date / timestamp
-    interval: Optional[List[str]] = None  # For interval (2 values: start, end)
+    value: str | None = None  # For date / timestamp
+    interval: list[str] | None = None  # For interval (2 values: start, end)
 
-    def to_cql2_json(self) -> Dict[str, Any]:
+    def to_cql2_json(self) -> dict[str, Any]:
         """Serialise as CQL2-JSON temporal literal."""
         if self.temporal_type == "interval" and self.interval:
             return {"interval": self.interval}
@@ -713,7 +713,7 @@ class TemporalLiteral(TemporalExpression):
         return {}
 
     @classmethod
-    def from_cql2_json(cls, data: Dict[str, Any]) -> "TemporalLiteral":
+    def from_cql2_json(cls, data: dict[str, Any]) -> "TemporalLiteral":
         """Deserialise from a CQL2-JSON temporal literal."""
         if "date" in data:
             return cls(temporal_type="date", value=data["date"])
@@ -727,8 +727,8 @@ class TemporalLiteral(TemporalExpression):
 class AzimuthElevation(Expression):
     """Azimuth and elevation for directional calculations."""
 
-    azimuth: Union[float, NumericExpression]
-    elevation: Union[float, NumericExpression]
+    azimuth: float | NumericExpression
+    elevation: float | NumericExpression
 
 
 # =====================================================
@@ -745,19 +745,19 @@ class ColorExpression(Expression):
 class Color0to1(ColorExpression):
     """Color with components in 0-1 range: {"r": 0.5, "g": 0.3, "b": 0.8, "a"?: 1.0}"""
 
-    r: Union[float, int] = Field(ge=0.0, le=1.0)
-    g: Union[float, int] = Field(ge=0.0, le=1.0)
-    b: Union[float, int] = Field(ge=0.0, le=1.0)
-    a: Optional[Union[float, int]] = Field(None, ge=0.0, le=1.0)
+    r: float | int = Field(ge=0.0, le=1.0)
+    g: float | int = Field(ge=0.0, le=1.0)
+    b: float | int = Field(ge=0.0, le=1.0)
+    a: float | int | None = Field(None, ge=0.0, le=1.0)
 
 
 class ColorComponent0to255(ColorExpression):
     """Color with components in 0-255 range: {"r": 128, "g": 76, "b": 204, "a"?: 255}"""
 
-    r: Union[int, NumericExpression] = Field(ge=0, le=255)
-    g: Union[int, NumericExpression] = Field(ge=0, le=255)
-    b: Union[int, NumericExpression] = Field(ge=0, le=255)
-    a: Optional[Union[int, NumericExpression]] = Field(None, ge=0, le=255)
+    r: int | NumericExpression = Field(ge=0, le=255)
+    g: int | NumericExpression = Field(ge=0, le=255)
+    b: int | NumericExpression = Field(ge=0, le=255)
+    a: int | NumericExpression | None = Field(None, ge=0, le=255)
 
 
 class HexNumber(ColorExpression):
@@ -769,15 +769,15 @@ class HexNumber(ColorExpression):
 class ZeroToOne(NumericExpression):
     """Numeric value constrained to 0-1 range."""
 
-    value: Union[float, NumericExpression] = Field(ge=0.0, le=1.0)
+    value: float | NumericExpression = Field(ge=0.0, le=1.0)
 
 
 class Shape(Expression):
     """Shape definition for graphics."""
 
     shape_type: Literal["circle", "square", "triangle", "star", "cross", "diamond"]
-    size: Optional[Union[float, NumericExpression]] = None
-    properties: Optional[Dict[str, Any]] = None
+    size: float | NumericExpression | None = None
+    properties: dict[str, Any] | None = None
 
 
 # =====================================================
@@ -800,19 +800,19 @@ class VAlignment(Expression):
 class Horizontal(Expression):
     """Horizontal positioning/direction."""
 
-    value: Union[float, str, NumericExpression]
+    value: float | str | NumericExpression
 
 
 class Vertical(Expression):
     """Vertical positioning/direction."""
 
-    value: Union[float, str, NumericExpression]
+    value: float | str | NumericExpression
 
 
 class Dot(Expression):
     """Dot notation access for nested properties."""
 
-    path: List[str] = Field(min_length=2)  # e.g., ['dataLayer', 'type']
+    path: list[str] = Field(min_length=2)  # e.g., ['dataLayer', 'type']
 
     def to_string(self) -> str:
         return ".".join(self.path)
@@ -836,7 +836,7 @@ class ArrayPredicate(BoolExpression):
         "acontainedby",
         "aoverlaps",
     ]
-    args: List[Expression]
+    args: list[Expression]
 
 
 # =====================================================
@@ -858,28 +858,28 @@ class CaseiExpression(CharacterExpression):
     """Case-insensitive string expression: {"op": "casei", "args": [string]}"""
 
     op: Literal["casei"] = "casei"
-    args: List[Expression] = Field(min_length=1, max_length=1)
+    args: list[Expression] = Field(min_length=1, max_length=1)
 
 
 class AccentiExpression(CharacterExpression):
     """Accent-insensitive string expression: {"op": "accenti", "args": [string]}"""
 
     op: Literal["accenti"] = "accenti"
-    args: List[Expression] = Field(min_length=1, max_length=1)
+    args: list[Expression] = Field(min_length=1, max_length=1)
 
 
 class ConcatenateExpression(CharacterExpression):
     """String concatenation: {"op": "concatenate", "args": [str1, str2, ...]}"""
 
     op: Literal["concatenate"] = "concatenate"
-    args: List[Expression] = Field(min_length=2)
+    args: list[Expression] = Field(min_length=2)
 
 
 class FormatExpression(CharacterExpression):
     """String formatting: {"op": "format", "args": [format_string, ...values]}"""
 
     op: Literal["format"] = "format"
-    args: List[Expression] = Field(min_length=1)
+    args: list[Expression] = Field(min_length=1)
 
 
 class SubstituteExpression(CharacterExpression):
@@ -889,14 +889,14 @@ class SubstituteExpression(CharacterExpression):
     """
 
     op: Literal["substitute"] = "substitute"
-    args: List[Expression] = Field(min_length=3, max_length=3)
+    args: list[Expression] = Field(min_length=3, max_length=3)
 
 
 class LowerUpperCaseExpression(CharacterExpression):
     """Case conversion: {"op": "lowerCase|upperCase|upper|lower", "args": [string]}"""
 
     op: Literal["upper", "lower", "upperCase", "lowerCase"]
-    args: List[Expression] = Field(min_length=1, max_length=1)
+    args: list[Expression] = Field(min_length=1, max_length=1)
 
 
 class PatternExpression(CharacterExpression):
@@ -904,7 +904,7 @@ class PatternExpression(CharacterExpression):
 
     type: ExpressionType = ExpressionType.STRING
     pattern: str
-    flags: Optional[List[str]] = None
+    flags: list[str] | None = None
 
 
 class TextOpPredicate(BoolExpression):
@@ -914,7 +914,7 @@ class TextOpPredicate(BoolExpression):
     """
 
     op: Literal["contains", "startsWith", "endsWith"]
-    args: List[Expression] = Field(min_length=2, max_length=2)
+    args: list[Expression] = Field(min_length=2, max_length=2)
 
 
 # Update forward references
@@ -1089,9 +1089,9 @@ class TypedArray(Expression):
 
     type: ExpressionType = ExpressionType.ARRAY
     element_type: str = Field(..., description="Expected type of array elements")
-    elements: List[Any] = Field(default_factory=list, description="Array elements")
-    min_length: Optional[int] = Field(None, ge=0, description="Minimum array length")
-    max_length: Optional[int] = Field(None, ge=0, description="Maximum array length")
+    elements: list[Any] = Field(default_factory=list, description="Array elements")
+    min_length: int | None = Field(None, ge=0, description="Minimum array length")
+    max_length: int | None = Field(None, ge=0, description="Maximum array length")
 
     def validate_elements(self) -> bool:
         """Validate that all elements match the expected type."""
@@ -1125,7 +1125,7 @@ class IdOrFnExpressionWrapper(Expression):
     """
 
     type: ExpressionType = ExpressionType.IDENTIFIER
-    expression: Union[IdentifierExpression, FunctionCallExpression] = Field(
+    expression: IdentifierExpression | FunctionCallExpression = Field(
         ..., description="Identifier or function call"
     )
 
@@ -1143,47 +1143,47 @@ class IdOrFnExpressionWrapper(Expression):
 
 
 # Define type aliases at the end of the file for proper forward references
-AnyExpressionType = Union[
+AnyExpressionType = (
     # Basic expressions
-    IdentifierExpression,
-    ConstantExpression,
-    StringExpression,
-    MemberAccessExpression,
+    IdentifierExpression
+    | ConstantExpression
+    | StringExpression
+    | MemberAccessExpression
     # Function and operation expressions
-    FunctionCallExpression,
-    BinaryOperationExpression,
-    UnaryOperationExpression,
-    ConditionalExpression,
+    | FunctionCallExpression
+    | BinaryOperationExpression
+    | UnaryOperationExpression
+    | ConditionalExpression
     # Collection expressions
-    ArrayExpression,
-    InstanceExpression,
+    | ArrayExpression
+    | InstanceExpression
     # JSON Schema expressions
-    BoolExpression,
-    NumericExpression,
-    ArithmeticExpression,
-    ComparisonPredicate,
+    | BoolExpression
+    | NumericExpression
+    | ArithmeticExpression
+    | ComparisonPredicate
     # Character expressions
-    CharacterExpression,
-    ConcatenateExpression,
-    FormatExpression,
+    | CharacterExpression
+    | ConcatenateExpression
+    | FormatExpression
     # Spatial expressions
-    SpatialPredicate,
-    SpatialRelatePredicate,
-    GeometryExpression,
-    GeometryLiteral,
-    BboxLiteral,
+    | SpatialPredicate
+    | SpatialRelatePredicate
+    | GeometryExpression
+    | GeometryLiteral
+    | BboxLiteral
     # Temporal expressions
-    TemporalExpression,
-    TemporalLiteral,
-    DateInstant,
+    | TemporalExpression
+    | TemporalLiteral
+    | DateInstant
     # Color expressions
-    ColorExpression,
-    Color0to1,
-    HexNumber,
-]
+    | ColorExpression
+    | Color0to1
+    | HexNumber
+)
 
 # Convenience type aliases
-IdOrFnExpression = Union[IdentifierExpression, FunctionCallExpression]
+IdOrFnExpression = IdentifierExpression | FunctionCallExpression
 
 
 # =====================================================
@@ -1199,12 +1199,10 @@ class FontFamily(Expression):
 
     type: ExpressionType = ExpressionType.STRING
     family_name: str = Field(..., description="Primary font family name")
-    fallback_families: List[str] = Field(
+    fallback_families: list[str] = Field(
         default_factory=list, description="Fallback font families"
     )
-    font_type: Optional[str] = Field(
-        None, description="Font type: system, web, embedded"
-    )
+    font_type: str | None = Field(None, description="Font type: system, web, embedded")
 
     def get_css_font_family(self) -> str:
         """Get CSS-compatible font-family string."""
@@ -1248,7 +1246,7 @@ class FontWeight(Expression):
     """
 
     type: ExpressionType = ExpressionType.STRING
-    weight: Union[int, str] = Field(..., description="Font weight")
+    weight: int | str = Field(..., description="Font weight")
 
     @field_validator("weight")
     def validate_weight(cls, v):
@@ -1286,7 +1284,7 @@ class FontStyle(Expression):
 
     type: ExpressionType = ExpressionType.STRING
     style: str = Field("normal", description="Font style")
-    oblique_angle: Optional[float] = Field(None, description="Oblique angle in degrees")
+    oblique_angle: float | None = Field(None, description="Oblique angle in degrees")
 
     @field_validator("style")
     def validate_style(cls, v):
@@ -1306,11 +1304,9 @@ class FontExpression(Expression):
     type: ExpressionType = ExpressionType.OBJECT
     family: FontFamily = Field(..., description="Font family specification")
     size: FontSize = Field(..., description="Font size specification")
-    weight: Optional[FontWeight] = Field(None, description="Font weight specification")
-    style: Optional[FontStyle] = Field(None, description="Font style specification")
-    line_height: Optional[float] = Field(
-        None, ge=0, description="Line height multiplier"
-    )
+    weight: FontWeight | None = Field(None, description="Font weight specification")
+    style: FontStyle | None = Field(None, description="Font style specification")
+    line_height: float | None = Field(None, ge=0, description="Line height multiplier")
 
     def get_css_font(self) -> str:
         """Generate CSS font shorthand property."""
@@ -1360,7 +1356,7 @@ class TransformationMatrix(Expression):
     """
 
     type: ExpressionType = ExpressionType.ARRAY
-    matrix: List[float] = Field(
+    matrix: list[float] = Field(
         ...,
         min_length=6,
         max_length=6,
@@ -1462,7 +1458,7 @@ class ScaleTransform(Expression):
 
     type: ExpressionType = ExpressionType.OBJECT
     scale_x: float = Field(1.0, gt=0, description="X-axis scale factor")
-    scale_y: Optional[float] = Field(
+    scale_y: float | None = Field(
         None, gt=0, description="Y-axis scale factor (defaults to scale_x)"
     )
     center_x: float = Field(0.0, description="Scale center X coordinate")
@@ -1529,14 +1525,14 @@ class GeometryTransformation(Expression):
     """
 
     type: ExpressionType = ExpressionType.OBJECT
-    rotation: Optional[RotationTransform] = Field(
+    rotation: RotationTransform | None = Field(
         None, description="Rotation transformation"
     )
-    scale: Optional[ScaleTransform] = Field(None, description="Scale transformation")
-    translation: Optional[TranslationTransform] = Field(
+    scale: ScaleTransform | None = Field(None, description="Scale transformation")
+    translation: TranslationTransform | None = Field(
         None, description="Translation transformation"
     )
-    custom_matrix: Optional[TransformationMatrix] = Field(
+    custom_matrix: TransformationMatrix | None = Field(
         None, description="Custom transformation matrix"
     )
 
@@ -1560,7 +1556,7 @@ class GeometryTransformation(Expression):
 
         return result
 
-    def get_css_transforms(self) -> List[str]:
+    def get_css_transforms(self) -> list[str]:
         """Get list of CSS transform functions."""
         transforms = []
 
@@ -1637,14 +1633,14 @@ class DateTimeFormat(Expression):
     type: ExpressionType = ExpressionType.STRING
     pattern: str = Field(..., description="Date format pattern")
     locale: str = Field("en", description="Locale for formatting")
-    timezone: Optional[str] = Field(None, description="Timezone identifier")
+    timezone: str | None = Field(None, description="Timezone identifier")
 
     def format_datetime(self, datetime_value: Any) -> str:
         """Format datetime value according to pattern."""
         # Implementation would use datetime.strftime or babel
         return str(datetime_value)
 
-    def get_pattern_components(self) -> List[str]:
+    def get_pattern_components(self) -> list[str]:
         """Extract components from format pattern."""
         # Simple pattern analysis (full implementation would be more complex)
         components = []
@@ -1691,7 +1687,7 @@ class CalendarInterval(Expression):
             raise ValueError(f"Interval type must be one of: {valid_intervals}")
         return v
 
-    def to_timedelta_kwargs(self) -> Dict[str, int]:
+    def to_timedelta_kwargs(self) -> dict[str, int]:
         """Convert to Python timedelta kwargs."""
         mapping = {
             "day": "days",
@@ -1717,17 +1713,15 @@ class DateTimeCalendar(Expression):
 
     type: ExpressionType = ExpressionType.OBJECT
     source_datetime: Any = Field(..., description="Source datetime expression")
-    field_extractions: List[CalendarField] = Field(
+    field_extractions: list[CalendarField] = Field(
         default_factory=list, description="Calendar field extractions"
     )
-    formatting: Optional[DateTimeFormat] = Field(
-        None, description="DateTime formatting"
-    )
-    intervals: List[CalendarInterval] = Field(
+    formatting: DateTimeFormat | None = Field(None, description="DateTime formatting")
+    intervals: list[CalendarInterval] = Field(
         default_factory=list, description="Calendar intervals"
     )
 
-    def extract_fields(self) -> Dict[str, int]:
+    def extract_fields(self) -> dict[str, int]:
         """Extract all configured calendar fields."""
         return {
             field.field_type: field.extract_field(self.source_datetime)
@@ -1919,7 +1913,7 @@ class UnitRange(Expression):
     type: ExpressionType = ExpressionType.OBJECT
     min_value: MeasureExpression = Field(..., description="Minimum value")
     max_value: MeasureExpression = Field(..., description="Maximum value")
-    current_value: Optional[MeasureExpression] = Field(
+    current_value: MeasureExpression | None = Field(
         None, description="Current value in range"
     )
 
@@ -1971,10 +1965,10 @@ class ResponsiveUnit(Expression):
     type: ExpressionType = ExpressionType.OBJECT
     base_value: MeasureExpression = Field(..., description="Base measurement value")
     scale_factor: float = Field(1.0, description="Scale factor for adaptation")
-    min_constraint: Optional[MeasureExpression] = Field(
+    min_constraint: MeasureExpression | None = Field(
         None, description="Minimum constraint"
     )
-    max_constraint: Optional[MeasureExpression] = Field(
+    max_constraint: MeasureExpression | None = Field(
         None, description="Maximum constraint"
     )
     viewport_basis: str = Field("width", description="Viewport dimension for scaling")

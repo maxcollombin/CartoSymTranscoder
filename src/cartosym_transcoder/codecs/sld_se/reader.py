@@ -11,7 +11,6 @@ requirement.
 """
 
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
 
 from lxml import etree
 
@@ -27,8 +26,8 @@ from ._xml_helpers import OGC, SLD, find_se_direct, findall_se, local_name
 
 
 def _scale_denominator_value(
-    el: Optional[etree._Element],
-) -> Optional[Union[int, float]]:
+    el: etree._Element | None,
+) -> int | float | None:
     """Parse an ``se:Min/MaxScaleDenominator`` element's text to a number.
 
     Integral values come back as ``int`` so a ``viz.sd`` selector conjunct
@@ -50,7 +49,7 @@ def _scale_denominator_value(
 class SldSeReader(CodecReader):
     """Read ``.sld`` / ``.se`` XML files (or raw XML strings) into a Style model."""
 
-    def read(self, source: Union[str, Path]) -> Style:
+    def read(self, source: str | Path) -> Style:
         """Parse *source* and return a validated Style.
 
         Parameters
@@ -99,7 +98,7 @@ class SldSeReader(CodecReader):
             if abstract_el is not None and abstract_el.text:
                 metadata["abstract"] = abstract_el.text
 
-        styling_rules: List[dict] = []
+        styling_rules: list[dict] = []
         for fts_el in [
             child
             for child in user_style
@@ -114,17 +113,17 @@ class SldSeReader(CodecReader):
         style: Style = Style.from_dict(style_dict)
         return style
 
-    def _parse_feature_type_style(self, fts_el: etree._Element) -> List[dict]:
+    def _parse_feature_type_style(self, fts_el: etree._Element) -> list[dict]:
         ftn_el = find_se_direct(fts_el, "FeatureTypeName")
         if ftn_el is None:
             ftn_el = find_se_direct(fts_el, "CoverageName")
         feature_type_name = ftn_el.text if ftn_el is not None else None
 
-        rule_dicts: List[dict] = []
+        rule_dicts: list[dict] = []
         # Stack of the dict each subsequent ElseFilter rule should attach
         # to as a `nestedRules` entry — the writer flattens `nested_rules`
         # chains into consecutive siblings, so we reverse that here.
-        attach_to: Optional[dict] = None
+        attach_to: dict | None = None
 
         for rule_el in findall_se(fts_el, "Rule"):
             rule_dict, is_else = self._parse_rule(rule_el)
@@ -146,7 +145,7 @@ class SldSeReader(CodecReader):
 
         return rule_dicts
 
-    def _parse_rule(self, rule_el: etree._Element) -> Tuple[dict, bool]:
+    def _parse_rule(self, rule_el: etree._Element) -> tuple[dict, bool]:
         rule_dict: dict = {}
 
         name_el = find_se_direct(rule_el, "Name")

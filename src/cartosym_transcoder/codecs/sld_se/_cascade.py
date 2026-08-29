@@ -18,20 +18,20 @@ ancestors') for the writer's ``_flatten_nested_rules`` to emit as an
 ``se:ElseFilter`` sibling.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _GRAPHIC_CONTAINER_KEYS = ("marker", "label")
 
 
-def flatten_cascade_rules(rule_dicts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def flatten_cascade_rules(rule_dicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Flatten every cascade in *rule_dicts* (``StylingRule.to_dict()`` shape)."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for rd in rule_dicts:
         out.extend(_flatten(rd, parent_selector=None, parent_sym={}))
     return out
 
 
-def _and(a: Optional[Any], b: Optional[Any]) -> Optional[Any]:
+def _and(a: Any | None, b: Any | None) -> Any | None:
     if a is None:
         return b
     if b is None:
@@ -39,15 +39,15 @@ def _and(a: Optional[Any], b: Optional[Any]) -> Optional[Any]:
     return {"op": "and", "args": [a, b]}
 
 
-def _carry_name(rule: Dict[str, Any]) -> Dict[str, Any]:
+def _carry_name(rule: dict[str, Any]) -> dict[str, Any]:
     return {k: rule[k] for k in ("name", "stylingRuleName") if k in rule}
 
 
 def _flatten(
-    rule: Dict[str, Any],
-    parent_selector: Optional[Any],
-    parent_sym: Dict[str, Any],
-) -> List[Dict[str, Any]]:
+    rule: dict[str, Any],
+    parent_selector: Any | None,
+    parent_sym: dict[str, Any],
+) -> list[dict[str, Any]]:
     own_sym = rule.get("symbolizer") or {}
     merged_sym = _deep_merge(parent_sym, own_sym)
     merged_sel = _and(parent_selector, rule.get("selector"))
@@ -71,8 +71,8 @@ def _flatten(
 
 
 def _flatten_else(
-    else_rule: Dict[str, Any], parent_sym: Dict[str, Any]
-) -> Dict[str, Any]:
+    else_rule: dict[str, Any], parent_sym: dict[str, Any]
+) -> dict[str, Any]:
     merged_sym = _deep_merge(parent_sym, else_rule.get("symbolizer") or {})
     sub = else_rule.get("nestedRules") or []
     if any(n.get("selector") is not None for n in sub):
@@ -118,9 +118,9 @@ def _deep_merge(base: Any, override: Any) -> Any:
     return out
 
 
-def _merge_graphic_container(base: Dict[str, Any], override: Dict[str, Any]) -> dict:
+def _merge_graphic_container(base: dict[str, Any], override: dict[str, Any]) -> dict:
     """Merge two ``marker``/``label`` dicts, resolving element overrides."""
-    out: Dict[str, Any] = _deep_merge(
+    out: dict[str, Any] = _deep_merge(
         {k: v for k, v in base.items() if k != "elements"},
         {k: v for k, v in override.items() if k not in ("elements", "alter")},
     )

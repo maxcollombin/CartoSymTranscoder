@@ -5,7 +5,7 @@ This module contains the data structures representing parsed CartoSym CSS.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -14,16 +14,16 @@ class Variable:
 
     name: str
     value: Any
-    type: Optional[str] = None
+    type: str | None = None
 
 
 @dataclass
 class StyleSheet:
     """Root node of a CartoSym CSS stylesheet."""
 
-    metadata: List["Metadata"] = field(default_factory=list)
+    metadata: list["Metadata"] = field(default_factory=list)
     styling_rules: Optional["StylingRuleList"] = None
-    variables: List["Variable"] = field(default_factory=list)
+    variables: list["Variable"] = field(default_factory=list)
 
 
 @dataclass
@@ -38,7 +38,7 @@ class Metadata:
 class StylingRuleList:
     """Collection of styling rules."""
 
-    rules: List["StylingRule"]
+    rules: list["StylingRule"]
 
     def __post_init__(self):
         if self.rules is None:
@@ -49,15 +49,13 @@ class StylingRuleList:
 class StylingRule:
     """Individual styling rule with selector and properties."""
 
-    name: Optional[str] = None
-    styling_rule_name: Optional[str] = (
-        None  # New: explicit stylingRuleName from grammar
-    )
+    name: str | None = None
+    styling_rule_name: str | None = None  # New: explicit stylingRuleName from grammar
     selector: Optional["Selector"] = None
     # all selectors (for nested rules)
     selectors: list = field(default_factory=list)
     symbolizer: Optional["Symbolizer"] = None
-    nested_rules: List["StylingRule"] = field(default_factory=list)
+    nested_rules: list["StylingRule"] = field(default_factory=list)
     # all property assignments, for post-processing
     property_assignments: list = field(default_factory=list)
 
@@ -74,9 +72,9 @@ class Symbolizer:
     """Symbolizer defining how features are rendered."""
 
     # Basic properties
-    visibility: Optional[bool] = None
-    opacity: Optional[float] = None
-    z_order: Optional[int] = None
+    visibility: bool | None = None
+    opacity: float | None = None
+    z_order: int | None = None
 
     # Vector symbolizers
     fill: Optional["Fill"] = None
@@ -85,18 +83,18 @@ class Symbolizer:
     label: Optional["Label"] = None
 
     # Coverage/Raster properties (Phase B Priority 1)
-    single_channel: Optional[str] = None  # e.g., "elevation"
-    singleChannel: Optional[str] = None  # camelCase alternative
-    color_channels: Optional[Any] = None  # RGB color channels
-    colorChannels: Optional[Any] = None  # camelCase alternative
-    alpha_channel: Optional[Any] = None  # Alpha channel
-    alphaChannel: Optional[Any] = None  # camelCase alternative
-    color_map: Optional[Any] = None  # Color mapping
-    colorMap: Optional[Any] = None  # camelCase alternative
-    opacity_map: Optional[Any] = None  # Opacity mapping
-    opacityMap: Optional[Any] = None  # camelCase alternative
-    hill_shading: Optional[Dict[str, Any]] = None  # Hill shading config
-    hillShading: Optional[Dict[str, Any]] = None  # camelCase alternative
+    single_channel: str | None = None  # e.g., "elevation"
+    singleChannel: str | None = None  # camelCase alternative
+    color_channels: Any | None = None  # RGB color channels
+    colorChannels: Any | None = None  # camelCase alternative
+    alpha_channel: Any | None = None  # Alpha channel
+    alphaChannel: Any | None = None  # camelCase alternative
+    color_map: Any | None = None  # Color mapping
+    colorMap: Any | None = None  # camelCase alternative
+    opacity_map: Any | None = None  # Opacity mapping
+    opacityMap: Any | None = None  # camelCase alternative
+    hill_shading: dict[str, Any] | None = None  # Hill shading config
+    hillShading: dict[str, Any] | None = None  # camelCase alternative
 
 
 @dataclass
@@ -118,7 +116,7 @@ class PropertyAssignment:
 class PropertyAssignmentList:
     """Collection of property assignments."""
 
-    assignments: List[PropertyAssignment]
+    assignments: list[PropertyAssignment]
 
     def __post_init__(self):
         if self.assignments is None:
@@ -129,31 +127,31 @@ class PropertyAssignmentList:
 class Fill:
     """Fill styling properties."""
 
-    color: Optional[str] = None
-    opacity: Optional[float] = None
+    color: str | None = None
+    opacity: float | None = None
 
 
 @dataclass
 class Stroke:
     """Stroke styling properties."""
 
-    color: Optional[str] = None
-    width: Optional[float] = None
-    opacity: Optional[float] = None
+    color: str | None = None
+    width: float | None = None
+    opacity: float | None = None
 
 
 @dataclass
 class Marker:
     """Marker styling properties."""
 
-    elements: Optional[list] = None
+    elements: list | None = None
 
 
 @dataclass
 class Label:
     """Label styling properties."""
 
-    elements: Optional[list] = None
-    position: Optional[Any] = None
-    opacity: Optional[float] = None
-    placement: Optional[Any] = None
+    elements: list | None = None
+    position: Any | None = None
+    opacity: float | None = None
+    placement: Any | None = None

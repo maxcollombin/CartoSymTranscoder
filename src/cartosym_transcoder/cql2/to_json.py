@@ -9,7 +9,7 @@ than from here directly.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Union
+from typing import Any
 
 __all__ = [
     "post_process_selector",
@@ -156,7 +156,7 @@ def post_process_selector(selector: Any) -> Any:
         return selector
 
 
-def convert_string_to_json_selector(selector_str: str) -> Dict[str, Any]:
+def convert_string_to_json_selector(selector_str: str) -> dict[str, Any]:
     """Convert string selector to proper JSON structure."""
     left_arg: Any
     right_arg: Any
@@ -527,7 +527,7 @@ def _map_system_property(prop: str) -> str:
     return prop
 
 
-def convert_literal_value(value: Union[str, int, float]) -> Any:
+def convert_literal_value(value: str | int | float) -> Any:
     """Convert literal value to appropriate JSON type with proper CS.JSON formatting."""
     if isinstance(value, (int, float)):
         return value

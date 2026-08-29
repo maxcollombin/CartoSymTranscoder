@@ -6,7 +6,7 @@ Each codec provides a reader (format → Style) and a writer (Style → format).
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any
 
 from ..models.styles import Style
 
@@ -15,7 +15,7 @@ class CodecReader(ABC):
     """Abstract reader: converts a specific format into a Style model."""
 
     @abstractmethod
-    def read(self, source: Union[str, Path]) -> Style:
+    def read(self, source: str | Path) -> Style:
         """Read *source* (file path or string content) and return a Style model.
 
         Parameters
@@ -71,16 +71,16 @@ class Codec:
     def __init__(
         self,
         format_name: str,
-        extensions: List[str],
-        reader: Optional[CodecReader] = None,
-        writer: Optional[CodecWriter] = None,
+        extensions: list[str],
+        reader: CodecReader | None = None,
+        writer: CodecWriter | None = None,
     ):
         self.format_name = format_name
         self.extensions = extensions
         self.reader = reader
         self.writer = writer
 
-    def read(self, source: Union[str, Path]) -> Style:
+    def read(self, source: str | Path) -> Style:
         """Delegate to the reader."""
         if self.reader is None:
             raise NotImplementedError(
