@@ -1,5 +1,4 @@
-"""
-SLD/SE reader — parse OGC Styled Layer Descriptor / Symbology Encoding XML
+"""SLD/SE reader — parse OGC Styled Layer Descriptor / Symbology Encoding XML
 into Style models.
 
 Scope: vector symbolizers plus basic Part-1 raster/coverage styling; see

@@ -1,5 +1,4 @@
-"""
-MapLibre / MapBox GL Style reader — parse MapLibre style JSON into Style models.
+"""MapLibre / MapBox GL Style reader — parse MapLibre style JSON into Style models.
 
 .. note::
    This is a **stub** — not yet implemented.

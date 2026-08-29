@@ -1,6 +1,4 @@
-"""
-Base Pydantic models and utilities for CartoSym.
-"""
+"""Base Pydantic models and utilities for CartoSym."""
 
 from __future__ import annotations
 
@@ -12,8 +10,7 @@ _T = TypeVar("_T", bound="BaseCartoSymModel")
 
 
 class BaseCartoSymModel(BaseModel):
-    """
-    Base class for all CartoSym models.
+    """Base class for all CartoSym models.
 
     Provides common configuration and utilities for validation,
     serialization, and documentation generation.

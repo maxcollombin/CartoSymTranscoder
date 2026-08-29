@@ -1,5 +1,4 @@
-"""
-OGC Filter Encoding <-> CartoSym selector dict mapping, both directions.
+"""OGC Filter Encoding <-> CartoSym selector dict mapping, both directions.
 
 Ground truth for the selector dict shapes handled here is
 ``converter.py::_format_selector_expr``/``_selector_to_cscss`` — CartoSym's
@@ -119,7 +118,7 @@ def extract_feature_type_name(
     simplification. Mirrors the same detection logic as
     ``converter.py:217-244`` / ``ast_converter.py:1014,1038``.
 
-    Returns
+    Returns:
     -------
     (feature_type_name, remaining_selector)
         ``remaining_selector`` is ``None`` if nothing is left, the bare
@@ -169,7 +168,7 @@ def _scale_bound(expr: Any) -> tuple[str, Any] | None:
     ``None`` if *expr* is not a ``viz.sd`` comparison at all. The operand
     order may be either way round (``viz.sd < N`` or ``N > viz.sd``).
 
-    Raises
+    Raises:
     ------
     NotImplementedError
         If *expr* compares ``viz.sd`` with ``=``/``!=`` — neither can be
@@ -226,7 +225,7 @@ def extract_scale_denominators(
     leaves several bounds on the same side (``viz.sd < 200000`` from an
     ancestor and ``viz.sd < 10000`` from the node), the tightest wins.
 
-    Raises
+    Raises:
     ------
     NotImplementedError
         If ``viz.sd`` is compared with an operator that is not a range

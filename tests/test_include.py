@@ -137,7 +137,8 @@ class TestIncludeDirective:
     def test_include_strips_arbitrary_metadata_keys(self, tmp_path):
         """Any leading `.identifier 'x'` metadata (not just .title/.abstract)
         must be stripped from an included file, since the grammar only
-        allows metadata at the very top of a stylesheet."""
+        allows metadata at the very top of a stylesheet.
+        """
         child = tmp_path / "child.cscss"
         child.write_text(
             ".description 'A child stylesheet'\n"
@@ -157,7 +158,8 @@ class TestIncludeDirective:
     def test_include_preserves_styling_rule_name_in_body(self, tmp_path):
         """`.name 'x'` inside a rule body (stylingRuleName) has the exact
         same textual shape as a metadata directive but must NOT be
-        stripped — it only looks like metadata before the first `{`."""
+        stripped — it only looks like metadata before the first `{`.
+        """
         child = tmp_path / "child.cscss"
         child.write_text("[Layer]\n{\n   .name 'CustomName'\n   visibility: true;\n}\n")
 

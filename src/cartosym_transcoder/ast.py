@@ -1,5 +1,4 @@
-"""
-Abstract Syntax Tree (AST) classes for CartoSym CSS.
+"""Abstract Syntax Tree (AST) classes for CartoSym CSS.
 
 This module contains the data structures representing parsed CartoSym CSS.
 """

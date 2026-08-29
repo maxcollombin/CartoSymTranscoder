@@ -1,5 +1,4 @@
-"""
-Core style and rule models for CartoSym.
+"""Core style and rule models for CartoSym.
 
 Based on the JSON Schema definitions for style, stylingRule, and metadata.
 """
@@ -17,8 +16,7 @@ from .symbolizers import Symbolizer
 
 
 class Metadata(BaseCartoSymModel, CommentMixin):
-    """
-    Metadata for a CartoSym style.
+    """Metadata for a CartoSym style.
 
     Based on the 'metadata' definition in the JSON schema.
     """
@@ -34,9 +32,7 @@ class Metadata(BaseCartoSymModel, CommentMixin):
 
 
 class Variable(BaseCartoSymModel):
-    """
-    Represents a variable definition in CartoSym CSS.
-    """
+    """Represents a variable definition in CartoSym CSS."""
 
     name: str = Field(..., description="Variable name")
     value: Any = Field(..., description="Variable value")
@@ -44,8 +40,7 @@ class Variable(BaseCartoSymModel):
 
 
 class StylingRule(BaseCartoSymModel, CommentMixin):
-    """
-    Individual styling rule with optional selector and symbolizer.
+    """Individual styling rule with optional selector and symbolizer.
     Now supports explicit stylingRuleName.
 
     Field order matters: Pydantic serializes in declaration order,
@@ -86,8 +81,7 @@ class StylingRule(BaseCartoSymModel, CommentMixin):
 
 
 class Style(BaseCartoSymModel, CommentMixin):
-    """
-    Root CartoSym style definition.
+    """Root CartoSym style definition.
     Now supports explicit variable objects.
     """
 

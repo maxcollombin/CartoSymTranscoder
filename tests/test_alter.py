@@ -1,5 +1,4 @@
-"""Tests for the 'alter' flag on dot-notation and indexed element
-overrides (Phase 2.2)."""
+"""Tests for the 'alter' flag on dot-notation and indexed element overrides."""
 
 from pathlib import Path
 
@@ -10,7 +9,8 @@ EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 class TestAlterFlag:
     """Dot-notation properties should produce ``alter: true`` on the
-    parent sub-object."""
+    parent sub-object.
+    """
 
     def setup_method(self):
         self.parser = CartoSymParser()
@@ -88,7 +88,8 @@ class TestAlterFlag:
 
     def test_fill_and_stroke_dot_notation_both_alter(self):
         """fill.color and stroke.color should each set ``alter`` on their
-        own object."""
+        own object.
+        """
         cscss = """\
 [Base]
 {
@@ -114,7 +115,8 @@ class TestAlterFlag:
 
     def test_marker_elements_indexed_sets_alter(self):
         """marker.elements[1]: Image{...} →
-        marker: { alter: true, elements: {index: 1, value: ...} }"""
+        marker: { alter: true, elements: {index: 1, value: ...} }
+        """
         cscss = """\
 [Base]
 {

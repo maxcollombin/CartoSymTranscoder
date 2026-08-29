@@ -1,5 +1,4 @@
-"""
-Resolve CartoSym nested-rule *cascades* into a flat list of independent
+"""Resolve CartoSym nested-rule *cascades* into a flat list of independent
 rules for SLD/SE emission.
 
 A ``StylingRule.nestedRules`` entry **with its own selector** is a

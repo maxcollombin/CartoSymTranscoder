@@ -1,5 +1,4 @@
-"""
-CSCSS reader — parse CartoSym-CSS files into Style models.
+"""CSCSS reader — parse CartoSym-CSS files into Style models.
 
 Delegates to the existing :class:`~cartosym_transcoder.parser.CartoSymParser`.
 """

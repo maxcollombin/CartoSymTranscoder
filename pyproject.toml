@@ -94,9 +94,23 @@ extend-exclude = ["src/cartosym_transcoder/grammar/generated"]
 # E/F/W: flake8 parity. I: isort parity. UP: pyupgrade (safe on the
 # >=3.10 floor — PEP 604/585 syntax). FIX/TD: no stray TODO/FIXME/HACK
 # left in the tree — a known gap raises NotImplementedError with an inline
-# reason instead. ERA (commented-out code) and D (pydocstyle) are staged
-# in as separate follow-ups.
-select = ["E", "F", "W", "I", "UP", "FIX", "TD"]
+# reason instead. D: pydocstyle (google convention) — docstring layout
+# only for now. These are still staged in as follow-ups:
+#   - undocumented-public-* (D100/D101/D102/D103/D105/D107) — ~440 missing
+#     docstrings, their own pass;
+#   - D205 (blank line after summary) / D415 (terminal punctuation) /
+#     D403 (first-word case) — need a sentence-aware manual pass (a naive
+#     autofix splits wrapped summaries and mangles identifiers like
+#     `stylingRuleName`).
+# ERA (commented-out code) is a separate follow-up.
+select = ["E", "F", "W", "I", "UP", "FIX", "TD", "D"]
+ignore = [
+    "D100", "D101", "D102", "D103", "D105", "D107",
+    "D205", "D400", "D401", "D403", "D415",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.isort]
 known-first-party = ["cartosym_transcoder"]

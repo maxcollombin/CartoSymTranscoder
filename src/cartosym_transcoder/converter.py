@@ -1,5 +1,4 @@
-"""
-Converter module for transforming between different formats.
+"""Converter module for transforming between different formats.
 
 This module provides conversion capabilities between CartoSym CSS and other formats,
 using Pydantic models for robust validation and serialization.
@@ -21,8 +20,7 @@ class Converter:
         self.parser = CartoSymParser()
 
     def _resolve_path(self, path: str | Path) -> Path:
-        """
-        Résout le chemin relatif par rapport à la racine du projet
+        """Résout le chemin relatif par rapport à la racine du projet
         (là où se trouve pyproject.toml).
         """
         p = Path(path)
@@ -37,8 +35,7 @@ class Converter:
         return p
 
     def cscss_to_csjson(self, cscss_input: str | Path | Style) -> dict[str, Any]:
-        """
-        Convert CartoSym CSS (CSCSS) to CartoSym JSON (CSJSON) format.
+        """Convert CartoSym CSS (CSCSS) to CartoSym JSON (CSJSON) format.
 
         Args:
             cscss_input: CSCSS string, file path, or Style model
@@ -108,8 +105,7 @@ class Converter:
                 self._fix_invalid_selectors(item)
 
     def csjson_to_style(self, csjson_input: str | dict[str, Any] | Path) -> Style:
-        """
-        Convert CSJSON to CartoSym Style model.
+        """Convert CSJSON to CartoSym Style model.
 
         Args:
             csjson_input: CSJSON string, dictionary, or file path
@@ -138,8 +134,7 @@ class Converter:
             )
 
     def csjson_to_cscss(self, csjson_input: str | dict[str, Any] | Path) -> str:
-        """
-        Convert CSJSON to CartoSym CSS (CSCSS) format.
+        """Convert CSJSON to CartoSym CSS (CSCSS) format.
 
         Args:
             csjson_input: CSJSON string, dictionary, or file path
@@ -154,9 +149,7 @@ class Converter:
         return self.style_to_cscss(style)
 
     def style_to_cscss(self, style: Style) -> str:
-        """
-        Convert Style model to CSCSS string with pretty-print indentation.
-        """
+        """Convert Style model to CSCSS string with pretty-print indentation."""
         lines = []
         # Add metadata as CSCSS directives
         if style.metadata:
@@ -217,8 +210,7 @@ class Converter:
         return lines
 
     def _selector_to_cscss(self, selector) -> str:
-        """
-        Convert a selector (dict, list, or str) to a CSCSS selector string.
+        """Convert a selector (dict, list, or str) to a CSCSS selector string.
         Handles:
         - Landuse
         - Landuse[other filter]

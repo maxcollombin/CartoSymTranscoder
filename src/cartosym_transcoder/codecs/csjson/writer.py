@@ -1,5 +1,4 @@
-"""
-CS-JSON writer — serialise Style models to CartoSym-JSON.
+"""CS-JSON writer — serialise Style models to CartoSym-JSON.
 
 Delegates to :meth:`~cartosym_transcoder.converter.Converter.cscss_to_csjson`
 (which accepts a Style model directly and produces a validated dict).
@@ -30,7 +29,7 @@ class CsjsonWriter(CodecWriter):
         as_string : bool
             If *True*, return a pretty-printed JSON string instead of a dict.
 
-        Returns
+        Returns:
         -------
         dict | str
         """

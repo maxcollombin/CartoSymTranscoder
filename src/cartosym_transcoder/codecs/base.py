@@ -1,5 +1,4 @@
-"""
-Abstract base class for format codecs.
+"""Abstract base class for format codecs.
 
 Each codec provides a reader (format → Style) and a writer (Style → format).
 """
@@ -26,7 +25,7 @@ class CodecReader(ABC):
             Either a filesystem path to the input file, or the raw string
             content in the source format.
 
-        Returns
+        Returns:
         -------
         Style
             Validated Pydantic Style model.
@@ -46,7 +45,7 @@ class CodecWriter(ABC):
         style : Style
             Pydantic Style model to serialise.
 
-        Returns
+        Returns:
         -------
         str | dict
             The serialised output (string for text formats, dict for JSON).
@@ -57,7 +56,7 @@ class CodecWriter(ABC):
 class Codec:
     """Container that pairs a reader and a writer for a given format.
 
-    Attributes
+    Attributes:
     ----------
     format_name : str
         Human-readable name of the format (e.g. ``"CartoSym-CSS"``).

@@ -1,6 +1,4 @@
-"""
-Command-line interface for CartoSym Transcoder.
-"""
+"""Command-line interface for CartoSym Transcoder."""
 
 from __future__ import annotations
 

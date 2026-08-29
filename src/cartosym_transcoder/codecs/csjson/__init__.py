@@ -1,6 +1,4 @@
-"""
-CartoSym-JSON codec — ``.cs.json`` reader and writer.
-"""
+"""CartoSym-JSON codec — ``.cs.json`` reader and writer."""
 
 from __future__ import annotations
 

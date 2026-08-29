@@ -50,7 +50,8 @@ class TestDataLayerMetadataStripping:
         """dataLayer.type/featuresGeometryDimensions have no SLD/SE
         representation — writing then reading back a selector that uses
         them, alongside dataLayer.id, drops them permanently rather than
-        round-tripping."""
+        round-tripping.
+        """
         style_dict = {
             "stylingRules": [
                 {

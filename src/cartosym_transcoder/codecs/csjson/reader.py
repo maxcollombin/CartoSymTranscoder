@@ -1,5 +1,4 @@
-"""
-CS-JSON reader — parse CartoSym-JSON files into Style models.
+"""CS-JSON reader — parse CartoSym-JSON files into Style models.
 
 Delegates to :meth:`~cartosym_transcoder.converter.Converter.csjson_to_style`.
 """

@@ -1,5 +1,4 @@
-"""
-AST to Pydantic converter for CartoSym CSS.
+"""AST to Pydantic converter for CartoSym CSS.
 
 This module converts ANTLR-generated AST nodes to Pydantic models.
 """
@@ -29,7 +28,8 @@ from .models import (
 
 def _strip_inline_comment(s: str) -> str:
     """Strip a ``//`` line comment from *s*, but only outside single/double-quoted
-    string literals so that URLs like ``'http://...'`` are preserved intact."""
+    string literals so that URLs like ``'http://...'`` are preserved intact.
+    """
     result = []
     i = 0
     while i < len(s):
@@ -54,7 +54,8 @@ def _strip_inline_comment(s: str) -> str:
 
 def _parse_resource_string(inner: str) -> dict:
     """Parse ``uri: 'val'; path: 'val'; ...`` (content inside ``{}``) into a
-    resource dict, stripping surrounding quotes from each value."""
+    resource dict, stripping surrounding quotes from each value.
+    """
     result = {}
     for part in inner.split(";"):
         part = part.strip()
@@ -71,7 +72,8 @@ def _parse_resource_string(inner: str) -> dict:
 
 def _parse_hotspot_string(s: str) -> Any:
     """Convert ``'N unit N unit'`` (e.g. ``'50 pc 50 pc'``) to a unitPoint
-    array ``[{unit: N}, {unit: N}]`` as expected by the CS.JSON schema."""
+    array ``[{unit: N}, {unit: N}]`` as expected by the CS.JSON schema.
+    """
     parts = s.strip().split()
     if len(parts) == 4:
         try:
@@ -1112,8 +1114,7 @@ class AstToPydanticConverter:
 
 
 def convert_ast_to_pydantic(ast_stylesheet: AstStyleSheet) -> Style:
-    """
-    Convenience function to convert AST StyleSheet to Pydantic Style.
+    """Convenience function to convert AST StyleSheet to Pydantic Style.
 
     Args:
         ast_stylesheet: ANTLR-generated AST stylesheet

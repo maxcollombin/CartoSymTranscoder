@@ -1,5 +1,4 @@
-"""
-CartoSym CSS Parser module.
+"""CartoSym CSS Parser module.
 
 This module provides the main parsing functionality for CartoSym CSS files.
 """
@@ -47,7 +46,8 @@ logger = logging.getLogger(__name__)
 class _CollectingErrorListener(ErrorListener):
     """ANTLR error listener that accumulates syntax errors instead of
     printing them to stderr, so :meth:`CartoSymParser.parse_string` can
-    raise a single :class:`CartoSymSyntaxError`."""
+    raise a single :class:`CartoSymSyntaxError`.
+    """
 
     def __init__(self) -> None:
         super().__init__()
@@ -59,7 +59,8 @@ class _CollectingErrorListener(ErrorListener):
 
 def _strip_inline_comment(s: str) -> str:
     """Strip a ``//`` line comment from *s*, but only outside single/double-quoted
-    string literals so that URLs like ``'http://...'`` are preserved intact."""
+    string literals so that URLs like ``'http://...'`` are preserved intact.
+    """
     result = []
     i = 0
     while i < len(s):
@@ -409,7 +410,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
     @staticmethod
     def _collect_inferred_assignments(pai_list_ctx):
         """Flatten a left-recursive PropertyAssignmentInferredListContext into
-        a list of PropertyAssignmentInferredContext nodes (in source order)."""
+        a list of PropertyAssignmentInferredContext nodes (in source order).
+        """
         if pai_list_ctx is None:
             return []
         items = []
@@ -425,7 +427,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
     @staticmethod
     def _collect_array_elements(array_elements_ctx):
         """Flatten a left-recursive ArrayElementsContext into a list of
-        ExpressionContext nodes (in source order)."""
+        ExpressionContext nodes (in source order).
+        """
         if array_elements_ctx is None:
             return []
         items = []
@@ -471,7 +474,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
     @classmethod
     def _extract_element_from_instance(cls, exp_instance_ctx) -> dict:
         """Extract a single element dict from an ExpInstanceContext like
-        ``Dot { size: 10 px; color: white }``."""
+        ``Dot { size: 10 px; color: white }``.
+        """
         ident = exp_instance_ctx.IDENTIFIER()
         result = {"type": ident.getText()} if ident else {}
         pai_list = exp_instance_ctx.propertyAssignmentInferredList()
@@ -616,7 +620,8 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
 
     def enterStylingRuleName(self, ctx):
         """Called when entering a stylingRuleName (.name 'value').
-        This fires AFTER enterStylingRule, so self.current_rule already exists."""
+        This fires AFTER enterStylingRule, so self.current_rule already exists.
+        """
         if ctx.CHARACTER_LITERAL() and self.current_rule:
             self.current_rule.styling_rule_name = (
                 ctx.CHARACTER_LITERAL().getText().strip("'\"")
