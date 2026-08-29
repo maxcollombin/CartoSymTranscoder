@@ -80,15 +80,6 @@ class CartoSymCSSGrammarListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CartoSymCSSGrammar#idOrConstant.
-    def enterIdOrConstant(self, ctx:CartoSymCSSGrammar.IdOrConstantContext):
-        pass
-
-    # Exit a parse tree produced by CartoSymCSSGrammar#idOrConstant.
-    def exitIdOrConstant(self, ctx:CartoSymCSSGrammar.IdOrConstantContext):
-        pass
-
-
     # Enter a parse tree produced by CartoSymCSSGrammar#tuple.
     def enterTuple(self, ctx:CartoSymCSSGrammar.TupleContext):
         pass
@@ -269,24 +260,6 @@ class CartoSymCSSGrammarListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CartoSymCSSGrammar#expConstant.
-    def enterExpConstant(self, ctx:CartoSymCSSGrammar.ExpConstantContext):
-        pass
-
-    # Exit a parse tree produced by CartoSymCSSGrammar#expConstant.
-    def exitExpConstant(self, ctx:CartoSymCSSGrammar.ExpConstantContext):
-        pass
-
-
-    # Enter a parse tree produced by CartoSymCSSGrammar#expString.
-    def enterExpString(self, ctx:CartoSymCSSGrammar.ExpStringContext):
-        pass
-
-    # Exit a parse tree produced by CartoSymCSSGrammar#expString.
-    def exitExpString(self, ctx:CartoSymCSSGrammar.ExpStringContext):
-        pass
-
-
     # Enter a parse tree produced by CartoSymCSSGrammar#expInstance.
     def enterExpInstance(self, ctx:CartoSymCSSGrammar.ExpInstanceContext):
         pass
@@ -338,6 +311,33 @@ class CartoSymCSSGrammarListener(ParseTreeListener):
 
     # Exit a parse tree produced by CartoSymCSSGrammar#propertyAssignmentInferredList.
     def exitPropertyAssignmentInferredList(self, ctx:CartoSymCSSGrammar.PropertyAssignmentInferredListContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#idOrConstant.
+    def enterIdOrConstant(self, ctx:CartoSymCSSGrammar.IdOrConstantContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#idOrConstant.
+    def exitIdOrConstant(self, ctx:CartoSymCSSGrammar.IdOrConstantContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#expConstant.
+    def enterExpConstant(self, ctx:CartoSymCSSGrammar.ExpConstantContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#expConstant.
+    def exitExpConstant(self, ctx:CartoSymCSSGrammar.ExpConstantContext):
+        pass
+
+
+    # Enter a parse tree produced by CartoSymCSSGrammar#expString.
+    def enterExpString(self, ctx:CartoSymCSSGrammar.ExpStringContext):
+        pass
+
+    # Exit a parse tree produced by CartoSymCSSGrammar#expString.
+    def exitExpString(self, ctx:CartoSymCSSGrammar.ExpStringContext):
         pass
 
 
