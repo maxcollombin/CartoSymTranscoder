@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ._filter import filter_to_selector
+
 # Paint keys that carry no CartoSym-symbology meaning and are dropped
 # rather than rejected: they tune rasteriser quality, not the portrayal.
 _IGNORED_PAINT: frozenset[str] = frozenset({"fill-antialias"})
@@ -111,15 +113,13 @@ def layer_to_styling_rule(layer: dict[str, Any]) -> dict[str, Any]:
         raise NotImplementedError(
             f"MapLibre {layer_type!r} layer is not supported by this codec yet"
         )
-    if "filter" in layer:
-        raise NotImplementedError(
-            "MapLibre layer 'filter' → CartoSym selector is not mapped yet"
-        )
-
     symbolizer = handler(layer)
     visibility = _visibility(layer)
     if visibility is not None:
         symbolizer["visibility"] = visibility
 
-    rule: dict[str, Any] = {"name": layer["id"], "symbolizer": symbolizer}
+    rule: dict[str, Any] = {"name": layer["id"]}
+    if "filter" in layer:
+        rule["selector"] = filter_to_selector(layer["filter"])
+    rule["symbolizer"] = symbolizer
     return rule

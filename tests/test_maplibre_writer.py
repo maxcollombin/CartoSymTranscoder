@@ -87,13 +87,31 @@ def test_marker_symbolizer_is_rejected():
         MaplibreWriter().write(style)
 
 
-def test_rule_selector_is_rejected():
+def test_rule_selector_becomes_layer_filter():
     style = Style.from_dict(
         {
             "stylingRules": [
                 {
                     "name": "x",
                     "selector": {"op": "=", "args": [{"property": "k"}, "v"]},
+                    "symbolizer": {"fill": {"color": "red"}},
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["filter"] == ["==", ["get", "k"], "v"]
+    assert list(out["layers"][0]) == ["id", "type", "source", "filter", "paint"]
+    assert_maplibre_valid(out)
+
+
+def test_sysid_selector_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "selector": {"op": "=", "args": [{"sysId": "dataLayer.id"}, "L"]},
                     "symbolizer": {"fill": {"color": "red"}},
                 }
             ]
