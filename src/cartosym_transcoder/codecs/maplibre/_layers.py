@@ -1,11 +1,11 @@
 """MapLibre GL layer → CartoSym styling-rule mapping (reader side).
 
-Scope of this pass: ``fill`` and ``line`` layers whose paint values are
-**constants**. Anything else — ``circle`` / ``symbol`` / ``background`` /
+Scope of this pass: ``fill`` / ``line`` / ``circle`` layers whose paint
+values are **constants**. Anything else — ``symbol`` / ``background`` /
 ``raster`` layers, MapLibre expressions or legacy interpolation functions
-as values, and layer ``filter`` — raises :exc:`NotImplementedError`. A
-partial mapping would silently drop styling, which this project does not
-do.
+as values — raises :exc:`NotImplementedError`. A partial mapping would
+silently drop styling, which this project does not do. Layer ``filter``
+maps to ``rule.selector`` (see :mod:`._filter`).
 
 Each function returns a plain ``dict`` shaped like a CartoSym
 ``stylingRule`` / ``symbolizer``; the caller feeds it to the Pydantic
@@ -26,6 +26,16 @@ _FILL_PAINT: frozenset[str] = frozenset(
     {"fill-color", "fill-opacity", "fill-outline-color"}
 )
 _LINE_PAINT: frozenset[str] = frozenset({"line-color", "line-opacity", "line-width"})
+_CIRCLE_PAINT: frozenset[str] = frozenset(
+    {
+        "circle-color",
+        "circle-opacity",
+        "circle-radius",
+        "circle-stroke-color",
+        "circle-stroke-width",
+        "circle-stroke-opacity",
+    }
+)
 
 
 def _constant(value: Any, prop: str) -> Any:
@@ -97,7 +107,48 @@ def _line_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     return {"stroke": stroke}
 
 
-_HANDLERS = {"fill": _fill_symbolizer, "line": _line_symbolizer}
+def _circle_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
+    """A ``circle`` layer → a ``marker`` with a single ``Dot`` element.
+
+    ``circle-radius`` is a radius; a CartoSym ``Dot.size`` is a diameter,
+    so ``size = 2 × circle-radius``. The Dot carries ``fill`` (interior),
+    ``stroke`` (outline) and ``size`` — the JSON schema's ``Shape`` only
+    defines ``stroke`` today, but a Dot object accepts extra keys and this
+    is the only structure that maps ``circle-color`` + ``circle-stroke-*``
+    + ``circle-radius`` without losing one of them.
+    """
+    paint = layer.get("paint", {})
+    _reject_unknown(paint, _CIRCLE_PAINT, "circle")
+    _reject_unknown(layer.get("layout", {}), frozenset({"visibility"}), "circle layout")
+
+    dot: dict[str, Any] = {"type": "Dot"}
+    if "circle-opacity" in paint:
+        dot["opacity"] = _constant(paint["circle-opacity"], "circle-opacity")
+    if "circle-color" in paint:
+        dot["fill"] = {"color": _constant(paint["circle-color"], "circle-color")}
+
+    stroke: dict[str, Any] = {}
+    for mb_key, cs_key in (
+        ("circle-stroke-color", "color"),
+        ("circle-stroke-width", "width"),
+        ("circle-stroke-opacity", "opacity"),
+    ):
+        if mb_key in paint:
+            stroke[cs_key] = _constant(paint[mb_key], mb_key)
+    if stroke:
+        dot["stroke"] = stroke
+
+    if "circle-radius" in paint:
+        dot["size"] = _constant(paint["circle-radius"], "circle-radius") * 2
+
+    return {"marker": {"elements": [dot]}}
+
+
+_HANDLERS = {
+    "fill": _fill_symbolizer,
+    "line": _line_symbolizer,
+    "circle": _circle_symbolizer,
+}
 
 
 def layer_to_styling_rule(layer: dict[str, Any]) -> dict[str, Any]:

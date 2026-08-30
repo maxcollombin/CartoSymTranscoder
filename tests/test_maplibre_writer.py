@@ -79,9 +79,69 @@ def test_visibility_false_becomes_layout_none():
     assert out["layers"][0]["layout"] == {"visibility": "none"}
 
 
-def test_marker_symbolizer_is_rejected():
+def test_dot_marker_becomes_a_circle_layer():
     style = Style.from_dict(
-        {"stylingRules": [{"name": "pts", "symbolizer": {"marker": {"elements": []}}}]}
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Dot",
+                                    "fill": {"color": "#f00"},
+                                    "stroke": {"color": "#000", "width": 1},
+                                    "size": 12,
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["type"] == "circle"
+    assert layer["paint"] == {
+        "circle-color": "#f00",
+        "circle-stroke-color": "#000",
+        "circle-stroke-width": 1,
+        "circle-radius": 6.0,
+    }
+    assert_maplibre_valid(out)
+
+
+def test_multi_element_marker_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {"elements": [{"type": "Dot"}, {"type": "Dot"}]}
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_non_dot_marker_element_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "t",
+                    "symbolizer": {
+                        "marker": {"elements": [{"type": "Text", "text": "x"}]}
+                    },
+                }
+            ]
+        }
     )
     with pytest.raises(NotImplementedError):
         MaplibreWriter().write(style)
