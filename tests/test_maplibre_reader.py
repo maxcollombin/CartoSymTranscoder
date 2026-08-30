@@ -1,9 +1,9 @@
-"""MapLibre reader — fill / line layers with constant paint values.
+"""MapLibre reader — fill / line / circle layers with constant paint values.
 
-In scope this pass: ``fill`` and ``line`` layers whose paint values are
-constants. Circle / symbol / background layers, MapLibre expressions and
-legacy functions, and layer filters must raise ``NotImplementedError``
-(a clean rejection — never another exception type).
+In scope this pass: ``fill`` / ``line`` / ``circle`` layers whose paint
+values are constants (``circle`` → a ``marker`` with one ``Dot``). Symbol
+/ background layers, MapLibre expressions and legacy functions must raise
+``NotImplementedError`` (a clean rejection — never another exception type).
 """
 
 from __future__ import annotations
@@ -43,13 +43,50 @@ IN_SCOPE: dict[str, list[dict]] = {
             "symbolizer": {"stroke": {"opacity": 0.3, "width": 8.0}},
         }
     ],
+    "circle-radius-literal": [
+        {
+            "name": "circle",
+            "symbolizer": {"marker": {"elements": [{"type": "Dot", "size": 16}]}},
+        }
+    ],
+    "circle-color-literal": [
+        {
+            "name": "circle",
+            "symbolizer": {
+                "marker": {
+                    "elements": [{"type": "Dot", "fill": {"color": "blue"}, "size": 20}]
+                }
+            },
+        }
+    ],
+    "circle-stroke-width-default": [
+        {
+            "name": "circle",
+            "symbolizer": {
+                "marker": {"elements": [{"type": "Dot", "fill": {"color": "#fff"}}]}
+            },
+        }
+    ],
+    "circle-stroke-literal": [
+        {
+            "name": "circle",
+            "symbolizer": {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Dot",
+                            "fill": {"color": "#fff"},
+                            "stroke": {"color": "blue", "width": 2},
+                        }
+                    ]
+                }
+            },
+        }
+    ],
 }
 
 OUT_OF_SCOPE = {
     "background-color-literal": "background layer",
-    "circle-radius-literal": "circle layer",
-    "circle-color-literal": "circle layer",
-    "circle-stroke-width-default": "circle layer",
     "icon-image-literal": "symbol layer",
     "text-field-literal": "symbol layer",
     "fill-pattern-literal": "fill-pattern paint",

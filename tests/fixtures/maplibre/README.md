@@ -47,6 +47,7 @@ Mapping of local name → upstream case:
 | `circle-color-literal.json` | `circle-color/literal` |
 | `circle-radius-literal.json` | `circle-radius/literal` |
 | `circle-stroke-width-default.json` | `circle-stroke-width/default` |
+| `circle-stroke-literal.json` | `circle-stroke-color/literal` |
 | `background-color-literal.json` | `background-color/literal` |
 | `text-field-literal.json` | `text-field/literal` |
 | `icon-image-literal.json` | `icon-image/literal` |
