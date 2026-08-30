@@ -44,9 +44,17 @@ def test_fixture_is_spec_valid(path: Path):
 
 
 @pytest.mark.parametrize("path", _FIXTURES, ids=_IDS)
-def test_reader_stub_rejects_cleanly(path: Path):
-    with pytest.raises(NotImplementedError):
-        MaplibreReader().read(path)
+def test_reader_result_is_style_or_clean_rejection(path: Path):
+    """Every fixture either reads to a Style or raises NotImplementedError.
+
+    Any other exception type means the reader mis-parsed rather than
+    honestly declining an unsupported construct.
+    """
+    try:
+        result = MaplibreReader().read(path)
+    except NotImplementedError:
+        return
+    assert isinstance(result, Style)
 
 
 def test_writer_stub_rejects_cleanly():

@@ -1,23 +1,62 @@
-"""MapLibre / MapBox GL Style reader — parse MapLibre style JSON into Style models.
+"""MapLibre / MapBox GL Style reader — style JSON → CartoSym Style models.
 
-.. note::
-   This is a **stub** — not yet implemented.
+Scope: ``fill`` and ``line`` layers with constant paint values (see
+``_layers``). Everything else raises :exc:`NotImplementedError` rather
+than being silently dropped, per this project's lossless-transcoding
+requirement. Circle/symbol layers, MapLibre expressions, and layer
+filters land in later passes.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any, cast
 
 from ...models.styles import Style
 from ..base import CodecReader
+from ._layers import layer_to_styling_rule
 
 
 class MaplibreReader(CodecReader):
-    """Read MapLibre / MapBox GL Style JSON files into a Style model.
+    """Read a MapLibre GL style (``.json`` file, path, string, or dict)."""
 
-    .. warning:: Not yet implemented — raises :exc:`NotImplementedError`.
-    """
+    def read(self, source: str | Path | dict[str, Any]) -> Style:
+        """Parse *source* into a validated :class:`Style`.
 
-    def read(self, source: str | Path) -> Style:
-        """Parse MapLibre style JSON into a Style model (not yet implemented)."""
-        raise NotImplementedError("MapLibre reader is not yet implemented")
+        Args:
+            source: a filesystem path, the raw JSON text, or an
+                already-parsed style ``dict``.
+
+        Returns:
+            The validated CartoSym Style model.
+
+        Raises:
+            NotImplementedError: the style uses a construct this codec
+                does not map yet (see the module docstring).
+        """
+        style = self._load(source)
+
+        version = style.get("version")
+        if version != 8:
+            raise NotImplementedError(
+                f"MapLibre style version {version!r} is not supported (expected 8)"
+            )
+
+        rules = [layer_to_styling_rule(layer) for layer in style.get("layers", [])]
+        return Style(styling_rules=rules)
+
+    @staticmethod
+    def _load(source: str | Path | dict[str, Any]) -> dict[str, Any]:
+        if isinstance(source, dict):
+            return source
+        if isinstance(source, Path):
+            text = source.read_text(encoding="utf-8")
+        else:
+            # A str is JSON text, or a path to a file.
+            text = source
+            if "\n" not in source and len(source) < 4096:
+                candidate = Path(source)
+                if candidate.is_file():
+                    text = candidate.read_text(encoding="utf-8")
+        return cast("dict[str, Any]", json.loads(text))
