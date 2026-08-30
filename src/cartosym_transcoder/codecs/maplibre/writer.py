@@ -16,6 +16,7 @@ from typing import Any
 
 from ...models.styles import Style
 from ..base import CodecWriter
+from ._filter import selector_to_filter
 
 _SOURCE = "cartosym"
 
@@ -90,10 +91,6 @@ def _line_layer(layer_id: str, stroke: Any) -> dict[str, Any]:
 
 
 def _rule_to_layer(rule: Any) -> dict[str, Any]:
-    if rule.selector is not None:
-        raise NotImplementedError(
-            "styling-rule selector → MapLibre layer filter is not mapped yet"
-        )
     sym = rule.symbolizer
     if sym is None:
         raise NotImplementedError("styling rule without a symbolizer")
@@ -115,6 +112,13 @@ def _rule_to_layer(rule: Any) -> dict[str, Any]:
         raise NotImplementedError(
             "symbolizer with neither fill nor stroke has no MapLibre mapping"
         )
+
+    if rule.selector is not None:
+        # Re-key so `filter` sits before `layout`/`paint`, as styles are
+        # conventionally written.
+        paint = layer.pop("paint")
+        layer["filter"] = selector_to_filter(rule.selector)
+        layer["paint"] = paint
 
     if sym.visibility is False:
         layer["layout"] = {"visibility": "none"}

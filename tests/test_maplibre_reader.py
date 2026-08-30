@@ -104,7 +104,30 @@ def test_non_v8_version_raises():
         MaplibreReader().read({"version": 7, "layers": []})
 
 
-def test_layer_filter_raises():
+def test_layer_filter_maps_to_selector():
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": "fill",
+                    "source": "s",
+                    "filter": ["==", "class", "water"],
+                    "paint": {"fill-color": "blue"},
+                }
+            ],
+        }
+    )
+    rule = style.to_dict()["stylingRules"][0]
+    assert rule["selector"] == {
+        "op": "=",
+        "args": [{"property": "class"}, "water"],
+    }
+
+
+def test_unsupported_filter_key_raises():
     with pytest.raises(NotImplementedError):
         MaplibreReader().read(
             {
@@ -115,7 +138,7 @@ def test_layer_filter_raises():
                         "id": "l",
                         "type": "fill",
                         "source": "s",
-                        "filter": ["==", "class", "water"],
+                        "filter": ["==", "$type", "Polygon"],
                         "paint": {"fill-color": "blue"},
                     }
                 ],
