@@ -108,40 +108,40 @@ def _line_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
 
 
 def _circle_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
-    """A ``circle`` layer → a ``marker`` with a single graphic element.
+    """A ``circle`` layer → a ``marker`` with a single ``Circle`` element.
 
     A MapLibre circle carries an interior colour, an outline colour/width
-    and a radius independently. The faithful CartoSym target for that is a
-    Shape-Graphics ``Circle`` (fill + outline + radius); this pass emits a
-    ``Dot`` with ``fill`` / ``stroke`` / ``size`` keys as an interim
-    stand-in until the Shape-Graphics models are wired up. ``circle-radius``
-    is a radius and ``size`` a diameter, hence ``size = 2 × circle-radius``.
+    and a radius independently — a filled, outlined, sized circle. The
+    faithful CartoSym target is the "shapes" ``Circle``
+    (``ClosedShape.fill`` + ``abstractShape.outline`` + ``radius``); a
+    ``1-core`` ``Dot`` (stroke only, by design) cannot hold all three.
+    ``circle-radius`` and ``radius`` are both radii — mapped directly.
     """
     paint = layer.get("paint", {})
     _reject_unknown(paint, _CIRCLE_PAINT, "circle")
     _reject_unknown(layer.get("layout", {}), frozenset({"visibility"}), "circle layout")
 
-    dot: dict[str, Any] = {"type": "Dot"}
+    circle: dict[str, Any] = {"type": "Circle"}
     if "circle-opacity" in paint:
-        dot["opacity"] = _constant(paint["circle-opacity"], "circle-opacity")
+        circle["opacity"] = _constant(paint["circle-opacity"], "circle-opacity")
     if "circle-color" in paint:
-        dot["fill"] = {"color": _constant(paint["circle-color"], "circle-color")}
+        circle["fill"] = {"color": _constant(paint["circle-color"], "circle-color")}
 
-    stroke: dict[str, Any] = {}
+    outline: dict[str, Any] = {}
     for mb_key, cs_key in (
         ("circle-stroke-color", "color"),
-        ("circle-stroke-width", "width"),
+        ("circle-stroke-width", "thickness"),
         ("circle-stroke-opacity", "opacity"),
     ):
         if mb_key in paint:
-            stroke[cs_key] = _constant(paint[mb_key], mb_key)
-    if stroke:
-        dot["stroke"] = stroke
+            outline[cs_key] = _constant(paint[mb_key], mb_key)
+    if outline:
+        circle["outline"] = outline
 
     if "circle-radius" in paint:
-        dot["size"] = _constant(paint["circle-radius"], "circle-radius") * 2
+        circle["radius"] = _constant(paint["circle-radius"], "circle-radius")
 
-    return {"marker": {"elements": [dot]}}
+    return {"marker": {"elements": [circle]}}
 
 
 _HANDLERS = {

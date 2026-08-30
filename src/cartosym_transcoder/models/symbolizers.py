@@ -355,22 +355,57 @@ class TextGraphic(Graphic):
     alignment: TextAlignment | None = Field(None, description="Text alignment")
 
 
-# Shape classes (simplified)
+# Shape classes — the Part 2 ("shapes") extension of the conceptual model.
+class ShapeOutline(BaseCartoSymModel, AlterMixin):
+    """Outline of a shape graphic (Part 2 ``shapeOutline``).
+
+    Distinct from :class:`Stroke`: a shape outline carries only
+    ``thickness`` / ``opacity`` / ``color`` — no casing, centre line,
+    dash pattern or pattern graphic.
+    """
+
+    thickness: UnitValue | str | float | None = Field(
+        None, description="Outline thickness"
+    )
+    opacity: FlexibleOpacity | None = Field(
+        None, description="Outline opacity (0.0-1.0)"
+    )
+    color: FlexibleColor | None = Field(None, description="Outline color")
+
+    @field_validator("thickness", mode="before")
+    def validate_thickness(cls, v):
+        """Coerce a ``{unit: value}`` dict on ``thickness`` before validation."""
+        return parse_flexible_unit_value(v)
+
+
 class ShapeGraphic(Graphic):
-    """Base class for shape graphics."""
+    """Base class for shape graphics (Part 2 ``abstractShape``)."""
 
     type: str = Field("Shape", description="Graphic type")
-    size: UnitValue | str | float | None = Field(None, description="Shape size")
-    outline: Stroke | None = Field(None, description="Shape outline")
+    outline: ShapeOutline | None = Field(None, description="Shape outline")
 
 
-class CircleGraphic(ShapeGraphic):
-    """Circle shape graphic."""
+class ClosedShape(ShapeGraphic):
+    """A shape graphic that encloses an area, hence can be filled.
 
-    radius: UnitValue | str | float = Field(..., description="Circle radius")
+    Part 2 ``closedShape`` — adds ``fill`` to :class:`ShapeGraphic`.
+    """
+
+    fill: Fill | None = Field(None, description="Shape fill")
 
 
-class RectangleGraphic(ShapeGraphic):
+class CircleGraphic(ClosedShape):
+    """Circle shape graphic (Part 2 ``circle``).
+
+    A filled, outlined, sized circle: ``fill`` (from ``ClosedShape``),
+    ``outline`` (from ``ShapeGraphic``) and ``radius``.
+    """
+
+    center: UnitPoint | None = Field(None, description="Circle centre")
+    radius: UnitValue | str | float | None = Field(None, description="Circle radius")
+
+
+class RectangleGraphic(ClosedShape):
     """Rectangle shape graphic."""
 
     width: UnitValue | str | float = Field(..., description="Rectangle width")
@@ -521,3 +556,6 @@ AbstractGraphic.model_rebuild()
 ImageGraphic.model_rebuild()
 TextGraphic.model_rebuild()
 ShapeGraphic.model_rebuild()
+ClosedShape.model_rebuild()
+CircleGraphic.model_rebuild()
+RectangleGraphic.model_rebuild()

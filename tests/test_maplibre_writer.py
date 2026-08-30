@@ -1,7 +1,8 @@
 """MapLibre writer — Style → style JSON, and the read↔write round-trip.
 
-Scope mirrors the reader: ``fill`` / ``line`` symbolizers with literal
-values. The round-trip checked here is a **model fixed point**
+Scope mirrors the reader: ``fill`` / ``line`` / ``marker`` (single
+``Circle``) symbolizers with literal values. The round-trip checked here
+is a **model fixed point**
 (``read → write → read`` yields the same Style); the emitted MapLibre is
 not byte-identical to the input (a CartoSym Style has no sources / zoom /
 metadata to round-trip).
@@ -79,7 +80,7 @@ def test_visibility_false_becomes_layout_none():
     assert out["layers"][0]["layout"] == {"visibility": "none"}
 
 
-def test_dot_marker_becomes_a_circle_layer():
+def test_circle_marker_becomes_a_circle_layer():
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -89,10 +90,10 @@ def test_dot_marker_becomes_a_circle_layer():
                         "marker": {
                             "elements": [
                                 {
-                                    "type": "Dot",
+                                    "type": "Circle",
                                     "fill": {"color": "#f00"},
-                                    "stroke": {"color": "#000", "width": 1},
-                                    "size": 12,
+                                    "outline": {"color": "#000", "thickness": 1},
+                                    "radius": 6,
                                 }
                             ]
                         }
@@ -108,9 +109,24 @@ def test_dot_marker_becomes_a_circle_layer():
         "circle-color": "#f00",
         "circle-stroke-color": "#000",
         "circle-stroke-width": 1,
-        "circle-radius": 6.0,
+        "circle-radius": 6,
     }
     assert_maplibre_valid(out)
+
+
+def test_non_circle_marker_element_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {"marker": {"elements": [{"type": "Dot"}]}},
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
 
 
 def test_multi_element_marker_is_rejected():
@@ -120,7 +136,7 @@ def test_multi_element_marker_is_rejected():
                 {
                     "name": "pts",
                     "symbolizer": {
-                        "marker": {"elements": [{"type": "Dot"}, {"type": "Dot"}]}
+                        "marker": {"elements": [{"type": "Circle"}, {"type": "Circle"}]}
                     },
                 }
             ]
@@ -130,7 +146,7 @@ def test_multi_element_marker_is_rejected():
         MaplibreWriter().write(style)
 
 
-def test_non_dot_marker_element_is_rejected():
+def test_text_marker_element_is_rejected():
     style = Style.from_dict(
         {
             "stylingRules": [

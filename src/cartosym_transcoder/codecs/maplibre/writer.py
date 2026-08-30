@@ -1,11 +1,11 @@
 """MapLibre / MapBox GL Style writer — CartoSym Style models → style JSON.
 
 The inverse of :mod:`.reader`, and with the same scope: a ``fill`` /
-``line`` / ``marker`` (single ``Dot``) symbolizer with constant values
+``line`` / ``marker`` (single ``Circle``) symbolizer with constant values
 maps to one MapLibre layer (``fill`` / ``line`` / ``circle``); a rule
 selector maps to the layer ``filter``. Labels, raster symbolizers,
-multi-element markers, non-``Dot`` graphics, and non-literal values raise
-:exc:`NotImplementedError`.
+multi-element markers, non-``Circle`` graphics, and non-literal values
+raise :exc:`NotImplementedError`.
 
 A CartoSym style has no data-source concept, so the output declares one
 synthetic empty GeoJSON source (``cartosym``) that every layer references
@@ -91,8 +91,8 @@ def _line_layer(layer_id: str, stroke: Any) -> dict[str, Any]:
     return {"id": layer_id, "type": "line", "source": _SOURCE, "paint": paint}
 
 
-def _dot_get(obj: Any, key: str) -> Any:
-    """Read *key* from a Dot element, which may be a dict or a Pydantic model."""
+def _attr(obj: Any, key: str) -> Any:
+    """Read *key* from a graphic element, which may be a dict or a Pydantic model."""
     if isinstance(obj, dict):
         return obj.get(key)
     return getattr(obj, key, None)
@@ -102,40 +102,39 @@ def _circle_layer(layer_id: str, marker: Any) -> dict[str, Any]:
     elements = marker.elements
     if not isinstance(elements, list) or len(elements) != 1:
         raise NotImplementedError(
-            "MapLibre has no multi-graphic marker — exactly one Dot element maps "
-            "to a circle layer"
+            "MapLibre has no multi-graphic marker — exactly one Circle element "
+            "maps to a circle layer"
         )
-    dot = elements[0]
-    if _dot_get(dot, "type") != "Dot":
+    circle = elements[0]
+    if _attr(circle, "type") != "Circle":
         raise NotImplementedError(
-            f"marker element {_dot_get(dot, 'type')!r} → MapLibre "
-            "(only a Dot maps, to a circle layer)"
+            f"marker element {_attr(circle, 'type')!r} → MapLibre "
+            "(only a shapes Circle maps, to a circle layer)"
         )
 
     paint: dict[str, Any] = {}
-    fill = _dot_get(dot, "fill")
-    if fill is not None and _dot_get(fill, "color") is not None:
-        paint["circle-color"] = _literal(_dot_get(fill, "color"), "Dot.fill.color")
+    fill = _attr(circle, "fill")
+    if fill is not None and _attr(fill, "color") is not None:
+        paint["circle-color"] = _literal(_attr(fill, "color"), "Circle.fill.color")
 
-    stroke = _dot_get(dot, "stroke")
-    if stroke is not None:
-        _reject_stroke_extras(stroke, "Dot")
+    outline = _attr(circle, "outline")
+    if outline is not None:
         for cs_key, mb_key in (
             ("color", "circle-stroke-color"),
-            ("width", "circle-stroke-width"),
+            ("thickness", "circle-stroke-width"),
             ("opacity", "circle-stroke-opacity"),
         ):
-            value = _dot_get(stroke, cs_key)
+            value = _attr(outline, cs_key)
             if value is not None:
-                paint[mb_key] = _literal(value, f"Dot.stroke.{cs_key}")
+                paint[mb_key] = _literal(value, f"Circle.outline.{cs_key}")
 
-    size = _dot_get(dot, "size")
-    if size is not None:
-        paint["circle-radius"] = _literal(size, "Dot.size") / 2
+    radius = _attr(circle, "radius")
+    if radius is not None:
+        paint["circle-radius"] = _literal(radius, "Circle.radius")
 
-    opacity = _dot_get(dot, "opacity")
+    opacity = _attr(circle, "opacity")
     if opacity is not None:
-        paint["circle-opacity"] = _literal(opacity, "Dot.opacity")
+        paint["circle-opacity"] = _literal(opacity, "Circle.opacity")
 
     return {"id": layer_id, "type": "circle", "source": _SOURCE, "paint": paint}
 
