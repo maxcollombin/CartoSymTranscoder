@@ -11,11 +11,17 @@ implementation. Two entry points:
   re-associated under a conventional precedence
   (``or < and < relational < + - < * / < ^``) rather than the grammar's
   own left-recursive alternative order.
-* :meth:`ExpressionParser.parse_expression` (str) and the
-  ``_parse_*_text`` / ``_iter_top_level`` helpers — the older text-scan
-  path. Still used for a couple of repair sites in ``ast_converter`` and
-  for standalone-string callers (tests). The scanners are quote- and
-  bracket-aware (``name = 'a and b'`` is not split on the quoted ``and``).
+* :meth:`ExpressionParser._parse_expression_text` (str) — the CQL2-Text
+  entry point (``cql2.parse_text``), plus ``parse_expression`` and the
+  repair sites in ``ast_converter``. It first tries to lex+parse the
+  string as a CartoSym-CSS ``expression`` and walk that tree
+  (:meth:`_text_to_expr_ctx`); only when that fails — CQL2-Text uses
+  case-insensitive keywords and hex literals the case-sensitive
+  CartoSym-CSS grammar rejects — does it fall back to the hand-rolled
+  ``_parse_expression_text_legacy`` scanner (quote- and bracket-aware:
+  ``name = 'a and b'`` is not split on the quoted ``and``). Replacing
+  that fallback wholesale needs a dedicated ANTLR CQL2-Text grammar
+  (the CartoSym-CSS grammar cannot serve as one) — out of scope here.
 
 Covers CQL2 spatial / temporal / array predicates, BETWEEN / IN / LIKE /
 IS NULL, WKT and temporal literals, arithmetic, member access, function
@@ -675,8 +681,84 @@ class ExpressionParser:
         return InstanceExpression(class_name=None, properties=properties)
 
     @staticmethod
+    def _text_to_expr_ctx(text: str):
+        """Lex+parse *text* as a CartoSym-CSS ``expression``; ``None`` on error.
+
+        Returns the ANTLR ``ExpressionContext`` only when *text* parses
+        cleanly and is fully consumed. Used to route the text-scan entry
+        points through the grammar's own operator-precedence tree (see
+        :meth:`parse_expression_ctx`) instead of the hand-rolled scanner,
+        which does not parse arithmetic and drops a leading ``not``.
+        """
+        from antlr4 import CommonTokenStream, InputStream, Token
+        from antlr4.error.ErrorListener import ErrorListener
+
+        from ..grammar.generated import CartoSymCSSGrammar, CartoSymCSSLexer
+
+        class _Collect(ErrorListener):
+            def __init__(self) -> None:
+                super().__init__()
+                self.hit = False
+
+            def syntaxError(self, *_a, **_kw) -> None:
+                self.hit = True
+
+        listener = _Collect()
+        lexer = CartoSymCSSLexer(InputStream(text))
+        lexer.removeErrorListeners()
+        lexer.addErrorListener(listener)
+        parser = CartoSymCSSGrammar(CommonTokenStream(lexer))
+        parser.removeErrorListeners()
+        parser.addErrorListener(listener)
+        try:
+            tree = parser.expression()
+        except Exception:  # noqa: BLE001 - any ANTLR failure -> use the scanner
+            return None
+        if listener.hit or parser.getCurrentToken().type != Token.EOF:
+            return None
+        return tree
+
+    @staticmethod
     def _parse_expression_text(text: str) -> _ExprNode:
-        """Helper to parse expression from text string."""
+        """Parse a CQL2-Text / CartoSym-CSS expression string to a model.
+
+        Prefers the grammar: if *text* parses cleanly as a CartoSym-CSS
+        ``expression``, walk that tree (:meth:`parse_expression_ctx`).
+        Falls back to :meth:`_parse_expression_text_legacy` (the
+        hand-rolled scanner) for CQL2-Text forms the case-sensitive
+        CartoSym-CSS grammar does not accept — upper-case keywords
+        (``LIKE``/``BETWEEN``/``IN``/``ILIKE``), hexadecimal literals.
+        """
+        text = text.strip()
+        ctx = ExpressionParser._text_to_expr_ctx(text)
+        if ctx is not None:
+            try:
+                walked = ExpressionParser.parse_expression_ctx(ctx)
+            except Exception:  # noqa: BLE001 - fall back to the scanner
+                walked = None
+            if walked is not None and not ExpressionParser._is_juxtaposition_artifact(
+                walked, text
+            ):
+                return walked
+        return ExpressionParser._parse_expression_text_legacy(text)
+
+    @staticmethod
+    def _is_juxtaposition_artifact(walked: Any, text: str) -> bool:
+        """True if *walked* is a bare space-separated tuple, not a real array.
+
+        The CartoSym-CSS grammar's ``tuple`` rule accepts any run of
+        space-separated identifiers/numbers, so CQL2-Text the grammar
+        cannot lex properly — upper-case keywords (``score BETWEEN 0 AND
+        100``), hex literals (``0xFF`` → ``0 xFF``) — parses "cleanly" as
+        an :class:`ArrayExpression`. A genuine array literal always has
+        brackets or commas; a bare tuple here means the grammar path
+        failed silently and the scanner should take over.
+        """
+        return isinstance(walked, ArrayExpression) and not (set("[],") & set(text))
+
+    @staticmethod
+    def _parse_expression_text_legacy(text: str) -> _ExprNode:
+        """Hand-rolled text scanner (fallback for :meth:`_parse_expression_text`)."""
         text = text.strip()
 
         # Handle parentheses - remove the outer pair if it wraps the

@@ -7,6 +7,7 @@ from cartosym_transcoder.models.de9im import (
     DE9IM_PREDICATES,
     get_patterns,
     is_valid_de9im,
+    is_valid_de9im_pattern,
     match_pattern,
     predicate_matches,
 )
@@ -44,6 +45,44 @@ class TestIsValidDE9IM:
     )
     def test_invalid(self, matrix: str, reason: str):
         assert is_valid_de9im(matrix) is False, reason
+
+
+# ── is_valid_de9im_pattern ────────────────────────────────────────────────
+
+
+class TestIsValidDE9IMPattern:
+    """A DE-9IM *pattern* additionally allows the wildcards ``T`` and ``*``."""
+
+    @pytest.mark.parametrize(
+        "pattern",
+        [
+            "T*F**FFF*",  # equals
+            "FF*FF****",  # disjoint
+            "tf*ffff**",  # lower-case wildcards accepted
+            "212101212",  # a computed matrix is also a valid pattern
+            "*********",  # all don't-care
+        ],
+    )
+    def test_valid(self, pattern: str):
+        assert is_valid_de9im_pattern(pattern) is True
+
+    @pytest.mark.parametrize(
+        "pattern,reason",
+        [
+            ("XYZXYZXYZ", "invalid chars"),
+            ("T*F", "too short"),
+            ("T*F**FFF*X", "too long"),
+            ("T*F**FFF ", "space not allowed"),
+            ("", "empty"),
+        ],
+    )
+    def test_invalid(self, pattern: str, reason: str):
+        assert is_valid_de9im_pattern(pattern) is False, reason
+
+    def test_every_lookup_table_pattern_is_a_valid_pattern(self):
+        for patterns in DE9IM_PREDICATES.values():
+            for p in patterns:
+                assert is_valid_de9im_pattern(p) is True
 
 
 # ── match_pattern ─────────────────────────────────────────────────────────

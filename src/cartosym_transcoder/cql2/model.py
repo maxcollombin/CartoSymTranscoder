@@ -568,9 +568,24 @@ class SpatialRelatePredicate(BoolExpression):
         ...,
         min_length=9,
         max_length=9,
-        pattern=r"^[012TFtf\*]{9}$",
         description="DE-9IM intersection matrix pattern",
     )
+
+    @field_validator("pattern")
+    def _validate_de9im_pattern(cls, v: str) -> str:
+        """Reject a ``pattern`` that is not a well-formed DE-9IM pattern.
+
+        Delegates to :func:`cartosym_transcoder.models.de9im.is_valid_de9im_pattern`
+        so the pattern alphabet (``0 1 2 T F *``) lives in one place.
+        """
+        from ..models.de9im import is_valid_de9im_pattern
+
+        if not is_valid_de9im_pattern(v):
+            raise ValueError(
+                f"{v!r} is not a valid DE-9IM pattern "
+                "(9 characters, each one of 0 1 2 T F *)"
+            )
+        return v
 
 
 class GeometryExpression(Expression):

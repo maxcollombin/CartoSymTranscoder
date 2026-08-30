@@ -138,6 +138,38 @@ def is_valid_de9im(matrix: str) -> bool:
     return all(ch in "F012f" for ch in matrix)
 
 
+# The character set of a DE-9IM *pattern* (as opposed to a computed matrix):
+# the matrix characters plus the wildcards ``T`` (any non-empty
+# intersection) and ``*`` (don't care). This is the single source of truth
+# for the pattern alphabet — the ``SpatialRelatePredicate.pattern`` field
+# validator delegates here rather than repeating a regex.
+_DE9IM_PATTERN_CHARS = frozenset("012TtFf*")
+
+
+def is_valid_de9im_pattern(pattern: str) -> bool:
+    """Validate that *pattern* is a well-formed DE-9IM intersection pattern.
+
+    A valid pattern has exactly 9 characters, each one of ``0 1 2 T F *``
+    (case-insensitive for ``T``/``F``). Unlike :func:`is_valid_de9im`, the
+    wildcard characters ``T`` and ``*`` are allowed — a pattern is what the
+    caller supplies to ``S_RELATE`` / matches a computed matrix against.
+
+    >>> is_valid_de9im_pattern("T*F**FFF*")
+    True
+    >>> is_valid_de9im_pattern("tf*ffff**")
+    True
+    >>> is_valid_de9im_pattern("212101212")
+    True
+    >>> is_valid_de9im_pattern("XYZXYZXYZ")
+    False
+    >>> is_valid_de9im_pattern("T*F")
+    False
+    """
+    if len(pattern) != 9:
+        return False
+    return all(ch in _DE9IM_PATTERN_CHARS for ch in pattern)
+
+
 def predicate_matches(matrix: str, predicate_name: str) -> bool:
     """Check whether *matrix* satisfies the named spatial *predicate_name*.
 
