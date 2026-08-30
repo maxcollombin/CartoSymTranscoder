@@ -1,7 +1,7 @@
 """MapLibre reader — fill / line / circle layers with constant paint values.
 
 In scope this pass: ``fill`` / ``line`` / ``circle`` layers whose paint
-values are constants (``circle`` → a ``marker`` with one ``Dot``). Symbol
+values are constants (``circle`` → a ``marker`` with one ``Circle``). Symbol
 / background layers, MapLibre expressions and legacy functions must raise
 ``NotImplementedError`` (a clean rejection — never another exception type).
 """
@@ -46,7 +46,7 @@ IN_SCOPE: dict[str, list[dict]] = {
     "circle-radius-literal": [
         {
             "name": "circle",
-            "symbolizer": {"marker": {"elements": [{"type": "Dot", "size": 16}]}},
+            "symbolizer": {"marker": {"elements": [{"type": "Circle", "radius": 8}]}},
         }
     ],
     "circle-color-literal": [
@@ -54,7 +54,9 @@ IN_SCOPE: dict[str, list[dict]] = {
             "name": "circle",
             "symbolizer": {
                 "marker": {
-                    "elements": [{"type": "Dot", "fill": {"color": "blue"}, "size": 20}]
+                    "elements": [
+                        {"type": "Circle", "fill": {"color": "blue"}, "radius": 10}
+                    ]
                 }
             },
         }
@@ -63,7 +65,7 @@ IN_SCOPE: dict[str, list[dict]] = {
         {
             "name": "circle",
             "symbolizer": {
-                "marker": {"elements": [{"type": "Dot", "fill": {"color": "#fff"}}]}
+                "marker": {"elements": [{"type": "Circle", "fill": {"color": "#fff"}}]}
             },
         }
     ],
@@ -74,9 +76,9 @@ IN_SCOPE: dict[str, list[dict]] = {
                 "marker": {
                     "elements": [
                         {
-                            "type": "Dot",
+                            "type": "Circle",
                             "fill": {"color": "#fff"},
-                            "stroke": {"color": "blue", "width": 2},
+                            "outline": {"color": "blue", "thickness": 2},
                         }
                     ]
                 }
