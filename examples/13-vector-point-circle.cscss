@@ -1,0 +1,24 @@
+.title 'Styling point vector features with shape graphics'
+.abstract 'A point Marker drawn as a filled, outlined Circle (shape graphic)'
+
+Amenities[dataLayer.type = 'vector' and dataLayer.featuresGeometryDimensions = 0]
+{
+   visibility: false;
+
+   [viz.sd < 10000]
+   {
+      visibility: true;
+
+      // A Circle is a closed shape graphic: an interior fill, a contrasting
+      // outline, and a radius, each controlled independently (unlike a Dot,
+      // whose single Stroke carries both its colour and its size).
+      marker: { elements: [
+         Circle {
+            position: 0 0;
+            fill: { color: #ffffff; opacity: 0.8 };
+            outline: { color: #1f78b4; thickness: 1.5 px };
+            radius: 6 px;
+         }
+      ]};
+   }
+}

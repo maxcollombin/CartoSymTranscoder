@@ -449,14 +449,30 @@
             "required": [ "type" ],
             "properties": {
                "type": { "type": "string" },
-               "stroke": { "$ref": "#/$defs/stroke" }
+               "stroke": { "$ref": "#/$defs/stroke" },
+               "outline": { "$ref": "#/$defs/shapeOutline" }
             }
          }
       ]
     },
+    "shapeOutline": {
+       "oneOf": [
+          { "$ref": "#/$defs/idOrFnExpression" },
+          {
+             "type": "object",
+             "properties": {
+                "alter": { "type": "boolean" },
+                "thickness": { "$ref": "#/$defs/unitValue" },
+                "opacity": { "$ref": "#/$defs/zeroToOne" },
+                "color": { "$ref": "#/$defs/color" }
+             }
+          }
+       ]
+    },
     "shape": {
       "oneOf": [
-         { "$ref": "#/$defs/dot" }
+         { "$ref": "#/$defs/dot" },
+         { "$ref": "#/$defs/circle" }
         ]
     },
     "dot": {
@@ -468,6 +484,33 @@
           "properties":
           {
              "type": { "type": "string", "enum": [ "Dot" ] }
+          }
+         }
+       ]
+    },
+    "closedShape": {
+      "allOf": [
+         { "$ref": "#/$defs/abstractShape" },
+         {
+          "type": "object",
+          "properties":
+          {
+             "fill": { "$ref": "#/$defs/fill" }
+          }
+         }
+       ]
+    },
+    "circle": {
+      "allOf": [
+         { "$ref": "#/$defs/closedShape" },
+         {
+          "type": "object",
+          "required": [ "type" ],
+          "properties":
+          {
+             "type": { "type": "string", "enum": [ "Circle" ] },
+             "center": { "$ref": "#/$defs/unitPoint" },
+             "radius": { "$ref": "#/$defs/unitValue" }
           }
          }
        ]

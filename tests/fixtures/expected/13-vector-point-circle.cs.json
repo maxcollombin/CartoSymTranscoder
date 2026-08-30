@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "title": "Styling point vector features with shape graphics",
+    "abstract": "A point Marker drawn as a filled, outlined Circle (shape graphic)"
+  },
+  "stylingRules": [
+    {
+      "name": "Amenities",
+      "selector": {
+        "op": "and",
+        "args": [
+          {
+            "op": "=",
+            "args": [
+              {
+                "sysId": "dataLayer.id"
+              },
+              "Amenities"
+            ]
+          },
+          {
+            "op": "and",
+            "args": [
+              {
+                "op": "=",
+                "args": [
+                  {
+                    "sysId": "dataLayer.type"
+                  },
+                  "vector"
+                ]
+              },
+              {
+                "op": "=",
+                "args": [
+                  {
+                    "sysId": "dataLayer.featuresGeometryDimensions"
+                  },
+                  0
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "symbolizer": {
+        "visibility": false
+      },
+      "nestedRules": [
+        {
+          "selector": {
+            "op": "<",
+            "args": [
+              {
+                "sysId": "viz.sd"
+              },
+              10000
+            ]
+          },
+          "symbolizer": {
+            "visibility": true,
+            "marker": {
+              "elements": [
+                {
+                  "type": "Circle",
+                  "position": {
+                    "x": 0.0,
+                    "y": 0.0
+                  },
+                  "fill": {
+                    "color": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "opacity": 0.8
+                  },
+                  "outline": {
+                    "color": [
+                      31,
+                      120,
+                      180
+                    ],
+                    "thickness": {
+                      "px": 1.5
+                    }
+                  },
+                  "radius": {
+                    "px": 6
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

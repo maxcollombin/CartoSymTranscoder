@@ -449,6 +449,72 @@ class TestGraphicElementNormalization:
         assert el["font"]["size"] == 10
         assert el["font"]["bold"] is True
 
+    def test_circle_fill_outline_radius_coerced(self):
+        el = {
+            "type": "Circle",
+            "fill": {"color": "#ffffff", "opacity": "0.5"},
+            "outline": {"color": "#0000ff", "thickness": "2 px", "opacity": "0.7"},
+            "radius": "5 px",
+        }
+        self.normalize(el)
+        assert el["fill"] == {"color": [255, 255, 255], "opacity": 0.5}
+        assert el["outline"] == {
+            "color": [0, 0, 255],
+            "thickness": {"px": 2},
+            "opacity": 0.7,
+        }
+        assert el["radius"] == {"px": 5}
+
+    def test_circle_unitless_radius_stays_bare_number(self):
+        el = {"type": "Circle", "radius": "4"}
+        self.normalize(el)
+        assert el["radius"] == 4
+
+
+class TestCircleGraphic:
+    """CartoSym-CSS ``Circle { fill; outline; radius }`` (2-shapes shape graphic)."""
+
+    def setup_method(self):
+        self.converter = Converter()
+
+    _CSCSS = (
+        "Amenities {\n"
+        "  marker: { elements: [\n"
+        "    Circle {\n"
+        "      fill: { color: #ffffff; opacity: 0.5 };\n"
+        "      outline: { color: #0000ff; thickness: 2 px; opacity: 0.7 };\n"
+        "      radius: 5 px;\n"
+        "    }\n"
+        "  ]};\n"
+        "}\n"
+    )
+
+    def test_cscss_circle_parses_to_shapes_circle(self):
+        result = self.converter.cscss_to_csjson(self._CSCSS)
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["type"] == "Circle"
+        assert el["fill"] == {"color": [255, 255, 255], "opacity": 0.5}
+        assert el["outline"] == {
+            "color": [0, 0, 255],
+            "thickness": {"px": 2},
+            "opacity": 0.7,
+        }
+        assert el["radius"] == {"px": 5}
+
+    def test_cscss_circle_round_trips_through_csjson(self):
+        json1 = self.converter.cscss_to_csjson(self._CSCSS)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+    def test_dot_is_not_promoted_to_circle(self):
+        result = self.converter.cscss_to_csjson(
+            "Base {\n  marker: { elements: [ Dot { size: 8 px; color: white } ] };\n}\n"
+        )
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["type"] == "Dot"
+        assert "fill" not in el and "outline" not in el and "radius" not in el
+
 
 # ---------------------------------------------------------------------------
 # Color parsing (ast_converter)

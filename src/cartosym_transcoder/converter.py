@@ -541,6 +541,41 @@ class Converter:
         if color is not None:
             prop_lines.append(f"color: {self._format_color(color)}")
 
+        # fill / outline (2-shapes Circle) — inline nested style objects
+        for shape_key in ("fill", "outline"):
+            sv = _get(el, shape_key)
+            if isinstance(sv, dict) and sv:
+                parts = []
+                for k, v in sv.items():
+                    if k == "color":
+                        vf = self._format_color(v)
+                    elif isinstance(v, dict) and len(v) == 1:
+                        unit, val = next(iter(v.items()))
+                        vf = f"{val} {unit}"
+                    elif isinstance(v, bool):
+                        vf = str(v).lower()
+                    else:
+                        vf = v
+                    parts.append(f"{k}: {vf}")
+                prop_lines.append(f"{shape_key}: {{{'; '.join(parts)}}}")
+
+        # radius (2-shapes Circle)
+        radius = _get(el, "radius")
+        if radius is not None:
+            if isinstance(radius, dict) and len(radius) == 1:
+                unit, val = next(iter(radius.items()))
+                prop_lines.append(f"radius: {val} {unit}")
+            else:
+                prop_lines.append(f"radius: {radius}")
+
+        # center (2-shapes Circle)
+        center = _get(el, "center")
+        if center is not None:
+            if hasattr(center, "x") and hasattr(center, "y"):
+                prop_lines.append(f"center: {center.x} {center.y}")
+            elif isinstance(center, dict) and "x" in center and "y" in center:
+                prop_lines.append(f"center: {center['x']} {center['y']}")
+
         # text — property ref → bare identifier; plain string → quoted
         text = _get(el, "text")
         if text is not None:
@@ -784,6 +819,7 @@ class Converter:
                 "height",
                 "size",
                 "radius",
+                "thickness",
                 "distance",
                 "spacing",
             ]
