@@ -31,10 +31,13 @@ is folded multiplicatively into every leaf opacity produced
 (``fill-opacity``, ``stroke-opacity``, ``se:Graphic/se:Opacity``,
 ``se:RasterSymbolizer/se:Opacity``) — round-trips cleanly only for raster.
 
-``Dot``, ``Image``, and ``Text`` graphic elements (found in either
-``Symbolizer.marker.elements`` or ``Symbolizer.label.elements`` — CartoSym
-allows Text under either) are in scope (``Shape``/``Circle``/``Rectangle``
-are not); on read, an ``se:Mark``/
+``Dot``, ``Circle``, ``Image``, and ``Text`` graphic elements (found in
+either ``Symbolizer.marker.elements`` or ``Symbolizer.label.elements`` —
+CartoSym allows Text under either) are in scope (the other ``2-shapes``
+shape graphics are not); a filled ``se:Mark wellKnownName="circle"`` reads
+back as a ``2-shapes`` ``Circle`` (``fill`` + ``outline`` + ``radius``),
+and a ``Dot`` element still writes (stroke-only mark) for CartoSym-CSS
+sources. On read, an ``se:Mark``/
 ``se:ExternalGraphic`` always reconstructs into ``marker.elements`` and an
 ``se:TextSymbolizer`` always reconstructs into ``label.elements`` (SLD/SE
 has no construct distinguishing CartoSym's separate marker-text vs
@@ -290,6 +293,8 @@ def _graphic_elements_to_symbolizers(
         el_type = _g(el, "type")
         if el_type == "Dot":
             result.append(_build_point_symbolizer(d, el, base_opacity))
+        elif el_type == "Circle":
+            result.append(_build_circle_symbolizer(d, el, base_opacity))
         elif el_type == "Image":
             result.append(_build_image_symbolizer(d, el, base_opacity))
         elif el_type == "Text":
@@ -297,7 +302,7 @@ def _graphic_elements_to_symbolizers(
         else:
             raise NotImplementedError(
                 f"Graphic element type {el_type!r} has no SLD/SE mapping in "
-                "this codec's scope (only Dot/Image/Text are supported)"
+                "this codec's scope (only Dot/Circle/Image/Text are supported)"
             )
     return result
 
@@ -582,6 +587,75 @@ def _build_point_symbolizer(
         d.el("Size", parent=graphic, text=format_unit_value(size))
 
     _build_graphic_displacement(d, graphic, _g(dot, "position"), "Dot")
+    return ps
+
+
+def _build_shape_outline_element(
+    d: SldDialect, outline: Any, base_opacity: float | None = None
+) -> etree._Element:
+    """A ``2-shapes`` ``shapeOutline`` -> ``se:Stroke`` (child of ``se:Mark``).
+
+    ``shapeOutline`` is not a ``1-core`` ``Stroke``: it carries only
+    ``color`` / ``thickness`` / ``opacity`` (no casing, centre line or
+    dash pattern), matching Part 2 Annex B "Shape Outlines"
+    (``thickness`` -> ``stroke-width``).
+    """
+    if _g(outline, "alter") is not None:
+        raise NotImplementedError(
+            "ShapeOutline.alter has no SLD/SE mapping in this codec"
+        )
+    el = d.el("Stroke")
+    color = _g(outline, "color")
+    if color is not None:
+        d.param(el, "stroke", format_color(color))
+    thickness = _g(outline, "thickness")
+    if thickness is not None:
+        d.param(el, "stroke-width", format_unit_value(thickness))
+    combined = _combine_opacity(base_opacity, _g(outline, "opacity"))
+    if combined is not None:
+        d.param(el, "stroke-opacity", combined)
+    return el
+
+
+def _build_circle_symbolizer(
+    d: SldDialect, circle: Any, base_opacity: float | None = None
+) -> etree._Element:
+    """A ``2-shapes`` ``Circle`` element -> ``se:PointSymbolizer`` / ``se:Mark``.
+
+    ``fill`` -> ``se:Mark/se:Fill``; ``outline`` -> ``se:Mark/se:Stroke``;
+    ``radius`` -> ``se:Graphic/se:Size`` **doubled** (``se:Size`` is a
+    diameter, ``radius`` a radius); ``opacity`` -> ``se:Graphic/se:Opacity``;
+    ``position`` -> ``se:Graphic/se:Displacement``.
+    """
+    ps = d.el("PointSymbolizer")
+    graphic = d.el("Graphic", parent=ps)
+    mark = d.el("Mark", parent=graphic)
+    d.el("WellKnownName", parent=mark, text="circle")
+
+    fill = _g(circle, "fill")
+    if fill is not None:
+        mark.append(_build_fill_element(d, fill, base_opacity))
+
+    outline = _g(circle, "outline")
+    if outline is not None:
+        mark.append(_build_shape_outline_element(d, outline, base_opacity))
+
+    # se:GraphicType order: (Mark|ExternalGraphic)*, Opacity?, Size?, ...
+    combined = _combine_opacity(base_opacity, _g(circle, "opacity"))
+    if combined is not None:
+        d.el("Opacity", parent=graphic, text=combined)
+
+    radius = _g(circle, "radius")
+    if radius is not None:
+        diameter = _number_of(radius)
+        if diameter is None:
+            raise NotImplementedError(
+                f"Property-driven / expression Circle.radius {radius!r} has "
+                "no SLD/SE mapping in this codec"
+            )
+        d.el("Size", parent=graphic, text=format_number(diameter * 2))
+
+    _build_graphic_displacement(d, graphic, _g(circle, "position"), "Circle")
     return ps
 
 
@@ -1103,18 +1177,59 @@ def _parse_mark(
     if wkn != "circle":
         raise NotImplementedError(
             f"se:Mark/se:WellKnownName {wkn!r} is out of scope for this "
-            "codec (only 'circle' / Dot is supported)"
+            "codec (only 'circle' is supported)"
         )
 
-    result: dict = {"type": "Dot", "position": _graphic_displacement(d, graphic_el)}
+    # An se:Mark wellKnownName="circle" — a filled, outlined, sized circle
+    # — is a 2-shapes Circle (ClosedShape.fill + abstractShape.outline +
+    # radius), not a 1-core Dot (which is stroke-only by design and could
+    # not carry the fill and the contrasting outline independently).
+    result: dict = {
+        "type": "Circle",
+        "position": _graphic_displacement(d, graphic_el),
+    }
+
     fill_el = d.find(mark_el, "Fill")
     if fill_el is not None:
+        fill: dict = {}
         color = d.get_param(fill_el, "fill")
         if color is not None:
-            result["color"] = parse_color(color)
+            fill["color"] = parse_color(color)
+        fill_opacity = d.get_param(fill_el, "fill-opacity")
+        if fill_opacity is not None:
+            fill["opacity"] = parse_opacity(fill_opacity)
+        if fill:
+            result["fill"] = fill
+
+    stroke_el = d.find(mark_el, "Stroke")
+    if stroke_el is not None:
+        _reject_unknown_params(
+            d,
+            stroke_el,
+            {"stroke", "stroke-width", "stroke-opacity"},
+            "se:Mark/se:Stroke",
+        )
+        outline: dict = {}
+        stroke_color = d.get_param(stroke_el, "stroke")
+        if stroke_color is not None:
+            outline["color"] = parse_color(stroke_color)
+        stroke_width = d.get_param(stroke_el, "stroke-width")
+        if stroke_width is not None:
+            outline["thickness"] = parse_unit_value(stroke_width)
+        stroke_opacity = d.get_param(stroke_el, "stroke-opacity")
+        if stroke_opacity is not None:
+            outline["opacity"] = parse_opacity(stroke_opacity)
+        if outline:
+            result["outline"] = outline
+
     size_text = element_text(d.find(graphic_el, "Size"))
     if size_text is not None:
-        result["size"] = parse_unit_value(size_text)
+        radius = parse_number(size_text)
+        if radius is not None:
+            # se:Size is a diameter; CartoSym radius is a radius.
+            radius = radius / 2
+            result["radius"] = {"px": int(radius) if radius.is_integer() else radius}
+
     opacity_text = element_text(d.find(graphic_el, "Opacity"))
     if opacity_text and opacity_text.strip():
         result["opacity"] = parse_opacity(opacity_text.strip())
