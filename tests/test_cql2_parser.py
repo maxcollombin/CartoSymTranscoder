@@ -213,6 +213,14 @@ class TestSpatialPredicateParsing:
         assert result.pattern == "T*F**FFF*"
         assert len(result.args) == 2
 
+    def test_s_relate_rejects_malformed_de9im_pattern(self):
+        # The DE-9IM pattern is validated (models/de9im.is_valid_de9im_pattern),
+        # not passed through as an opaque string.
+        with pytest.raises(Exception):
+            parse("S_RELATE(geomA, geomB, 'ZZZZZZZZZ')")
+        with pytest.raises(Exception):
+            parse("S_RELATE(geomA, geomB, 'T*F')")
+
     def test_writeback_spatial(self):
         d = {
             "op": "s_intersects",

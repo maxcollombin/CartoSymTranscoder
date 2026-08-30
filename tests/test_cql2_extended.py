@@ -361,6 +361,35 @@ class TestHexNumber:
         assert result.value == 0
 
 
+class TestGrammarPreferredOverScanner:
+    """``_parse_expression_text`` walks the ANTLR tree when the text parses.
+
+    Two forms the old hand-rolled scanner got wrong (it has no arithmetic
+    precedence and dropped a leading ``not``); the grammar path handles both.
+    Upper-case-keyword / hex CQL2-Text still falls back to the scanner
+    (covered by ``TestHexNumber`` and the BETWEEN/LIKE/IN cases above).
+    """
+
+    def test_leading_not_is_not_dropped(self):
+        from cartosym_transcoder.cql2.model import (
+            NotExpression,
+            UnaryOperationExpression,
+        )
+
+        result = parse("not (FunctionCode = 'park')")
+        assert isinstance(result, (UnaryOperationExpression, NotExpression))
+
+    def test_arithmetic_precedence_is_parsed(self):
+        from cartosym_transcoder.cql2.model import BinaryOperationExpression
+
+        result = parse("a + b * c")
+        assert isinstance(result, BinaryOperationExpression)
+        assert str(result.operator) in ("+", "BinaryOperator.ADD")
+        # right operand is the higher-precedence multiplication
+        assert isinstance(result.right, BinaryOperationExpression)
+        assert str(result.right.operator) in ("*", "BinaryOperator.MULTIPLY")
+
+
 # ── Round-trip integration ───────────────────────────────────────────────
 
 
