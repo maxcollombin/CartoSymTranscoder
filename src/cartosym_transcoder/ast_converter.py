@@ -218,6 +218,81 @@ def _coerce_outline_dict(outline: dict) -> None:
             outline[k] = v
 
 
+def _coerce_unit_scalar(v: str):
+    """Coerce a CSCSS scalar such as ``"5"``, ``"5 px"`` or ``"2.5 mm"``.
+
+    Returns a bare number for a unit-less value, a ``{unit: value}`` dict
+    when a unit suffix is present, or the original string if unparseable.
+    """
+    if not isinstance(v, str):
+        return v
+    parts = v.strip().split()
+    if len(parts) == 1:
+        try:
+            return int(parts[0])
+        except ValueError:
+            try:
+                return float(parts[0])
+            except ValueError:
+                return v
+    if len(parts) == 2:
+        try:
+            num = float(parts[0])
+        except ValueError:
+            return v
+        num = int(num) if num.is_integer() else num
+        return {parts[1]: num}
+    return v
+
+
+def _parse_xy(v: str):
+    """``"10 -4"`` / ``"{ 10, -4 }"`` → ``{"x": 10, "y": -4}``; ``None`` otherwise."""
+    if not isinstance(v, str):
+        return None
+    raw = v.strip()
+    if raw.startswith("{") and raw.endswith("}"):
+        raw = raw[1:-1]
+    parts = [p.strip() for p in raw.replace(",", " ").split() if p.strip()]
+    if len(parts) != 2:
+        return None
+    coords: list = []
+    for p in parts:
+        try:
+            coords.append(int(p))
+        except ValueError:
+            try:
+                coords.append(float(p))
+            except ValueError:
+                return None
+    return {"x": coords[0], "y": coords[1]}
+
+
+def _coerce_shape_style_dict(d: dict) -> None:
+    """Coerce a ``2-shapes`` ``Circle``'s ``fill`` / ``outline`` sub-dict in-place.
+
+    ``color`` → ``[r, g, b]`` / name, ``opacity`` → float,
+    ``thickness`` / ``radius`` → unit scalar, ``alter`` → bool.
+    """
+    for k in list(d.keys()):
+        v = d[k]
+        if not isinstance(v, str):
+            continue
+        v = v.strip().strip("'\"")
+        if k == "color":
+            d[k] = _parse_color_value(v)
+        elif k == "opacity":
+            try:
+                d[k] = float(v)
+            except ValueError:
+                d[k] = v
+        elif k in ("thickness", "radius"):
+            d[k] = _coerce_unit_scalar(v)
+        elif k == "alter":
+            d[k] = v.lower() == "true"
+        else:
+            d[k] = v
+
+
 def _normalize_graphic_element(el: dict) -> None:
     """Normalise a graphic-element dict in-place to match the CartoSym JSON schema.
 
@@ -333,6 +408,20 @@ def _normalize_graphic_element(el: dict) -> None:
                 el["alphaThreshold"] = float(el["alphaThreshold"])
             except ValueError:
                 pass
+
+    # Shape graphics (2-shapes Circle, ...): fill / outline are nested style
+    # objects, radius is unit-bearing, center is a point. These keys are
+    # element-type-agnostic here — a Dot never carries them.
+    if isinstance(el.get("fill"), dict):
+        _coerce_shape_style_dict(el["fill"])
+    if isinstance(el.get("outline"), dict):
+        _coerce_shape_style_dict(el["outline"])
+    if isinstance(el.get("radius"), str):
+        el["radius"] = _coerce_unit_scalar(el["radius"])
+    if isinstance(el.get("center"), str):
+        pt = _parse_xy(el["center"])
+        if pt is not None:
+            el["center"] = pt
 
     # Strip empty dicts that carry no information (parser artifact for
     # brace-enclosed comma-separated values it cannot fully parse)
