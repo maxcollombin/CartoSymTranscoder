@@ -27,7 +27,7 @@ from .test_geoserver_sld_corpus import CORPUS, FILES
 OUT_OF_SCOPE = {
     "Lakes.sld": "unmapped CssParameter 'stroke-linecap' / '-linejoin' / '-dashoffset'",
     "default_generic.sld": "<ogc:Function> in filter + VendorOption (GeoServer)",
-    "default_point.sld": "Mark/WellKnownName 'square' (only 'circle'/Dot supported)",
+    "default_point.sld": "Mark/WellKnownName 'square' (only 'circle' supported)",
     "grass_poly.sld": "Fill/GraphicFill (pattern fill)",
     "pattern_polygon.sld": "VendorOption 'graphic-margin' + Fill/GraphicFill",
     "poi.sld": "Graphic/Displacement on a point Mark (not in the SLD 1.0.0 schema)",

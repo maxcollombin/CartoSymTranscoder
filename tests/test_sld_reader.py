@@ -31,14 +31,60 @@ class TestReadBasicSymbolizers:
         assert sym.stroke.color == [169, 169, 169]
         assert sym.stroke.dash_pattern.pattern == [4, 2]
 
-    def test_point_dot_mark(self):
+    def test_point_circle_mark(self):
         style = _read("3-point-dot-mark.sld")
         sym = style.styling_rules[0].symbolizer
         elements = sym.marker.elements
         assert len(elements) == 2
-        assert elements[0]["type"] == "Dot"
-        assert elements[0]["color"] == [255, 255, 255]
-        assert elements[1]["color"] == [255, 165, 0]
+        # A filled se:Mark wellKnownName="circle" is a 2-shapes Circle,
+        # not a 1-core Dot (which is stroke-only).
+        assert elements[0]["type"] == "Circle"
+        assert elements[0]["fill"]["color"] == [255, 255, 255]
+        assert elements[0]["radius"] == {"px": 5}  # se:Size 10, halved
+        assert elements[1]["fill"]["color"] == [255, 165, 0]
+        assert elements[1]["radius"] == {"px": 4}  # se:Size 8, halved
+
+    def test_circle_mark_stroke_maps_to_outline_not_dropped(self):
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se" '
+            'xmlns:ogc="http://www.opengis.net/ogc">'
+            "<NamedLayer><se:Name>x</se:Name><UserStyle>"
+            "<se:FeatureTypeStyle><se:Rule><se:PointSymbolizer><se:Graphic>"
+            "<se:Mark><se:WellKnownName>circle</se:WellKnownName>"
+            '<se:Fill><se:SvgParameter name="fill">#ff0000</se:SvgParameter>'
+            "</se:Fill>"
+            '<se:Stroke><se:SvgParameter name="stroke">#0000ff</se:SvgParameter>'
+            '<se:SvgParameter name="stroke-width">2</se:SvgParameter></se:Stroke>'
+            "</se:Mark><se:Size>8</se:Size>"
+            "</se:Graphic></se:PointSymbolizer></se:Rule>"
+            "</se:FeatureTypeStyle></UserStyle></NamedLayer>"
+            "</StyledLayerDescriptor>"
+        )
+        el = SldReader().read(xml).styling_rules[0].symbolizer.marker.elements[0]
+        assert el["type"] == "Circle"
+        assert el["fill"] == {"color": [255, 0, 0]}
+        assert el["outline"] == {"color": [0, 0, 255], "thickness": {"px": 2}}
+        assert el["radius"] == {"px": 4}
+
+    def test_circle_mark_stroke_unknown_param_is_rejected(self):
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se" '
+            'xmlns:ogc="http://www.opengis.net/ogc">'
+            "<NamedLayer><se:Name>x</se:Name><UserStyle>"
+            "<se:FeatureTypeStyle><se:Rule><se:PointSymbolizer><se:Graphic>"
+            "<se:Mark><se:WellKnownName>circle</se:WellKnownName>"
+            '<se:Stroke><se:SvgParameter name="stroke-linecap">round'
+            "</se:SvgParameter></se:Stroke>"
+            "</se:Mark></se:Graphic></se:PointSymbolizer></se:Rule>"
+            "</se:FeatureTypeStyle></UserStyle></NamedLayer>"
+            "</StyledLayerDescriptor>"
+        )
+        with pytest.raises(NotImplementedError):
+            SldReader().read(xml)
 
     def test_text_label(self):
         style = _read("4-text-label.sld")

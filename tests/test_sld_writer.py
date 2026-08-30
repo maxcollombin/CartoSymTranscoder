@@ -114,6 +114,72 @@ class TestWriteBasicSymbolizers:
         size = point.find("se:Graphic/se:Size", NS)
         assert size.text == "10"
 
+    def test_marker_circle_produces_mark_with_fill_stroke_and_size(self):
+        root = _write(
+            _rule_style(
+                {
+                    "marker": {
+                        "elements": [
+                            {
+                                "type": "Circle",
+                                "position": {"x": 0, "y": 0},
+                                "fill": {"color": "white", "opacity": 0.5},
+                                "outline": {
+                                    "color": "blue",
+                                    "thickness": {"px": 2},
+                                    "opacity": 0.7,
+                                },
+                                "radius": {"px": 5},
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+        mark = root.find(".//se:PointSymbolizer/se:Graphic/se:Mark", NS)
+        assert mark.find("se:WellKnownName", NS).text == "circle"
+        fill = {
+            p.get("name"): p.text for p in mark.findall("se:Fill/se:SvgParameter", NS)
+        }
+        assert fill == {"fill": "#ffffff", "fill-opacity": "0.5"}
+        stroke = {
+            p.get("name"): p.text for p in mark.findall("se:Stroke/se:SvgParameter", NS)
+        }
+        assert stroke == {
+            "stroke": "#0000ff",
+            "stroke-width": "2",
+            "stroke-opacity": "0.7",
+        }
+        # se:Size is a diameter — twice the CartoSym radius.
+        size = root.find(".//se:PointSymbolizer/se:Graphic/se:Size", NS)
+        assert size.text == "10"
+
+    def test_marker_circle_round_trips_through_reader(self):
+        from cartosym_transcoder.codecs.sld.reader import SldReader
+
+        style_dict = _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Circle",
+                            "position": {"x": 0, "y": 0},
+                            "fill": {"color": [255, 165, 0]},
+                            "outline": {"color": [0, 0, 255], "thickness": {"px": 1}},
+                            "radius": {"px": 4},
+                        }
+                    ]
+                }
+            }
+        )
+        style1 = Style.from_dict(style_dict)
+        xml = SldWriter().write(style1)
+        style2 = SldReader().read(xml)
+        assert (
+            style2.styling_rules[0].symbolizer.marker.elements
+            == style1.styling_rules[0].symbolizer.marker.elements
+        )
+
     def test_label_text_produces_text_symbolizer(self):
         root = _write(
             _rule_style(
