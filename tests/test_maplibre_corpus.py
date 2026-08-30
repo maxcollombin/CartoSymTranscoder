@@ -57,9 +57,12 @@ def test_reader_result_is_style_or_clean_rejection(path: Path):
     assert isinstance(result, Style)
 
 
-def test_writer_stub_rejects_cleanly():
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(Style(styling_rules=[]))
+def test_writer_handles_the_empty_style():
+    assert MaplibreWriter().write(Style(styling_rules=[])) == {
+        "version": 8,
+        "sources": {},
+        "layers": [],
+    }
 
 
 def test_readme_lists_every_atomic_fixture():
