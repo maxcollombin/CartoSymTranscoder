@@ -38,8 +38,11 @@ Mapping of local name → upstream case:
 | `fill-color-literal.json` | `fill-color/literal` |
 | `fill-opacity-default.json` | `fill-opacity/default` |
 | `fill-outline-color-default.json` | `fill-outline-color/default` |
+| `fill-outline-color-literal.json` | `fill-outline-color/literal` |
 | `fill-pattern-literal.json` | `fill-pattern/literal` |
 | `line-color-literal.json` | `line-color/literal` |
+| `line-simple.json` | `line-opacity/default` |
+| `line-opacity-literal.json` | `line-opacity/literal` |
 | `line-width-function.json` | `line-width/function` |
 | `circle-color-literal.json` | `circle-color/literal` |
 | `circle-radius-literal.json` | `circle-radius/literal` |
