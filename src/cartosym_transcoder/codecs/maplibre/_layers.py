@@ -108,14 +108,14 @@ def _line_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
 
 
 def _circle_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
-    """A ``circle`` layer → a ``marker`` with a single ``Dot`` element.
+    """A ``circle`` layer → a ``marker`` with a single graphic element.
 
-    ``circle-radius`` is a radius; a CartoSym ``Dot.size`` is a diameter,
-    so ``size = 2 × circle-radius``. The Dot carries ``fill`` (interior),
-    ``stroke`` (outline) and ``size`` — the JSON schema's ``Shape`` only
-    defines ``stroke`` today, but a Dot object accepts extra keys and this
-    is the only structure that maps ``circle-color`` + ``circle-stroke-*``
-    + ``circle-radius`` without losing one of them.
+    A MapLibre circle carries an interior colour, an outline colour/width
+    and a radius independently. The faithful CartoSym target for that is a
+    Shape-Graphics ``Circle`` (fill + outline + radius); this pass emits a
+    ``Dot`` with ``fill`` / ``stroke`` / ``size`` keys as an interim
+    stand-in until the Shape-Graphics models are wired up. ``circle-radius``
+    is a radius and ``size`` a diameter, hence ``size = 2 × circle-radius``.
     """
     paint = layer.get("paint", {})
     _reject_unknown(paint, _CIRCLE_PAINT, "circle")
