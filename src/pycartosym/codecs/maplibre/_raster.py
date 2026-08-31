@@ -138,11 +138,6 @@ def hillshade_layer(
             "this codec — hillshade paint only exposes 3 fixed colours "
             "(shadow/highlight/accent), not a ramp"
         )
-    if hill_shading.get("alter") is not None:
-        raise NotImplementedError(
-            "hillShading.alter has no MapLibre mapping in this codec"
-        )
-
     sun = hill_shading.get("sun")
     paint: dict[str, Any] = {}
     if isinstance(sun, dict):

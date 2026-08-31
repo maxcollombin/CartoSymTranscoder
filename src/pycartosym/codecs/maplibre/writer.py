@@ -7,7 +7,12 @@ selector maps to the layer ``filter``, except any ``viz.sd`` conjuncts
 that match MapLibre's own zoom-range shape, which map to
 ``minzoom``/``maxzoom`` instead (see :mod:`._zoom`), and a
 ``sysId dataLayer.id`` equality conjunct, dropped rather than mapped (see
-:func:`._filter.strip_datalayer_id` for why). A fill-only symbolizer
+:func:`._filter.strip_datalayer_id` for why) — likewise a
+``sysId dataLayer.type`` conjunct whose literal matches the kind of
+layer(s) the rule was actually routed to (``vector`` for
+fill/line/circle/symbol/background, ``coverage`` for raster; see
+:func:`_strip_redundant_datalayer_type`), provably redundant once
+routing has already happened. A fill-only symbolizer
 carrying the ``vendor.maplibre.layer-type: "background"`` extension (see
 :mod:`._layers`) maps to a ``background`` layer instead of ``fill``.
 A coverage symbolizer maps separately (see below); graphic element types
@@ -153,7 +158,7 @@ def _px_number(value: Any, ctx: str) -> Any:
 
 
 def _reject_stroke_extras(stroke: Any, ctx: str) -> None:
-    for attr in ("casing", "center_line", "dash_pattern", "pattern", "alter"):
+    for attr in ("casing", "center_line", "dash_pattern", "pattern"):
         if getattr(stroke, attr, None) is not None:
             raise NotImplementedError(
                 f"{ctx}: stroke.{attr} has no MapLibre mapping in this codec"
@@ -167,7 +172,7 @@ def _fill_layer(layer_id: str, fill: Any, inline_stroke: Any) -> dict[str, Any]:
     its own line layer is filtered out by the caller
     (:func:`_rule_to_layers`) before reaching here.
     """
-    for attr in ("pattern", "hatch", "dotpattern", "stipple", "alter"):
+    for attr in ("pattern", "hatch", "dotpattern", "stipple"):
         if getattr(fill, attr, None) is not None:
             raise NotImplementedError(
                 f"fill.{attr} has no MapLibre mapping in this codec"
@@ -217,7 +222,7 @@ def _background_layer(layer_id: str, fill: Any, stroke: Any) -> dict[str, Any]:
     type. Unlike ``fill``, a ``background`` layer has no ``source`` and
     no outline.
     """
-    for attr in ("pattern", "hatch", "dotpattern", "stipple", "alter"):
+    for attr in ("pattern", "hatch", "dotpattern", "stipple"):
         if getattr(fill, attr, None) is not None:
             raise NotImplementedError(
                 f"fill.{attr} has no MapLibre mapping in this codec"
@@ -400,7 +405,14 @@ def _text_layer_layout_paint(text_el: Any) -> tuple[dict[str, Any], dict[str, An
     font = _attr(text_el, "font")
     if font is not None:
         for attr in ("bold", "italic", "underline"):
-            if _attr(font, attr) is not None:
+            # A literal `false` means no more than MapLibre's own default
+            # (roman, non-underlined text) — nothing to map, so it passes
+            # silently. Only `true` is the real, permanent gap: MapLibre
+            # selects style through the `text-font` family name itself
+            # (a font-server-specific naming convention), not a boolean
+            # flag, and guessing a name suffix would be exactly the kind
+            # of unfounded mapping this codec avoids.
+            if _attr(font, attr):
                 raise NotImplementedError(
                     f"Font.{attr} has no MapLibre mapping in this codec"
                 )
@@ -659,16 +671,18 @@ def _point_layer_specs(sym: Any) -> list[tuple[str, Any]]:
     return [_element_point_spec(el) for el in (*marker_elements, *label_elements)]
 
 
-def _strip_redundant_coverage_type(selector: Any) -> Any:
-    """Drop a ``sysId dataLayer.type = coverage`` conjunct from *selector*.
+def _strip_redundant_datalayer_type(selector: Any, expected_literal: str) -> Any:
+    """Drop a ``sysId dataLayer.type = <expected_literal>`` conjunct from *selector*.
 
-    Only called once a rule is already routed to a raster/hillshade/
-    color-relief layer (see :func:`_rule_to_layers`) — at that point the
-    "coverage" tag is provably redundant, nothing else could have produced
-    those layers, the same reasoning :func:`._filter.strip_datalayer_id`
-    applies to ``dataLayer.id``. A ``dataLayer.type`` on a *vector* rule
-    (e.g. ``dataLayer.type = vector``), or any other ``sysId``, is a
-    separate, still-open gap — not touched here.
+    Only called once a rule is already routed to layers of the matching
+    kind (see :func:`_rule_to_layers`) — at that point the tag is provably
+    redundant, nothing else could have produced those layers, the same
+    reasoning :func:`._filter.strip_datalayer_id` applies to
+    ``dataLayer.id``. A ``dataLayer.type`` whose *literal* doesn't match
+    the layers actually produced (a contradiction that should never occur
+    given a rule was successfully routed, but not this function's job to
+    diagnose), a non-``=`` comparison, or any other ``sysId``, is left
+    alone and still raises further down the pipeline.
     """
     if not isinstance(selector, dict):
         return selector
@@ -677,7 +691,8 @@ def _strip_redundant_coverage_type(selector: Any) -> Any:
         kept = [
             stripped
             for a in selector.get("args", [])
-            if (stripped := _strip_redundant_coverage_type(a)) is not None
+            if (stripped := _strip_redundant_datalayer_type(a, expected_literal))
+            is not None
         ]
         if not kept:
             return None
@@ -690,8 +705,8 @@ def _strip_redundant_coverage_type(selector: Any) -> Any:
             has_type_sysid = any(
                 isinstance(a, dict) and a.get("sysId") == "dataLayer.type" for a in args
             )
-            has_coverage_literal = "coverage" in args
-            if has_type_sysid and has_coverage_literal:
+            has_expected_literal = expected_literal in args
+            if has_type_sysid and has_expected_literal:
                 return None
     return selector
 
@@ -773,11 +788,15 @@ def _rule_to_layers(rule: Any) -> list[dict[str, Any]]:
                 "a symbolizer cannot combine coverage/raster fields with "
                 "fill/stroke/marker/label in this codec"
             )
-        remaining_selector = _strip_redundant_coverage_type(remaining_selector)
+        remaining_selector = _strip_redundant_datalayer_type(
+            remaining_selector, "coverage"
+        )
         layers = _raster_layers(layer_id, sym)
         for layer in layers:
             _apply_shared_rule_props(layer, sym, minzoom, maxzoom, remaining_selector)
         return layers
+
+    remaining_selector = _strip_redundant_datalayer_type(remaining_selector, "vector")
 
     vendor_layer_type = _vendor_layer_type(sym)
 
