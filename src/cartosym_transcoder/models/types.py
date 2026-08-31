@@ -12,6 +12,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 
+from .value_expressions import ValueExpression
+
 # =============================================================================
 # Color Types
 # =============================================================================
@@ -279,6 +281,10 @@ class UnitValue(BaseModel):
 # Flexible unit value that accepts expressions or objects
 FlexibleUnitValue = UnitValue | str | float
 
+# Flexible size that additionally accepts a typed data-driven value
+# expression (MapLibre ["get"/"case"/"match"/"interpolate"/"step"/"coalesce"]).
+FlexibleSize = UnitValue | str | float | ValueExpression
+
 
 # =============================================================================
 # Angle Types
@@ -357,13 +363,17 @@ def validate_unit_string(v: str) -> str:
 # These are the types actually used in models - they accept both precise
 # types and strings
 
-FlexibleColor = Color | str
-"""Color that accepts precise Color types or string expressions."""
+FlexibleColor = Color | str | ValueExpression
+"""Color that accepts precise Color types, string expressions, or a typed
+data-driven value expression."""
 
 # FlexibleUnitValue is defined once, above (line ~275).
+# FlexibleSize is defined once, above (line ~283).
 
-FlexibleAngle = Angle | str | float
-"""Angle that accepts Angle objects, strings, or plain numbers (assumed degrees)."""
+FlexibleAngle = Angle | str | float | ValueExpression
+"""Angle that accepts Angle objects, strings, plain numbers (assumed
+degrees), or a typed data-driven value expression."""
 
-FlexibleOpacity = ZeroToOne | str
-"""Opacity that accepts 0-1 float or string expressions."""
+FlexibleOpacity = ZeroToOne | str | ValueExpression
+"""Opacity that accepts a 0-1 float, string expressions, or a typed
+data-driven value expression."""

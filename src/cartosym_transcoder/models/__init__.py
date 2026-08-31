@@ -29,6 +29,7 @@ from .types import (  # Color types; Unit types; Angle types; Range types
     FlexibleAngle,
     FlexibleColor,
     FlexibleOpacity,
+    FlexibleSize,
     FlexibleUnitValue,
     Percent,
     RGBColor,
@@ -37,6 +38,15 @@ from .types import (  # Color types; Unit types; Angle types; Range types
     UnitValue,
     WebColorName,
     ZeroToOne,
+)
+from .value_expressions import (
+    CaseExpression,
+    CoalesceExpression,
+    InterpolateExpression,
+    MatchExpression,
+    PropertyRef,
+    StepExpression,
+    ValueExpression,
 )
 
 __all__ = [
@@ -58,6 +68,7 @@ __all__ = [
     "UnitType",
     "UnitValue",
     "FlexibleUnitValue",
+    "FlexibleSize",
     "AngleUnit",
     "Angle",
     "FlexibleAngle",
@@ -65,6 +76,14 @@ __all__ = [
     "Percent",
     "ColorComponent255",
     "FlexibleOpacity",
+    # Value expressions (data-driven property values)
+    "ValueExpression",
+    "PropertyRef",
+    "CaseExpression",
+    "MatchExpression",
+    "StepExpression",
+    "InterpolateExpression",
+    "CoalesceExpression",
     # Symbolizer models
     "Symbolizer",
     "Fill",

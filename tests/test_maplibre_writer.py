@@ -418,3 +418,39 @@ def test_fill_with_full_stroke_is_rejected():
 def test_json_serialisable():
     style = MaplibreReader().read(_ATOMIC / "fill-color-literal.json")
     json.dumps(MaplibreWriter().write(style))
+
+
+@pytest.mark.parametrize(
+    "expr",
+    [
+        ["get", "cls"],
+        ["case", ["get", "big"], "#f00", "#00f"],
+        ["match", ["get", "cls"], "park", "#0f0", "water", "#00f", "#888"],
+        ["step", ["get", "rank"], "#eee", 3, "#aaa", 6, "#444"],
+        ["interpolate", ["linear"], ["get", "zoom"], 0, "#fff", 10, "#000"],
+        ["coalesce", ["get", "override"], ["get", "cls"], "#888"],
+    ],
+)
+def test_fill_layer_value_expression_round_trip(expr):
+    """A value expression on fill-color read → write → read is a model
+    fixed point, and the written-back style is spec-valid MapLibre.
+    """
+    read = MaplibreReader()
+    style = read.read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "areas",
+                    "type": "fill",
+                    "source": "s",
+                    "paint": {"fill-color": expr},
+                }
+            ],
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert_maplibre_valid(out)
+    again = read.read(out)
+    assert again.to_dict() == style.to_dict()

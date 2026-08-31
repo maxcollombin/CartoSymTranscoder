@@ -19,6 +19,7 @@ from typing import Any
 
 from ...models.styles import Style
 from ..base import CodecWriter
+from ._expressions import value_to_maplibre_expr
 from ._filter import selector_to_filter
 from ._layers import _ANCHOR_TO_ALIGNMENT
 
@@ -40,13 +41,16 @@ _UNSUPPORTED_SYMBOLIZER_PARTS = (
 
 
 def _literal(value: Any, prop: str) -> Any:
-    """Return a plain string / number / bool, or raise for a model / expression."""
+    """Return a plain string / number / bool, or a mapped MapLibre expression.
+
+    A :mod:`...models.value_expressions` model (``PropertyRef``,
+    ``CaseExpression``, …) round-trips back to its MapLibre array via
+    :func:`._expressions.value_to_maplibre_expr`; anything else this codec
+    does not map (a precise ``Color``/``UnitValue`` model, …) raises.
+    """
     if isinstance(value, (str, int, float, bool)):
         return value
-    raise NotImplementedError(
-        f"{prop}: only literal values map to MapLibre in this codec (got "
-        f"{type(value).__name__})"
-    )
+    return value_to_maplibre_expr(value, prop)
 
 
 def _reject_stroke_extras(stroke: Any, ctx: str) -> None:
