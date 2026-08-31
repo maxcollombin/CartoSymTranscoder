@@ -309,6 +309,33 @@ def test_hillshading_sun_becomes_hillshade_layer():
     assert_maplibre_valid(out)
 
 
+def test_hillshading_alter_is_dropped_not_rejected():
+    """Same cascade-flag reasoning as ``test_fill_alter_is_dropped_not_rejected``
+    — ``hillShading.alter`` is not a rendering property either.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Elevation",
+                    "symbolizer": {
+                        "hillShading": {
+                            "sun": {"azimuth": 45.0, "elevation": 60.0},
+                            "alter": True,
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["paint"] == {
+        "hillshade-illumination-direction": 45.0,
+        "hillshade-illumination-altitude": 60.0,
+    }
+    assert_maplibre_valid(out)
+
+
 def test_color_relief_and_hillshade_together_become_two_layers():
     """A symbolizer combining ``singleChannel``+``colorMap`` and
     ``hillShading`` (sun only) maps to two layers on the same synthetic
@@ -409,9 +436,11 @@ def test_coverage_symbolizer_cannot_combine_with_fill():
 def test_datalayer_type_coverage_selector_is_dropped_on_a_raster_rule():
     """A ``sysId dataLayer.type = coverage`` conjunct is provably redundant
     once a rule is already routed to a raster/hillshade/color-relief layer
-    — nothing else could have produced those. A ``dataLayer.type`` on a
-    *vector* rule stays rejected (see
-    ``test_other_sysid_selector_is_still_rejected``).
+    — nothing else could have produced those. The mirror case,
+    ``dataLayer.type = vector`` on a rule routed to a vector layer, is
+    ``test_datalayer_type_vector_selector_is_dropped_on_a_vector_rule``;
+    an unrelated ``sysId`` still rejects
+    (``test_other_sysid_selector_is_still_rejected``).
     """
     style = Style.from_dict(
         {
@@ -982,6 +1011,80 @@ def test_font_bold_is_rejected():
         MaplibreWriter().write(style)
 
 
+def test_font_bold_italic_underline_false_is_dropped_not_rejected():
+    """A literal ``false`` means no more than MapLibre's own default
+    (roman, non-underlined text) — nothing to map, unlike a literal
+    ``true`` (``test_font_bold_is_rejected``), which stays a real gap.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "labels",
+                    "symbolizer": {
+                        "label": {
+                            "elements": [
+                                {
+                                    "type": "Text",
+                                    "text": "a",
+                                    "font": {
+                                        "face": "Open Sans",
+                                        "bold": False,
+                                        "italic": False,
+                                        "underline": False,
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["layout"]["text-font"] == ["Open Sans"]
+    assert_maplibre_valid(out)
+
+
+def test_fill_alter_is_dropped_not_rejected():
+    """``fill.alter`` is the CartoSym cascade's own "does this override an
+    inherited definition" flag (see ``models/base.py::AlterMixin``), not a
+    rendering property — the cascade is already flattened by the time the
+    writer sees the symbolizer, so it carries no further meaning here.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "symbolizer": {"fill": {"color": "red", "alter": True}},
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["paint"] == {"fill-color": "red"}
+    assert_maplibre_valid(out)
+
+
+def test_stroke_alter_is_dropped_not_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "symbolizer": {
+                        "stroke": {"color": "black", "width": 2, "alter": True}
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["paint"] == {"line-color": "black", "line-width": 2}
+    assert_maplibre_valid(out)
+
+
 def test_rule_selector_becomes_layer_filter():
     style = Style.from_dict(
         {
@@ -1076,7 +1179,12 @@ def test_datalayer_id_conjunct_dropped_among_siblings():
     assert_maplibre_valid(out)
 
 
-def test_other_sysid_selector_is_still_rejected():
+def test_datalayer_type_vector_selector_is_dropped_on_a_vector_rule():
+    """Mirror of ``test_datalayer_type_coverage_selector_is_dropped_on_a_raster_rule``:
+    ``sysId dataLayer.type = vector`` is provably redundant once a rule is
+    routed to a fill/line/circle/symbol/background layer — nothing else
+    could have produced those.
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -1085,6 +1193,29 @@ def test_other_sysid_selector_is_still_rejected():
                     "selector": {
                         "op": "=",
                         "args": [{"sysId": "dataLayer.type"}, "vector"],
+                    },
+                    "symbolizer": {"fill": {"color": "red"}},
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert "filter" not in out["layers"][0]
+    assert_maplibre_valid(out)
+
+
+def test_other_sysid_selector_is_still_rejected():
+    """A ``sysId`` other than ``dataLayer.id``/``dataLayer.type``/``viz.sd``
+    carries real information this codec has no filter for — still raises.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "selector": {
+                        "op": "=",
+                        "args": [{"sysId": "dataLayer.owner"}, "someone"],
                     },
                     "symbolizer": {"fill": {"color": "red"}},
                 }
