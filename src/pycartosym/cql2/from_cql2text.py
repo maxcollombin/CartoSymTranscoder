@@ -4,10 +4,11 @@ Walks ``CQL2Text.g4`` (generated into ``pycartosym.grammar.generated.cql2text``)
 This is a **tree-walker**, not a text scanner: every construct is read off
 the parse tree the grammar already built (spatial/temporal/array predicates,
 WKT geometry, DATE/TIMESTAMP/INTERVAL, CASEI/ACCENTI, BETWEEN/LIKE/IN/IS
-NULL) rather than re-scanned from source-text slices. It does not yet
-replace :mod:`.from_text`'s ``_parse_expression_text`` — see that module's
-docstring for the current entry point. Wiring this in as the primary path
-(and removing the hand-rolled scanner it replaces) is a follow-up.
+NULL) rather than re-scanned from source-text slices. This is now the
+primary path for :mod:`.from_text`'s ``_parse_expression_text`` (and thus
+``cql2.parse_text``) — see that module's docstring for the fallback chain
+kept as a safety net. Removing the hand-rolled scanner it replaces is a
+follow-up, once that fallback is proven never to trigger.
 
 Model choice mirrors :class:`.from_text.ExpressionParser` exactly, so a
 future switch-over does not change the shape of what callers see:
@@ -82,9 +83,9 @@ from .model import (
     UnaryOperator,
 )
 
-# See the module docstring on `_ExprNode` in `.from_text` — the expression
-# model hierarchy is split (Expression vs. BoolExpression/predicates), so
-# a walker method's return type is loose by necessity.
+# See the module docstring on `_ExprNode` in `.from_text` — a walker
+# method's return type is loose by necessity (many concrete node types,
+# occasionally `None` or a bare `list`).
 _ExprNode = Any
 
 

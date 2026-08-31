@@ -17,7 +17,7 @@ Covers:
 import pytest
 
 from pycartosym.converter import Converter
-from pycartosym.cql2.from_text import ExpressionParser
+from pycartosym.cql2.from_cql2text import parse_cql2_text
 from pycartosym.cql2.model import (
     ArrayPredicate,
     BboxLiteral,
@@ -38,8 +38,8 @@ from pycartosym.cql2.model import (
 
 # Helper: parse text as a standalone expression
 def parse(text: str):
-    """Parse *text* via ExpressionParser._parse_expression_text."""
-    return ExpressionParser._parse_expression_text(text)
+    """Parse *text* via the CQL2-Text tree-walker (from_cql2text.parse_cql2_text)."""
+    return parse_cql2_text(text)
 
 
 # Helper: format a dict expression back to CQL2-Text via the converter
@@ -134,10 +134,17 @@ class TestLike:
         assert isinstance(result, NotExpression)
         assert isinstance(result.args[0], IsLikePredicate)
 
-    def test_ilike(self):
-        result = parse("name ILIKE '%Park%'")
+    def test_casei_like(self):
+        """OGC CQL2-Text has no ``ILIKE`` keyword — case-insensitive LIKE is
+        ``CASEI(...) LIKE CASEI(...)`` (verified against the ABNF when
+        ``CQL2Text.g4`` was written, see its header). ``op: "ilike"`` (a
+        distinct, non-standard JSON-level op — see model.IsLikePredicate)
+        stays supported for dict write-back below; it is not producible by
+        parsing standard CQL2-Text.
+        """
+        result = parse("CASEI(name) LIKE CASEI('%Park%')")
         assert isinstance(result, IsLikePredicate)
-        assert result.op == "ilike"
+        assert result.op == "like"
 
     def test_writeback_like(self):
         d = {"op": "like", "args": [{"property": "name"}, "'%park%'"]}
