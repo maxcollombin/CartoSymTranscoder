@@ -311,17 +311,12 @@ def _normalize_graphic_element(el: dict) -> None:
         except ValueError:
             pass
 
-    # Convert size string to int/float for any element type (e.g. a Dot's
-    # `size: 10` — shapes don't get the font/outline-specific coercion below).
+    # Convert size string to a number, or a {unit: value} dict when a unit
+    # suffix is present (e.g. a Dot's `size: 10 px`) — same coercion as
+    # `radius` below, for any element type (shapes don't get the
+    # font/outline-specific coercion below).
     if "size" in el and isinstance(el["size"], str):
-        v = el["size"].strip()
-        try:
-            el["size"] = int(v)
-        except ValueError:
-            try:
-                el["size"] = float(v)
-            except ValueError:
-                pass
+        el["size"] = _coerce_unit_scalar(el["size"])
 
     # position2D / position_2d (CSCSS syntax) → the schema's `position`
     # field (a UnitPoint): "{ 10, -4 }" → {x: 10, y: -4}

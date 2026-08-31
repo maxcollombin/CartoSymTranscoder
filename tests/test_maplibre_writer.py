@@ -382,29 +382,51 @@ def test_circle_marker_becomes_a_circle_layer():
     assert_maplibre_valid(out)
 
 
-def test_non_circle_marker_element_is_rejected():
-    style = Style.from_dict(
-        {
-            "stylingRules": [
-                {
-                    "name": "pts",
-                    "symbolizer": {"marker": {"elements": [{"type": "Dot"}]}},
-                }
-            ]
-        }
-    )
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(style)
-
-
-def test_multi_element_marker_is_rejected():
+def test_dot_marker_becomes_a_circle_layer():
+    """A ``1-core`` ``Dot`` (stroke-only: color + size) maps to a ``circle``
+    layer — ``color`` as the fill, ``size / 2`` as the radius (``size`` is
+    a diameter, matching the SLD/SE codec's own ``Dot`` mapping).
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
                 {
                     "name": "pts",
                     "symbolizer": {
-                        "marker": {"elements": [{"type": "Circle"}, {"type": "Circle"}]}
+                        "marker": {
+                            "elements": [
+                                {"type": "Dot", "color": "white", "size": {"px": 10}}
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["type"] == "circle"
+    assert layer["paint"] == {"circle-color": "white", "circle-radius": 5}
+    assert_maplibre_valid(out)
+
+
+def test_dot_offset_position_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Dot",
+                                    "color": "white",
+                                    "size": {"px": 10},
+                                    "position": {"x": 5, "y": 0},
+                                }
+                            ]
+                        }
                     },
                 }
             ]
@@ -414,7 +436,77 @@ def test_multi_element_marker_is_rejected():
         MaplibreWriter().write(style)
 
 
-def test_text_marker_element_is_rejected():
+def test_mixed_dot_and_text_marker_becomes_circle_and_symbol_layers():
+    """``marker.elements`` mixing a ``Dot`` with a ``Text`` (e.g. from a
+    cascaded ``marker.elements[1]: Text {...}`` override) — one layer per
+    element, in list order.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {"type": "Dot", "color": "white", "size": {"px": 10}},
+                                {"type": "Text", "text": "Name"},
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert [(lyr["id"], lyr["type"]) for lyr in out["layers"]] == [
+        ("pts-circle", "circle"),
+        ("pts-symbol", "symbol"),
+    ]
+    assert out["layers"][0]["paint"] == {"circle-color": "white", "circle-radius": 5}
+    assert out["layers"][1]["layout"] == {"text-field": "Name"}
+    assert_maplibre_valid(out)
+
+
+def test_multi_element_marker_becomes_several_circle_layers():
+    """Several marker elements have no single-``circle``-layer equivalent
+    (one MapLibre layer draws one primitive per feature) — each element
+    becomes its own ``circle`` layer, id-suffixed with a running index
+    since the ``-circle`` kind suffix alone is no longer unique.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {"type": "Dot", "color": "white", "size": {"px": 10}},
+                                {"type": "Dot", "color": "orange", "size": {"px": 8}},
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert [(lyr["id"], lyr["type"]) for lyr in out["layers"]] == [
+        ("pts-circle-1", "circle"),
+        ("pts-circle-2", "circle"),
+    ]
+    assert out["layers"][0]["paint"]["circle-color"] == "white"
+    assert out["layers"][1]["paint"]["circle-color"] == "orange"
+    assert_maplibre_valid(out)
+
+
+def test_text_marker_element_becomes_a_symbol_layer():
+    """A ``Text`` element inside ``marker.elements`` (not ``label.elements``)
+    maps the same as a label ``Text`` — element type, not container,
+    decides the layer (a cascaded indexed override, e.g.
+    ``marker.elements[1]: Text {...}``, produces exactly this shape).
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -427,8 +519,11 @@ def test_text_marker_element_is_rejected():
             ]
         }
     )
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(style)
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["type"] == "symbol"
+    assert layer["layout"] == {"text-field": "x"}
+    assert_maplibre_valid(out)
 
 
 def test_label_text_becomes_a_symbol_layer():
@@ -531,7 +626,11 @@ def test_label_and_icon_marker_share_one_symbol_layer():
     assert_maplibre_valid(out)
 
 
-def test_multi_element_label_is_rejected():
+def test_multi_element_label_becomes_several_symbol_layers():
+    """Several label elements have no single-layer equivalent either — one
+    ``symbol`` layer per element, same id-suffix scheme as a multi-element
+    marker.
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -549,11 +648,20 @@ def test_multi_element_label_is_rejected():
             ]
         }
     )
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(style)
+    out = MaplibreWriter().write(style)
+    assert [(lyr["id"], lyr["type"]) for lyr in out["layers"]] == [
+        ("labels-symbol-1", "symbol"),
+        ("labels-symbol-2", "symbol"),
+    ]
+    assert out["layers"][0]["layout"]["text-field"] == "a"
+    assert out["layers"][1]["layout"]["text-field"] == "b"
+    assert_maplibre_valid(out)
 
 
-def test_non_text_label_element_is_rejected():
+def test_image_label_element_becomes_a_symbol_layer():
+    """An ``Image`` element inside ``label.elements`` maps the same as a
+    marker ``Image`` — element type, not container, decides the layer.
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -566,11 +674,18 @@ def test_non_text_label_element_is_rejected():
             ]
         }
     )
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(style)
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["type"] == "symbol"
+    assert layer["layout"] == {"icon-image": "x"}
+    assert_maplibre_valid(out)
 
 
-def test_label_with_circle_marker_is_rejected():
+def test_label_with_circle_marker_becomes_two_layers():
+    """A label ``Text`` plus a marker ``Circle`` (not the merge-eligible
+    single-``Image``-marker case) becomes two point layers: the marker's
+    circle layer, then the label's symbol layer.
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -584,8 +699,14 @@ def test_label_with_circle_marker_is_rejected():
             ]
         }
     )
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(style)
+    out = MaplibreWriter().write(style)
+    assert [(lyr["id"], lyr["type"]) for lyr in out["layers"]] == [
+        ("labels-circle", "circle"),
+        ("labels-symbol", "symbol"),
+    ]
+    assert out["layers"][0]["paint"] == {"circle-radius": 5}
+    assert out["layers"][1]["layout"] == {"text-field": "a"}
+    assert_maplibre_valid(out)
 
 
 def test_label_with_fill_becomes_two_layers():

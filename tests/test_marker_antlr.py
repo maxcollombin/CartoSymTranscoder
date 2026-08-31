@@ -43,7 +43,7 @@ class TestMarkerAntlrExtraction:
         assert len(marker.elements) == 1
         el = marker.elements[0]
         assert el["type"] == "Dot"
-        assert el["size"] == "10 m"
+        assert el["size"] == {"m": 10}
         assert el["color"] == "white"
 
     # ── Multiple Dot elements ──────────────────────────────────────
