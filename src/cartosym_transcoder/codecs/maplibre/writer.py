@@ -4,9 +4,11 @@ The inverse of :mod:`.reader`, and with the same scope: a ``fill`` /
 ``line`` / ``marker`` (single ``Circle`` or ``Image``) / ``label``
 (single ``Text``) symbolizer with constant values maps to one MapLibre
 layer (``fill`` / ``line`` / ``circle`` / ``symbol``); a rule selector
-maps to the layer ``filter``. Raster symbolizers, multi-element
-markers/labels, other graphic types, and non-literal values raise
-:exc:`NotImplementedError`.
+maps to the layer ``filter``. A fill-only symbolizer carrying the
+``vendor.maplibre.layer-type: "background"`` extension (see
+:mod:`._layers`) maps to a ``background`` layer instead of ``fill``.
+Raster symbolizers, multi-element markers/labels, other graphic types,
+and non-literal values raise :exc:`NotImplementedError`.
 
 A CartoSym style has no data-source concept, so the output declares one
 synthetic empty GeoJSON source (``cartosym``) that every layer references
@@ -85,6 +87,57 @@ def _fill_layer(layer_id: str, fill: Any, stroke: Any) -> dict[str, Any]:
             paint["fill-outline-color"] = _literal(stroke.color, "stroke.color")
 
     return {"id": layer_id, "type": "fill", "source": _SOURCE, "paint": paint}
+
+
+def _vendor_layer_type(sym: Any) -> str | None:
+    """Return the symbolizer's ``vendor.maplibre.layer-type`` extra, if any.
+
+    Raises on any other ``vendor.*`` extra (no other one is understood by
+    this codec) or an unrecognised ``layer-type`` value — an unknown
+    vendor extension must never be silently dropped.
+    """
+    extras = getattr(sym, "__pydantic_extra__", None) or {}
+    layer_type = extras.get("vendor.maplibre.layer-type")
+    unknown = [k for k in extras if k != "vendor.maplibre.layer-type"]
+    if unknown:
+        raise NotImplementedError(
+            f"vendor extension {unknown[0]!r} has no MapLibre mapping in this codec"
+        )
+    if layer_type is not None and layer_type != "background":
+        raise NotImplementedError(
+            f"vendor.maplibre.layer-type {layer_type!r} is not a recognised value"
+        )
+    return layer_type
+
+
+def _background_layer(layer_id: str, fill: Any, stroke: Any) -> dict[str, Any]:
+    """A ``Fill`` symbolizer tagged ``vendor.maplibre.layer-type: background``.
+
+    See :func:`._layers._background_symbolizer` for why the tag exists: a
+    ``background`` layer's paint is structurally identical to a ``fill``
+    layer's, so this is the only way back to the right MapLibre layer
+    type. Unlike ``fill``, a ``background`` layer has no ``source`` and
+    no outline.
+    """
+    for attr in ("pattern", "hatch", "dotpattern", "stipple", "alter"):
+        if getattr(fill, attr, None) is not None:
+            raise NotImplementedError(
+                f"fill.{attr} has no MapLibre mapping in this codec"
+            )
+    if stroke is not None:
+        raise NotImplementedError(
+            "a background layer has no outline — a stroke on a "
+            "vendor.maplibre.layer-type=background symbolizer has no MapLibre "
+            "mapping"
+        )
+
+    paint: dict[str, Any] = {}
+    if fill.color is not None:
+        paint["background-color"] = _literal(fill.color, "fill.color")
+    if fill.opacity is not None:
+        paint["background-opacity"] = _literal(fill.opacity, "fill.opacity")
+
+    return {"id": layer_id, "type": "background", "paint": paint}
 
 
 def _line_layer(layer_id: str, stroke: Any) -> dict[str, Any]:
@@ -317,6 +370,23 @@ def _rule_to_layer(rule: Any) -> dict[str, Any]:
     if not layer_id:
         raise NotImplementedError("styling rule without a name → MapLibre layer id")
 
+    vendor_layer_type = _vendor_layer_type(sym)
+    if vendor_layer_type == "background" and (
+        sym.fill is None
+        or sym.stroke is not None
+        or sym.marker is not None
+        or sym.label is not None
+    ):
+        raise NotImplementedError(
+            "vendor.maplibre.layer-type=background requires a fill-only "
+            "symbolizer (no stroke, marker, or label)"
+        )
+    if vendor_layer_type == "background" and rule.selector is not None:
+        raise NotImplementedError(
+            "a background layer has no filter — rule.selector must be empty "
+            "on a vendor.maplibre.layer-type=background symbolizer"
+        )
+
     marker_type = None
     if sym.marker is not None:
         elements = sym.marker.elements
@@ -343,7 +413,10 @@ def _rule_to_layer(rule: Any) -> dict[str, Any]:
             )
         layer = _circle_layer(layer_id, sym.marker)
     elif sym.fill is not None:
-        layer = _fill_layer(layer_id, sym.fill, sym.stroke)
+        if vendor_layer_type == "background":
+            layer = _background_layer(layer_id, sym.fill, sym.stroke)
+        else:
+            layer = _fill_layer(layer_id, sym.fill, sym.stroke)
     elif sym.stroke is not None:
         layer = _line_layer(layer_id, sym.stroke)
     else:
@@ -382,7 +455,9 @@ class MaplibreWriter(CodecWriter):
         """
         layers = [_rule_to_layer(rule) for rule in style.styling_rules]
         sources: dict[str, Any] = {}
-        if layers:
+        # A `background` layer has no `source` — only declare the synthetic
+        # one when a layer actually references it.
+        if any(layer.get("source") == _SOURCE for layer in layers):
             sources[_SOURCE] = {
                 "type": "geojson",
                 "data": {"type": "FeatureCollection", "features": []},

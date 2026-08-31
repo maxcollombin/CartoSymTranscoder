@@ -1,14 +1,17 @@
-"""MapLibre reader — fill / line / circle / symbol layers, constant values.
+"""MapLibre reader — fill / line / circle / symbol / background layers.
 
-In scope this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` layers
-whose paint / layout values are constants, or one of the six MapLibre
-value-expression operators covered by ``codecs.maplibre._expressions``
-(``circle`` → a ``marker`` with one ``Circle``; ``symbol`` → a ``label``
-with one ``Text`` and/or a ``marker`` with one ``Image``). ``background`` /
-``raster`` layers, legacy zoom/property functions, any other expression
-operator, and symbol constructs this pass does not cover (a multi-family
-``text-font`` stack, ``symbol-placement: line``, …) must raise
-``NotImplementedError`` (a clean rejection — never another exception type).
+In scope this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` /
+``background`` layers whose paint / layout values are constants, or one
+of the six MapLibre value-expression operators covered by
+``codecs.maplibre._expressions`` (``circle`` → a ``marker`` with one
+``Circle``; ``symbol`` → a ``label`` with one ``Text`` and/or a
+``marker`` with one ``Image``; ``background`` → a ``Fill`` symbolizer
+tagged ``vendor.maplibre.layer-type: "background"``). ``raster`` layers,
+a layer's ``minzoom``/``maxzoom``, legacy zoom/property functions, any
+other expression operator, and symbol constructs this pass does not
+cover (a multi-family ``text-font`` stack, ``symbol-placement: line``,
+…) must raise ``NotImplementedError`` (a clean rejection — never another
+exception type).
 """
 
 from __future__ import annotations
@@ -106,14 +109,34 @@ IN_SCOPE: dict[str, list[dict]] = {
             },
         }
     ],
+    "background-color-literal": [
+        {
+            "name": "background",
+            "symbolizer": {
+                "fill": {"color": "red"},
+                "vendor.maplibre.layer-type": "background",
+            },
+        }
+    ],
+    "line-color-literal": [
+        {
+            "name": "background",
+            "symbolizer": {
+                "fill": {"color": "white"},
+                "vendor.maplibre.layer-type": "background",
+            },
+        },
+        {
+            "name": "road",
+            "symbolizer": {"stroke": {"color": "blue", "width": 10.0}},
+        },
+    ],
 }
 
 OUT_OF_SCOPE = {
-    "background-color-literal": "background layer",
     "text-field-literal": "multi-family text-font stack",
     "fill-pattern-literal": "fill-pattern paint",
-    "line-color-literal": "background layer sibling",
-    "line-width-function": "background + legacy function",
+    "line-width-function": "legacy zoom function on line-width",
 }
 
 
@@ -407,3 +430,26 @@ def test_text_halo_maps_to_font_outline():
 def test_unsupported_symbol_layout_key_raises():
     with pytest.raises(NotImplementedError):
         MaplibreReader().read(_symbol_layer({"text-field": "x", "text-max-width": 10}))
+
+
+def _fill_style(layer: dict) -> dict:
+    return {"version": 8, "sources": {}, "layers": [layer]}
+
+
+def test_background_pattern_raises():
+    layer = {"id": "bg", "type": "background", "paint": {"background-pattern": "p"}}
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(_fill_style(layer))
+
+
+@pytest.mark.parametrize("zoom_key", ["minzoom", "maxzoom"])
+def test_layer_zoom_range_raises(zoom_key: str):
+    layer = {
+        "id": "fill",
+        "type": "fill",
+        "source": "s",
+        "paint": {"fill-color": "red"},
+        zoom_key: 10,
+    }
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(_fill_style(layer))

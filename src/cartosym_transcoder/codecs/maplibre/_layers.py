@@ -1,17 +1,23 @@
 """MapLibre GL layer → CartoSym styling-rule mapping (reader side).
 
-Scope of this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` layers
-whose paint / layout scalar values are constants, or one of six MapLibre
-value-expression operators — ``get`` / ``case`` / ``match`` /
-``interpolate`` / ``step`` / ``coalesce`` (see :mod:`._expressions`).
-Anything else — ``background`` / ``raster`` layers, legacy zoom/property
-functions (``{"stops": …}``), or any other expression operator — raises
-:exc:`NotImplementedError`. A partial mapping would silently drop styling,
-which this project does not do. Layer ``filter`` maps to ``rule.selector``
-(see :mod:`._filter`).
+Scope of this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` /
+``background`` layers whose paint / layout scalar values are constants,
+or one of six MapLibre value-expression operators — ``get`` / ``case`` /
+``match`` / ``interpolate`` / ``step`` / ``coalesce`` (see
+:mod:`._expressions`). Anything else — ``raster`` layers, a layer's
+``minzoom``/``maxzoom`` (zoom-range visibility has no CartoSym mapping in
+this codec), legacy zoom/property functions (``{"stops": …}``), or any
+other expression operator — raises :exc:`NotImplementedError`. A partial
+mapping would silently drop styling, which this project does not do.
+Layer ``filter`` maps to ``rule.selector`` (see :mod:`._filter`).
 
 A ``symbol`` layer maps to a ``label`` (from ``text-field``) and/or a
-``marker`` holding one ``Image`` (from ``icon-image``).
+``marker`` holding one ``Image`` (from ``icon-image``). A ``background``
+layer maps to a ``Fill`` symbolizer tagged
+``vendor.maplibre.layer-type: "background"`` — its paint is structurally
+identical to a ``fill`` layer's, so this vendor-extension tag (SymCore
+§7) is the only way the writer can reconstruct the right MapLibre layer
+type on the way back.
 
 Each function returns a plain ``dict`` shaped like a CartoSym
 ``stylingRule`` / ``symbolizer``; the caller feeds it to the Pydantic
@@ -59,6 +65,13 @@ _SYMBOL_LAYOUT: frozenset[str] = frozenset(
         "visibility",
     }
 )
+_BACKGROUND_PAINT: frozenset[str] = frozenset(
+    {"background-color", "background-opacity"}
+)
+
+# Layer keys with no CartoSym mapping in this codec — presence raises
+# rather than being silently dropped.
+_UNSUPPORTED_LAYER_KEYS: frozenset[str] = frozenset({"minzoom", "maxzoom"})
 
 # MapLibre text-anchor token → CartoSym (hAlignment, vAlignment).
 _ANCHOR_TO_ALIGNMENT: dict[str, tuple[str, str]] = {
@@ -203,6 +216,28 @@ def _circle_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     return {"marker": {"elements": [circle]}}
 
 
+def _background_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
+    """A ``background`` layer → a ``Fill`` symbolizer tagged for round-trip.
+
+    A ``background`` layer paints the whole map viewport — it has no
+    ``source``/``source-layer`` and no feature geometry, so there is no
+    CartoSym geometry-bound concept for it. Its paint
+    (``background-color``/``background-opacity``) is structurally
+    identical to a ``fill`` layer's ``Fill``; see the module docstring
+    for why the vendor-extension tag exists.
+    """
+    paint = layer.get("paint", {})
+    _reject_unknown(paint, _BACKGROUND_PAINT, "background")
+
+    fill: dict[str, Any] = {}
+    if "background-color" in paint:
+        fill["color"] = _constant(paint["background-color"], "background-color")
+    if "background-opacity" in paint:
+        fill["opacity"] = _constant(paint["background-opacity"], "background-opacity")
+
+    return {"fill": fill, "vendor.maplibre.layer-type": "background"}
+
+
 def _text_field_to_text(value: Any) -> Any:
     """``"{name}"`` → ``{"property": "name"}``; ``"Foo"`` → ``"Foo"``.
 
@@ -334,6 +369,7 @@ _HANDLERS = {
     "line": _line_symbolizer,
     "circle": _circle_symbolizer,
     "symbol": _symbol_symbolizer,
+    "background": _background_symbolizer,
 }
 
 
@@ -344,6 +380,13 @@ def layer_to_styling_rule(layer: dict[str, Any]) -> dict[str, Any]:
         NotImplementedError: for a layer type, value, or property this
             pass does not map.
     """
+    for key in _UNSUPPORTED_LAYER_KEYS:
+        if key in layer:
+            raise NotImplementedError(
+                f"layer {key!r} (zoom-range visibility) has no CartoSym "
+                "mapping in this codec"
+            )
+
     layer_type = layer.get("type")
     handler = _HANDLERS.get(layer_type or "")
     if handler is None:
