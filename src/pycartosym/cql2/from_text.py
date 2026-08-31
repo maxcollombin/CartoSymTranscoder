@@ -17,10 +17,15 @@ implementation. Two entry points:
   ``CQL2Text.g4`` tree-walker (:func:`.from_cql2text.parse_cql2_text`);
   only on failure does it fall back to lexing+parsing the string as a
   CartoSym-CSS ``expression`` and walking that tree
-  (:meth:`_text_to_expr_ctx`), then finally to the hand-rolled
-  ``_parse_expression_text_legacy`` scanner (quote- and bracket-aware:
-  ``name = 'a and b'`` is not split on the quoted ``and``) — the last two
-  are a safety net kept for now, not expected to trigger in normal use.
+  (:meth:`_text_to_expr_ctx`), then finally to the quote- and
+  bracket-aware text-scan methods below (``parse_expression`` /
+  ``_parse_logical_expression`` / ``_parse_single_expression`` and their
+  helpers) — a safety net for constructs outside CQL2-Text proper (e.g.
+  ``0x``-prefixed hex literals), not expected to trigger for actual
+  CQL2-Text input. The hand-rolled scanner that used to be the sole
+  parsing path here (``_parse_expression_text_legacy``) was removed once
+  the tree-walker/grammar tiers above were proven to cover the test
+  suite and official corpus without it.
 
 Covers CQL2 spatial / temporal / array predicates, BETWEEN / IN / LIKE /
 IS NULL, WKT and temporal literals, arithmetic, member access, function
@@ -516,6 +521,16 @@ class ExpressionParser:
         ):
             return StringExpression(value=original_text[1:-1])
 
+        # Handle 0x-prefixed hex literals: 0xFF, 0xAB12 etc. — not CQL2-Text
+        # (absent from the OGC ABNF, CQL2Text.g4 deliberately omits them) and
+        # not the CartoSym-CSS grammar's own `#RRGGBB`-style HEX_LITERAL
+        # token, so this text-scan level is the only place that reads them.
+        if original_text.startswith("0x") or original_text.startswith("0X"):
+            try:
+                return ConstantExpression(value=int(original_text, 16))
+            except ValueError:
+                pass
+
         # Handle numbers
         if original_text.replace(".", "").replace("-", "").isdigit():
             try:
@@ -686,8 +701,8 @@ class ExpressionParser:
         Returns the ANTLR ``ExpressionContext`` only when *text* parses
         cleanly and is fully consumed. Used to route the text-scan entry
         points through the grammar's own operator-precedence tree (see
-        :meth:`parse_expression_ctx`) instead of the hand-rolled scanner,
-        which does not parse arithmetic and drops a leading ``not``.
+        :meth:`parse_expression_ctx`) instead of the ``parse_expression``
+        text-scan fallback below, which does not parse arithmetic.
         """
         from antlr4 import CommonTokenStream, InputStream, Token
         from antlr4.error.ErrorListener import ErrorListener
@@ -711,7 +726,7 @@ class ExpressionParser:
         parser.addErrorListener(listener)
         try:
             tree = parser.expression()
-        except Exception:  # noqa: BLE001 - any ANTLR failure -> use the scanner
+        except Exception:  # noqa: BLE001 - any ANTLR failure -> caller falls back
             return None
         if listener.hit or parser.getCurrentToken().type != Token.EOF:
             return None
@@ -726,9 +741,11 @@ class ExpressionParser:
         tree-walker, case-insensitive keywords and all. Falls back to the
         CartoSym-CSS ``expression`` grammar
         (:meth:`_text_to_expr_ctx`/:meth:`parse_expression_ctx`), then to
-        :meth:`_parse_expression_text_legacy` (the hand-rolled scanner) —
-        kept as a safety net while the CQL2-Text grammar's own coverage is
-        still being proven out; not expected to trigger in normal use.
+        :meth:`parse_expression` (a quote- and bracket-aware text scan) for
+        constructs neither grammar covers (e.g. ``0x``-prefixed hex
+        literals, absent from both the CQL2-Text ABNF and the CartoSym-CSS
+        grammar's own ``#RRGGBB``-style ``HEX_LITERAL``) — kept as a safety
+        net, not expected to trigger for actual CQL2-Text input.
         """
         text = text.strip()
         try:
@@ -741,13 +758,13 @@ class ExpressionParser:
         if ctx is not None:
             try:
                 walked = ExpressionParser.parse_expression_ctx(ctx)
-            except Exception:  # noqa: BLE001 - fall back to the scanner
+            except Exception:  # noqa: BLE001 - fall back to the final parser below
                 walked = None
             if walked is not None and not ExpressionParser._is_juxtaposition_artifact(
                 walked, text
             ):
                 return walked
-        return ExpressionParser._parse_expression_text_legacy(text)
+        return ExpressionParser.parse_expression(text)
 
     @staticmethod
     def _is_juxtaposition_artifact(walked: Any, text: str) -> bool:
@@ -759,93 +776,10 @@ class ExpressionParser:
         100``), hex literals (``0xFF`` → ``0 xFF``) — parses "cleanly" as
         an :class:`ArrayExpression`. A genuine array literal always has
         brackets or commas; a bare tuple here means the grammar path
-        failed silently and the scanner should take over.
+        failed silently and the ``parse_expression`` text-scan fallback
+        should take over instead.
         """
         return isinstance(walked, ArrayExpression) and not (set("[],") & set(text))
-
-    @staticmethod
-    def _parse_expression_text_legacy(text: str) -> _ExprNode:
-        """Hand-rolled text scanner (fallback for :meth:`_parse_expression_text`)."""
-        text = text.strip()
-
-        # Handle parentheses - remove the outer pair if it wraps the
-        # entire expression
-        if text.startswith("(") and text.endswith(")"):
-            # Check if these parentheses actually wrap the whole expression
-            paren_depth = 0
-            for i, char in enumerate(text):
-                if char == "(":
-                    paren_depth += 1
-                elif char == ")":
-                    paren_depth -= 1
-                    if paren_depth == 0 and i < len(text) - 1:
-                        # Parentheses don't wrap the whole expression
-                        break
-            else:
-                # Parentheses wrap the whole expression, remove them
-                text = text[1:-1].strip()
-
-        # Check for logical operations (case-insensitive)
-        text_lower = text.lower()
-        if " and " in text_lower or " or " in text_lower:
-            # But not if ' and ' only appears inside a BETWEEN expression
-            if not ExpressionParser._only_between_and(text):
-                return ExpressionParser._parse_logical_expression(text)
-
-        # --- CQL2 postfix operators (BETWEEN, IN, LIKE, IS NULL) ---
-        cql2 = ExpressionParser._try_parse_cql2_operator(text)
-        if cql2 is not None:
-            return cql2
-
-        # Check for relational operations
-        for op in [">=", "<=", "!=", "=", ">", "<"]:
-            if f" {op} " in text:
-                return ExpressionParser._parse_relational_expression(text, op)
-
-        # Handle string literals
-        if (text.startswith('"') and text.endswith('"')) or (
-            text.startswith("'") and text.endswith("'")
-        ):
-            return StringExpression(value=text[1:-1])
-
-        # Handle function calls — CQL2 predicates / literals first
-        if "(" in text and text.endswith(")"):
-            cql2_func = ExpressionParser._try_parse_cql2_function(text)
-            if cql2_func is not None:
-                return cql2_func
-            return ExpressionParser._parse_function_call_from_text(text)
-
-        # Handle curly-brace temporal literals: DATE{...}, TIMESTAMP{...}, INTERVAL{...}
-        temporal_brace = ExpressionParser._try_parse_temporal_braces(text)
-        if temporal_brace is not None:
-            return temporal_brace
-
-        # Handle hex number literals: 0xFF, 0xAB12 etc.
-        if text.startswith("0x") or text.startswith("0X"):
-            try:
-                return ConstantExpression(value=int(text, 16))
-            except ValueError:
-                pass
-
-        # Handle numbers
-        try:
-            if "." in text:
-                return ConstantExpression(value=float(text))
-            else:
-                return ConstantExpression(value=int(text))
-        except ValueError:
-            pass
-
-        # Handle boolean
-        if text.lower() in ["true", "false"]:
-            return ConstantExpression(value=text.lower() == "true")
-
-        # Handle member access
-        if "." in text:
-            return ExpressionParser._parse_member_access_from_text(text)
-
-        # Default: identifier
-        return IdentifierExpression(name=text)
 
     @staticmethod
     def _parse_constant(ctx) -> ConstantExpression:

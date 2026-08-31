@@ -7,8 +7,9 @@ WKT geometry, DATE/TIMESTAMP/INTERVAL, CASEI/ACCENTI, BETWEEN/LIKE/IN/IS
 NULL) rather than re-scanned from source-text slices. This is now the
 primary path for :mod:`.from_text`'s ``_parse_expression_text`` (and thus
 ``cql2.parse_text``) — see that module's docstring for the fallback chain
-kept as a safety net. Removing the hand-rolled scanner it replaces is a
-follow-up, once that fallback is proven never to trigger.
+kept as a safety net for constructs outside CQL2-Text proper (the
+hand-rolled scanner this tree-walker used to fall back to has since been
+removed).
 
 Model choice mirrors :class:`.from_text.ExpressionParser` exactly, so a
 future switch-over does not change the shape of what callers see:
