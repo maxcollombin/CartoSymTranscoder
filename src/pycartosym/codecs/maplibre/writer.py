@@ -1,33 +1,46 @@
 """MapLibre / MapBox GL Style writer — CartoSym Style models → style JSON.
 
 The inverse of :mod:`.reader`, and with the same scope: a ``fill`` /
-``line`` / ``marker`` (single ``Circle`` or ``Image``) / ``label``
-(single ``Text``) symbolizer with constant values maps to a MapLibre
-layer (``fill`` / ``line`` / ``circle`` / ``symbol``); a rule selector
-maps to the layer ``filter``, except any ``viz.sd`` conjuncts that match
-MapLibre's own zoom-range shape, which map to ``minzoom``/``maxzoom``
-instead (see :mod:`._zoom`), and a ``sysId dataLayer.id`` equality
-conjunct, dropped rather than mapped (see :func:`._filter.strip_datalayer_id`
-for why). A fill-only symbolizer carrying the
-``vendor.maplibre.layer-type: "background"`` extension (see
+``line`` / ``marker`` / ``label`` symbolizer with constant values maps to
+a MapLibre layer (``fill`` / ``line`` / ``circle`` / ``symbol``); a rule
+selector maps to the layer ``filter``, except any ``viz.sd`` conjuncts
+that match MapLibre's own zoom-range shape, which map to
+``minzoom``/``maxzoom`` instead (see :mod:`._zoom`), and a
+``sysId dataLayer.id`` equality conjunct, dropped rather than mapped (see
+:func:`._filter.strip_datalayer_id` for why). A fill-only symbolizer
+carrying the ``vendor.maplibre.layer-type: "background"`` extension (see
 :mod:`._layers`) maps to a ``background`` layer instead of ``fill``.
-Raster symbolizers, multi-element markers/labels, other graphic types,
-and non-literal values raise :exc:`NotImplementedError`.
+Raster symbolizers, graphic element types other than ``Dot``/``Circle``/
+``Image``/``Text``, and non-literal values raise :exc:`NotImplementedError`.
+
+Each element of ``marker.elements``/``label.elements`` maps to its own
+point layer, dispatched by the element's own ``type`` — a ``Dot``/
+``Circle`` to a ``circle`` layer, an ``Image`` to a ``symbol`` layer's
+``icon-image``, a ``Text`` to a ``symbol`` layer's ``text-field`` — not
+by which of ``marker``/``label`` it came from, which this codec treats
+symmetrically (see :func:`_point_layer_specs`). A ``Dot`` — ``1-core``,
+stroke-only by design — draws as a ``circle`` layer's fill (``color``)
+and radius (``size / 2``, ``size`` being a diameter), matching the SLD/SE
+codec's own ``Dot`` mapping; unlike a ``2-shapes`` ``Circle``, it has no
+outline. The common case of exactly one ``Image`` marker element and
+exactly one ``Text`` label element still merges into a single combined
+``symbol`` layer (icon + text together), as before this generalisation.
 
 A symbolizer combining more than one of {fill, a full stroke (width or
 opacity, not just a plain outline colour), a marker/label point layer}
 has no single-layer MapLibre equivalent, so it maps to *several* layers
 instead (see :func:`_rule_to_layers`) — one CartoSym rule can expand to
 several ``layers`` entries. They share the rule's ``filter``/``minzoom``/
-``maxzoom``/``visibility`` and are ordered fill, then line, then
-circle/symbol (so a point layer draws on top of its area/line siblings,
-the conventional order); their ``id`` is disambiguated with a
-``-fill``/``-line``/``-circle``/``-symbol`` suffix — a bare rule name is
-kept only when a single layer is produced, unchanged from before. A
-stroke with only a ``color`` (no ``width``/``opacity``) stays inlined as
-the fill layer's ``fill-outline-color``, as before, rather than spawning
-a separate line layer. A label combined with a non-``Image`` marker
-still has no mapping (two point layers from one rule) and still raises.
+``maxzoom``/``visibility`` and are ordered fill, then line, then the
+point layers in ``marker.elements``-then-``label.elements`` order (so a
+point layer draws on top of its area/line siblings, the conventional
+order); their ``id`` is disambiguated with a ``-fill``/``-line``/
+``-circle``/``-symbol`` suffix — several point layers of the *same* kind
+get a further numeric suffix (``-circle-1``/``-circle-2``…) — a bare rule
+name is kept only when a single layer is produced, unchanged from
+before. A stroke with only a ``color`` (no ``width``/``opacity``) stays
+inlined as the fill layer's ``fill-outline-color``, as before, rather
+than spawning a separate line layer.
 
 ``StylingRule.nestedRules`` (a cascading refinement, e.g.
 ``[attr = value] { ... }`` narrowing a parent rule) has no MapLibre
@@ -235,20 +248,8 @@ def _attr(obj: Any, key: str) -> Any:
     return getattr(obj, key, None)
 
 
-def _circle_layer(layer_id: str, marker: Any) -> dict[str, Any]:
-    elements = marker.elements
-    if not isinstance(elements, list) or len(elements) != 1:
-        raise NotImplementedError(
-            "MapLibre has no multi-graphic marker — exactly one Circle element "
-            "maps to a circle layer"
-        )
-    circle = elements[0]
-    if _attr(circle, "type") != "Circle":
-        raise NotImplementedError(
-            f"marker element {_attr(circle, 'type')!r} → MapLibre "
-            "(only a shapes Circle maps, to a circle layer)"
-        )
-
+def _circle_paint_from_circle(circle: Any) -> dict[str, Any]:
+    """A ``2-shapes`` ``Circle`` element (fill+outline+radius) as ``circle`` paint."""
     paint: dict[str, Any] = {}
     fill = _attr(circle, "fill")
     if fill is not None and _attr(fill, "color") is not None:
@@ -276,7 +277,63 @@ def _circle_layer(layer_id: str, marker: Any) -> dict[str, Any]:
     opacity = _attr(circle, "opacity")
     if opacity is not None:
         paint["circle-opacity"] = _literal(opacity, "Circle.opacity")
+    return paint
 
+
+def _circle_paint_from_dot(dot: Any) -> dict[str, Any]:
+    """A ``1-core`` ``Dot`` element (``color``+``size``) as ``circle`` paint.
+
+    Matches the SLD/SE codec's own ``Dot`` mapping
+    (``_build_point_symbolizer``): ``color`` is drawn as the mark's fill —
+    a ``Dot`` has no separate outline concept in this codebase's flat
+    ``{color, size, opacity, position}`` element representation, and
+    ``size`` is a diameter (the OGC prose: "``stroke.color``/
+    ``stroke.width`` carry the dot's colour and size"; same convention as
+    SLD's ``se:Size``), so ``circle-radius`` is ``size / 2``.
+    """
+    paint: dict[str, Any] = {}
+    color = _attr(dot, "color")
+    if color is not None:
+        paint["circle-color"] = _literal(color, "Dot.color")
+
+    size = _attr(dot, "size")
+    if size is not None:
+        size_px = _px_number(size, "Dot.size")
+        if not isinstance(size_px, (int, float)) or isinstance(size_px, bool):
+            raise NotImplementedError(
+                "Dot.size: only a literal px value maps to MapLibre "
+                "circle-radius in this codec"
+            )
+        paint["circle-radius"] = size_px / 2
+
+    opacity = _attr(dot, "opacity")
+    if opacity is not None:
+        paint["circle-opacity"] = _literal(opacity, "Dot.opacity")
+
+    position = _attr(dot, "position")
+    if position is not None:
+        px = _attr(position, "x") or 0
+        py = _attr(position, "y") or 0
+        if (px, py) != (0, 0):
+            raise NotImplementedError(
+                "Dot.position offset has no MapLibre mapping in this codec "
+                "(circle-translate is not wired up)"
+            )
+    return paint
+
+
+def _circle_layer_from_element(layer_id: str, el: Any) -> dict[str, Any]:
+    """A single ``Circle``/``Dot`` marker/label element as a ``circle`` layer."""
+    el_type = _attr(el, "type")
+    if el_type == "Circle":
+        paint = _circle_paint_from_circle(el)
+    elif el_type == "Dot":
+        paint = _circle_paint_from_dot(el)
+    else:
+        raise NotImplementedError(
+            f"marker/label element {el_type!r} → MapLibre circle layer "
+            "(only Dot/Circle map, to a circle layer)"
+        )
     return {"id": layer_id, "type": "circle", "source": _SOURCE, "paint": paint}
 
 
@@ -389,39 +446,34 @@ def _icon_layer_layout_paint(image_el: Any) -> tuple[dict[str, Any], dict[str, A
     return layout, paint
 
 
-def _symbol_layer(layer_id: str, label: Any, marker: Any) -> dict[str, Any]:
+def _symbol_layer(layer_id: str, text_el: Any, image_el: Any) -> dict[str, Any]:
+    """A single ``Text`` and/or ``Image`` element as a ``symbol`` layer.
+
+    *text_el*/*image_el* are individual marker/label graphic elements, not
+    the ``Label``/``Marker`` container — either may be ``None``. The two
+    are combined into one layer when both are given (the common
+    "icon + label" idiom: one MapLibre ``symbol`` layer can carry both
+    ``text-field`` and ``icon-image`` at once) — see the caller
+    (:func:`_point_layer_specs`) for when that happens.
+    """
     layout: dict[str, Any] = {}
     paint: dict[str, Any] = {}
 
-    if label is not None:
-        elements = label.elements
-        if not isinstance(elements, list) or len(elements) != 1:
-            raise NotImplementedError(
-                "MapLibre has no multi-graphic label — exactly one Text "
-                "element maps to a symbol layer"
-            )
-        text_el = elements[0]
+    if text_el is not None:
         if _attr(text_el, "type") != "Text":
             raise NotImplementedError(
-                f"label element {_attr(text_el, 'type')!r} → MapLibre "
-                "(only Text maps, to a symbol layer)"
+                f"marker/label element {_attr(text_el, 'type')!r} → MapLibre "
+                "symbol layer (only Text maps to text-field)"
             )
         text_layout, text_paint = _text_layer_layout_paint(text_el)
         layout.update(text_layout)
         paint.update(text_paint)
 
-    if marker is not None:
-        elements = marker.elements
-        if not isinstance(elements, list) or len(elements) != 1:
-            raise NotImplementedError(
-                "MapLibre has no multi-graphic marker — exactly one Image "
-                "element maps into a symbol layer's icon-image"
-            )
-        image_el = elements[0]
+    if image_el is not None:
         if _attr(image_el, "type") != "Image":
             raise NotImplementedError(
-                f"marker element {_attr(image_el, 'type')!r} → MapLibre "
-                "(only Image maps, into a symbol layer's icon-image)"
+                f"marker/label element {_attr(image_el, 'type')!r} → MapLibre "
+                "symbol layer (only Image maps to icon-image)"
             )
         icon_layout, icon_paint = _icon_layer_layout_paint(image_el)
         layout.update(icon_layout)
@@ -538,6 +590,66 @@ def _apply_shared_rule_props(
         )
 
 
+def _elements_list(container: Any) -> list[Any]:
+    """The resolved element list of a ``Marker``/``Label``, or ``[]`` if absent."""
+    if container is None:
+        return []
+    elements = container.elements
+    if not isinstance(elements, list):
+        raise NotImplementedError(
+            "an indexed marker/label element override ({index, value}) must "
+            "already be fully resolved before conversion to MapLibre"
+        )
+    return elements
+
+
+def _element_point_spec(el: Any) -> tuple[str, Any]:
+    """A ``(kind, builder)`` pair for one marker/label graphic element.
+
+    Dispatches on the element's own ``type`` — not on whether it came from
+    ``marker.elements`` or ``label.elements``, which this codec treats
+    symmetrically (both are a generic list of graphic elements in the
+    conceptual model; a ``Dot``/``Text`` is equally valid in either — see
+    e.g. a ``Text`` cascaded into ``marker.elements`` or a ``Dot`` inside
+    ``label.elements`` in the public examples).
+    """
+    el_type = _attr(el, "type")
+    if el_type in ("Dot", "Circle"):
+        return ("circle", lambda lid: _circle_layer_from_element(lid, el))
+    if el_type == "Image":
+        return ("symbol", lambda lid: _symbol_layer(lid, None, el))
+    if el_type == "Text":
+        return ("symbol", lambda lid: _symbol_layer(lid, el, None))
+    raise NotImplementedError(
+        f"marker/label element {el_type!r} has no MapLibre mapping in this codec"
+    )
+
+
+def _point_layer_specs(sym: Any) -> list[tuple[str, Any]]:
+    """Ordered ``(kind, builder)`` specs for the point layer(s) a symbolizer needs.
+
+    One spec per marker/label graphic element, in ``marker.elements`` then
+    ``label.elements`` order (bottom-to-top stacking, matching the
+    MapLibre ``layers`` array) — except the common case of exactly one
+    ``Image`` marker element and exactly one ``Text`` label element, which
+    still merges into a single combined ``symbol`` layer (icon + text
+    together), the same as before this generalisation.
+    """
+    marker_elements = _elements_list(getattr(sym, "marker", None))
+    label_elements = _elements_list(getattr(sym, "label", None))
+
+    if (
+        len(marker_elements) == 1
+        and _attr(marker_elements[0], "type") == "Image"
+        and len(label_elements) == 1
+        and _attr(label_elements[0], "type") == "Text"
+    ):
+        image_el, text_el = marker_elements[0], label_elements[0]
+        return [("symbol", lambda lid: _symbol_layer(lid, text_el, image_el))]
+
+    return [_element_point_spec(el) for el in (*marker_elements, *label_elements)]
+
+
 def _rule_to_layers(rule: Any) -> list[dict[str, Any]]:
     sym = rule.symbolizer
     if sym is None:
@@ -575,22 +687,7 @@ def _rule_to_layers(rule: Any) -> list[dict[str, Any]]:
             )
         layers = [_background_layer(layer_id, sym.fill, sym.stroke)]
     else:
-        marker_type = None
-        if sym.marker is not None:
-            elements = sym.marker.elements
-            if isinstance(elements, list) and len(elements) == 1:
-                marker_type = _attr(elements[0], "type")
-
-        point: tuple[str, Any] | None = None
-        if sym.label is not None or marker_type == "Image":
-            if sym.label is not None and marker_type not in (None, "Image"):
-                raise NotImplementedError(
-                    "a symbolizer with both a label and a non-Image marker "
-                    "needs several MapLibre layers — not supported"
-                )
-            point = ("symbol", lambda lid: _symbol_layer(lid, sym.label, sym.marker))
-        elif sym.marker is not None:
-            point = ("circle", lambda lid: _circle_layer(lid, sym.marker))
+        point_specs = _point_layer_specs(sym)
 
         # A plain-colour stroke (no width/opacity) stays inlined into the
         # fill layer as `fill-outline-color`, as before; a full stroke, or
@@ -604,19 +701,27 @@ def _rule_to_layers(rule: Any) -> list[dict[str, Any]]:
             sym.stroke if (sym.stroke is not None and not needs_line) else None
         )
 
-        multi = sum((sym.fill is not None, needs_line, point is not None)) > 1
+        multi = sum((sym.fill is not None, needs_line, len(point_specs))) > 1
 
-        def _id(kind: str) -> str:
-            return f"{layer_id}-{kind}" if multi else layer_id
+        def _id(kind: str, idx: int | None = None) -> str:
+            if not multi:
+                return str(layer_id)
+            return f"{layer_id}-{kind}" if idx is None else f"{layer_id}-{kind}-{idx}"
 
         layers = []
         if sym.fill is not None:
             layers.append(_fill_layer(_id("fill"), sym.fill, inline_stroke))
         if needs_line:
             layers.append(_line_layer(_id("line"), sym.stroke))
-        if point is not None:
-            point_kind, point_builder = point
-            layers.append(point_builder(_id(point_kind)))
+
+        kind_counts: dict[str, int] = {}
+        for kind, _ in point_specs:
+            kind_counts[kind] = kind_counts.get(kind, 0) + 1
+        kind_seen: dict[str, int] = {}
+        for kind, point_builder in point_specs:
+            kind_seen[kind] = kind_seen.get(kind, 0) + 1
+            idx = kind_seen[kind] if kind_counts[kind] > 1 else None
+            layers.append(point_builder(_id(kind, idx)))
 
         if not layers:
             raise NotImplementedError(
