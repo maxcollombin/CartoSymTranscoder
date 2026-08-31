@@ -4,7 +4,9 @@ The inverse of :mod:`.reader`, and with the same scope: a ``fill`` /
 ``line`` / ``marker`` (single ``Circle`` or ``Image``) / ``label``
 (single ``Text``) symbolizer with constant values maps to one MapLibre
 layer (``fill`` / ``line`` / ``circle`` / ``symbol``); a rule selector
-maps to the layer ``filter``. A fill-only symbolizer carrying the
+maps to the layer ``filter``, except any ``viz.sd`` conjuncts that match
+MapLibre's own zoom-range shape, which map to ``minzoom``/``maxzoom``
+instead (see :mod:`._zoom`). A fill-only symbolizer carrying the
 ``vendor.maplibre.layer-type: "background"`` extension (see
 :mod:`._layers`) maps to a ``background`` layer instead of ``fill``.
 Raster symbolizers, multi-element markers/labels, other graphic types,
@@ -24,6 +26,7 @@ from ..base import CodecWriter
 from ._expressions import value_to_maplibre_expr
 from ._filter import selector_to_filter
 from ._layers import _ANCHOR_TO_ALIGNMENT
+from ._zoom import extract_zoom_range
 
 _SOURCE = "cartosym"
 
@@ -370,6 +373,8 @@ def _rule_to_layer(rule: Any) -> dict[str, Any]:
     if not layer_id:
         raise NotImplementedError("styling rule without a name → MapLibre layer id")
 
+    minzoom, maxzoom, remaining_selector = extract_zoom_range(rule.selector)
+
     vendor_layer_type = _vendor_layer_type(sym)
     if vendor_layer_type == "background" and (
         sym.fill is None
@@ -381,10 +386,11 @@ def _rule_to_layer(rule: Any) -> dict[str, Any]:
             "vendor.maplibre.layer-type=background requires a fill-only "
             "symbolizer (no stroke, marker, or label)"
         )
-    if vendor_layer_type == "background" and rule.selector is not None:
+    if vendor_layer_type == "background" and remaining_selector is not None:
         raise NotImplementedError(
-            "a background layer has no filter — rule.selector must be empty "
-            "on a vendor.maplibre.layer-type=background symbolizer"
+            "a background layer has no filter — rule.selector must reduce to "
+            "nothing but viz.sd zoom-range conjuncts on a "
+            "vendor.maplibre.layer-type=background symbolizer"
         )
 
     marker_type = None
@@ -424,12 +430,17 @@ def _rule_to_layer(rule: Any) -> dict[str, Any]:
             "symbolizer with no fill / stroke / marker has no MapLibre mapping"
         )
 
-    if rule.selector is not None:
-        # Re-key so `filter` sits before `layout`/`paint`, as styles are
-        # conventionally written.
+    if minzoom is not None or maxzoom is not None or remaining_selector is not None:
+        # Re-key so `minzoom`/`maxzoom`/`filter` sit before `layout`/
+        # `paint`, as styles are conventionally written.
         layout = layer.pop("layout", None)
         paint = layer.pop("paint")
-        layer["filter"] = selector_to_filter(rule.selector)
+        if minzoom is not None:
+            layer["minzoom"] = minzoom
+        if maxzoom is not None:
+            layer["maxzoom"] = maxzoom
+        if remaining_selector is not None:
+            layer["filter"] = selector_to_filter(remaining_selector)
         if layout is not None:
             layer["layout"] = layout
         layer["paint"] = paint
