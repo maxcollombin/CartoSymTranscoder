@@ -1,11 +1,14 @@
 """MapLibre GL layer → CartoSym styling-rule mapping (reader side).
 
-Scope of this pass: ``fill`` / ``line`` / ``circle`` layers whose paint
-values are **constants**. Anything else — ``symbol`` / ``background`` /
-``raster`` layers, MapLibre expressions or legacy interpolation functions
-as values — raises :exc:`NotImplementedError`. A partial mapping would
-silently drop styling, which this project does not do. Layer ``filter``
-maps to ``rule.selector`` (see :mod:`._filter`).
+Scope of this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` layers
+whose paint / layout values are **constants**. Anything else —
+``background`` / ``raster`` layers, MapLibre expressions or legacy
+interpolation functions as values — raises :exc:`NotImplementedError`. A
+partial mapping would silently drop styling, which this project does not
+do. Layer ``filter`` maps to ``rule.selector`` (see :mod:`._filter`).
+
+A ``symbol`` layer maps to a ``label`` (from ``text-field``) and/or a
+``marker`` holding one ``Image`` (from ``icon-image``).
 
 Each function returns a plain ``dict`` shaped like a CartoSym
 ``stylingRule`` / ``symbolizer``; the caller feeds it to the Pydantic
@@ -36,6 +39,35 @@ _CIRCLE_PAINT: frozenset[str] = frozenset(
         "circle-stroke-opacity",
     }
 )
+_SYMBOL_PAINT: frozenset[str] = frozenset(
+    {"text-color", "text-opacity", "text-halo-color", "text-halo-width", "icon-opacity"}
+)
+_SYMBOL_LAYOUT: frozenset[str] = frozenset(
+    {
+        "text-field",
+        "text-font",
+        "text-size",
+        "text-transform",
+        "text-anchor",
+        "text-offset",
+        "icon-image",
+        "symbol-placement",
+        "visibility",
+    }
+)
+
+# MapLibre text-anchor token → CartoSym (hAlignment, vAlignment).
+_ANCHOR_TO_ALIGNMENT: dict[str, tuple[str, str]] = {
+    "center": ("center", "middle"),
+    "left": ("left", "middle"),
+    "right": ("right", "middle"),
+    "top": ("center", "top"),
+    "bottom": ("center", "bottom"),
+    "top-left": ("left", "top"),
+    "top-right": ("right", "top"),
+    "bottom-left": ("left", "bottom"),
+    "bottom-right": ("right", "bottom"),
+}
 
 
 def _constant(value: Any, prop: str) -> Any:
@@ -51,6 +83,27 @@ def _constant(value: Any, prop: str) -> Any:
             "legacy functions) are not mapped yet"
         )
     return value
+
+
+def _literal_offset(value: Any, prop: str) -> list:
+    """A literal 2-number ``[x, y]`` array for an array-*typed* property.
+
+    Unlike a scalar property (where any ``list`` is a MapLibre expression,
+    see :func:`_constant`), an array-typed property like ``text-offset``
+    is legitimately a plain ``[x, y]`` literal — but a MapLibre expression
+    evaluating to an array (``["literal", [...]]``, ``["interpolate", ...]``,
+    a legacy ``{"stops": ...}`` function, …) is still out of scope here.
+    """
+    if (
+        isinstance(value, list)
+        and len(value) == 2
+        and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in value)
+    ):
+        return value
+    raise NotImplementedError(
+        f"{prop}: only a literal [x, y] array maps in this codec (data-driven "
+        "/ zoom values and MapLibre expressions are not mapped yet)"
+    )
 
 
 def _reject_unknown(props: dict[str, Any], known: frozenset[str], ctx: str) -> None:
@@ -144,10 +197,137 @@ def _circle_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     return {"marker": {"elements": [circle]}}
 
 
+def _text_field_to_text(value: Any) -> Any:
+    """``"{name}"`` → ``{"property": "name"}``; ``"Foo"`` → ``"Foo"``.
+
+    A ``text-field`` that is a MapLibre expression, or a template mixing
+    literal text with ``{token}`` substitutions, has no single-value
+    CartoSym ``Text.text`` mapping and is rejected.
+    """
+    if not isinstance(value, str):
+        raise NotImplementedError(
+            "text-field: only a literal string or a single {property} token "
+            "maps to CartoSym Text in this codec"
+        )
+    stripped = value.strip()
+    if stripped.startswith("{") and stripped.endswith("}") and stripped.count("{") == 1:
+        return {"property": stripped[1:-1]}
+    if "{" in value or "}" in value:
+        raise NotImplementedError(
+            f"text-field template {value!r} (literal text mixed with tokens) "
+            "has no CartoSym Text.text mapping in this codec"
+        )
+    return value
+
+
+def _symbol_font(layout: dict[str, Any], paint: dict[str, Any]) -> dict[str, Any]:
+    font: dict[str, Any] = {}
+    if "text-font" in layout:
+        stack = layout["text-font"]
+        if (
+            not isinstance(stack, list)
+            or len(stack) != 1
+            or not isinstance(stack[0], str)
+        ):
+            raise NotImplementedError(
+                f"text-font {stack!r}: only a single-family list maps to "
+                "CartoSym Font.face in this codec"
+            )
+        font["face"] = stack[0]
+    if "text-size" in layout:
+        # Kept as a bare number, like circle-radius/-stroke-width elsewhere
+        # in this codec — MapLibre's own values carry no unit tag either.
+        font["size"] = _constant(layout["text-size"], "text-size")
+    if "text-transform" in layout:
+        transform = _constant(layout["text-transform"], "text-transform")
+        if transform != "none":
+            raise NotImplementedError(
+                f"text-transform {transform!r} has no CartoSym Font mapping "
+                "(only 'none' is representable)"
+            )
+    if "text-color" in paint:
+        font["color"] = _constant(paint["text-color"], "text-color")
+    if "text-opacity" in paint:
+        font["opacity"] = _constant(paint["text-opacity"], "text-opacity")
+
+    outline: dict[str, Any] = {}
+    if "text-halo-color" in paint:
+        outline["color"] = _constant(paint["text-halo-color"], "text-halo-color")
+    if "text-halo-width" in paint:
+        outline["size"] = _constant(paint["text-halo-width"], "text-halo-width")
+    if outline:
+        font["outline"] = outline
+    return font
+
+
+def _symbol_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
+    """A ``symbol`` layer → a ``label`` (text) and/or a ``marker`` (icon)."""
+    paint = layer.get("paint", {})
+    layout = layer.get("layout", {})
+    _reject_unknown(paint, _SYMBOL_PAINT, "symbol")
+    _reject_unknown(layout, _SYMBOL_LAYOUT, "symbol layout")
+
+    placement = layout.get("symbol-placement", "point")
+    if placement != "point":
+        raise NotImplementedError(
+            f"symbol-placement {placement!r} (line / line-center labelling) "
+            "has no CartoSym mapping in this codec"
+        )
+
+    has_text = "text-field" in layout
+    has_icon = "icon-image" in layout
+    if not has_text and not has_icon:
+        raise NotImplementedError(
+            "symbol layer without text-field or icon-image has nothing to map"
+        )
+
+    symbolizer: dict[str, Any] = {}
+
+    if has_text:
+        text_el: dict[str, Any] = {
+            "type": "Text",
+            "text": _text_field_to_text(layout["text-field"]),
+            "position": {"x": 0, "y": 0},
+        }
+        if "text-offset" in layout:
+            offset = _literal_offset(layout["text-offset"], "text-offset")
+            # text-offset is in ems, relative to the anchor. CartoSym's
+            # Graphic.position (UnitPoint) has no per-axis unit tag once
+            # validated (unlike marker/label elements' Any-typed dicts),
+            # so — matching this codebase's existing implicit-unit
+            # positions (e.g. SLD se:Displacement, always px) — the em
+            # count is kept as a bare number.
+            text_el["position"] = {"x": offset[0], "y": offset[1]}
+        if "text-anchor" in layout:
+            anchor = _constant(layout["text-anchor"], "text-anchor")
+            if anchor not in _ANCHOR_TO_ALIGNMENT:
+                raise NotImplementedError(f"unexpected text-anchor {anchor!r}")
+            text_el["alignment"] = list(_ANCHOR_TO_ALIGNMENT[anchor])
+        font = _symbol_font(layout, paint)
+        if font:
+            text_el["font"] = font
+        symbolizer["label"] = {"elements": [text_el]}
+
+    if has_icon:
+        image_el: dict[str, Any] = {
+            "type": "Image",
+            "image": {"id": _constant(layout["icon-image"], "icon-image")},
+            "position": {"x": 0, "y": 0},
+        }
+        if "icon-opacity" in paint:
+            image_el["opacity"] = _constant(paint["icon-opacity"], "icon-opacity")
+        symbolizer["marker"] = {"elements": [image_el]}
+    elif "icon-opacity" in paint:
+        raise NotImplementedError("icon-opacity without icon-image has nothing to map")
+
+    return symbolizer
+
+
 _HANDLERS = {
     "fill": _fill_symbolizer,
     "line": _line_symbolizer,
     "circle": _circle_symbolizer,
+    "symbol": _symbol_symbolizer,
 }
 
 

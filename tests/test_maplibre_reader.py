@@ -1,9 +1,13 @@
-"""MapLibre reader — fill / line / circle layers with constant paint values.
+"""MapLibre reader — fill / line / circle / symbol layers, constant values.
 
-In scope this pass: ``fill`` / ``line`` / ``circle`` layers whose paint
-values are constants (``circle`` → a ``marker`` with one ``Circle``). Symbol
-/ background layers, MapLibre expressions and legacy functions must raise
-``NotImplementedError`` (a clean rejection — never another exception type).
+In scope this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` layers
+whose paint / layout values are constants (``circle`` → a ``marker`` with
+one ``Circle``; ``symbol`` → a ``label`` with one ``Text`` and/or a
+``marker`` with one ``Image``). ``background`` / ``raster`` layers,
+MapLibre expressions, legacy functions, and symbol constructs this pass
+does not cover (a multi-family ``text-font`` stack, ``symbol-placement:
+line``, …) must raise ``NotImplementedError`` (a clean rejection — never
+another exception type).
 """
 
 from __future__ import annotations
@@ -85,12 +89,27 @@ IN_SCOPE: dict[str, list[dict]] = {
             },
         }
     ],
+    "icon-image-literal": [
+        {
+            "name": "text",
+            "symbolizer": {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Image",
+                            "image": {"id": "dot.sdf"},
+                            "position": {"x": 0, "y": 0},
+                        }
+                    ]
+                }
+            },
+        }
+    ],
 }
 
 OUT_OF_SCOPE = {
     "background-color-literal": "background layer",
-    "icon-image-literal": "symbol layer",
-    "text-field-literal": "symbol layer",
+    "text-field-literal": "multi-family text-font stack",
     "fill-pattern-literal": "fill-pattern paint",
     "line-color-literal": "background layer sibling",
     "line-width-function": "background + legacy function",
@@ -221,3 +240,128 @@ def test_visibility_none_maps_to_false():
     )
     sym = style.to_dict()["stylingRules"][0]["symbolizer"]
     assert sym["visibility"] is False
+
+
+# ---------------------------------------------------------------------------
+# symbol layer (label / marker)
+# ---------------------------------------------------------------------------
+
+
+def _symbol_layer(layout: dict, paint: dict | None = None) -> dict:
+    return {
+        "version": 8,
+        "sources": {},
+        "layers": [
+            {
+                "id": "l",
+                "type": "symbol",
+                "source": "s",
+                "layout": layout,
+                "paint": paint or {},
+            }
+        ],
+    }
+
+
+def test_text_field_property_token():
+    style = MaplibreReader().read(_symbol_layer({"text-field": "{name}"}))
+    el = style.styling_rules[0].symbolizer.label.elements[0]
+    assert el.text == {"property": "name"}
+
+
+def test_text_field_literal_string():
+    style = MaplibreReader().read(_symbol_layer({"text-field": "Fixed label"}))
+    el = style.styling_rules[0].symbolizer.label.elements[0]
+    assert el.text == "Fixed label"
+
+
+def test_text_field_mixed_template_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(_symbol_layer({"text-field": "{name} ({code})"}))
+
+
+def test_text_anchor_maps_to_alignment():
+    style = MaplibreReader().read(
+        _symbol_layer({"text-field": "x", "text-anchor": "bottom-left"})
+    )
+    el = style.styling_rules[0].symbolizer.label.elements[0]
+    assert el.alignment == ["left", "bottom"]
+
+
+def test_text_offset_maps_to_position():
+    style = MaplibreReader().read(
+        _symbol_layer({"text-field": "x", "text-offset": [1, -2]})
+    )
+    el = style.styling_rules[0].symbolizer.label.elements[0]
+    assert (el.position.x, el.position.y) == (1, -2)
+
+
+def test_text_transform_none_is_ignored():
+    style = MaplibreReader().read(
+        _symbol_layer({"text-field": "x", "text-transform": "none"})
+    )
+    el = style.styling_rules[0].symbolizer.label.elements[0]
+    assert getattr(el, "font", None) is None
+
+
+def test_text_transform_uppercase_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            _symbol_layer({"text-field": "x", "text-transform": "uppercase"})
+        )
+
+
+def test_multi_family_text_font_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            _symbol_layer({"text-field": "x", "text-font": ["A", "B"]})
+        )
+
+
+def test_symbol_placement_line_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            _symbol_layer({"text-field": "x", "symbol-placement": "line"})
+        )
+
+
+def test_symbol_without_text_or_icon_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(_symbol_layer({}))
+
+
+def test_icon_opacity_without_icon_image_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(_symbol_layer({}, {"icon-opacity": 0.5}))
+
+
+def test_icon_image_maps_to_marker():
+    style = MaplibreReader().read(_symbol_layer({"icon-image": "poi.png"}))
+    sym = style.styling_rules[0].symbolizer
+    assert sym.label is None
+    assert sym.marker.elements[0]["image"] == {"id": "poi.png"}
+
+
+def test_text_and_icon_together_produce_label_and_marker():
+    style = MaplibreReader().read(
+        _symbol_layer({"text-field": "x", "icon-image": "poi.png"})
+    )
+    sym = style.styling_rules[0].symbolizer
+    assert sym.label is not None
+    assert sym.marker is not None
+
+
+def test_text_halo_maps_to_font_outline():
+    style = MaplibreReader().read(
+        _symbol_layer(
+            {"text-field": "x"},
+            {"text-halo-color": "#fff", "text-halo-width": 1.5},
+        )
+    )
+    el = style.styling_rules[0].symbolizer.label.elements[0]
+    assert el.font["outline"] == {"color": "#fff", "size": 1.5}
+
+
+def test_unsupported_symbol_layout_key_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(_symbol_layer({"text-field": "x", "text-max-width": 10}))
