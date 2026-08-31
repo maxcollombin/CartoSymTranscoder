@@ -1,4 +1,4 @@
-"""Guards for :mod:`cartosym_transcoder.cql2.vocab`.
+"""Guards for :mod:`pycartosym.cql2.vocab`.
 
 The module derives the CQL2 predicate/function vocabulary from the Pydantic
 models and maps arithmetic operators via grammar *token names*. These tests
@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from cartosym_transcoder.cql2 import vocab as v
-from cartosym_transcoder.grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+from pycartosym.cql2 import vocab as v
+from pycartosym.grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
 
 
 def test_predicate_sets_hold_canonical_names():

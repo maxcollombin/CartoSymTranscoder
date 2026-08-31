@@ -1,9 +1,9 @@
 """Serialise parsed expressions to CQL2-JSON selector dicts.
 
 This is the expression → ``{"op": …, "args": …}`` half of the CQL2 codec,
-lifted verbatim out of :class:`cartosym_transcoder.ast_converter.AstToPydanticConverter`
+lifted verbatim out of :class:`pycartosym.ast_converter.AstToPydanticConverter`
 (the functions here never touched ``self`` — they only called one another).
-Import the stable entry points from :mod:`cartosym_transcoder.cql2` rather
+Import the stable entry points from :mod:`pycartosym.cql2` rather
 than from here directly.
 """
 

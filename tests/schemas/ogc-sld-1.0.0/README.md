@@ -2,7 +2,7 @@
 
 A **local, self-contained copy** of the OGC schema graph needed to
 XML-Schema-validate SLD 1.0.0 *style documents* produced (and consumed) by
-`cartosym_transcoder.codecs.sld` in its SLD 1.0.0 dialect. Used only by the
+`pycartosym.codecs.sld` in its SLD 1.0.0 dialect. Used only by the
 test suite (`tests/_xsd.py`, `tests/test_sld10_corpus.py`) — not imported at
 runtime, not part of the distributed package.
 

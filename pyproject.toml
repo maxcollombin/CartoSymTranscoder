@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cartosym-transcoder"
+name = "pycartosym"
 version = "0.2.0"
 authors = [
     {name = "Maxime Collombin", email = "maxime.collombin@netplus.ch"},
@@ -49,17 +49,17 @@ cql2 = [
     "pygeofilter>=0.2.0",
 ]
 all = [
-    "cartosym-transcoder[dev,sld,cql2,maplibre]",
+    "pycartosym[dev,sld,cql2,maplibre]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/maxcollombin/CartoSymTranscoder"
-Documentation = "https://github.com/maxcollombin/CartoSymTranscoder/blob/main/README.md"
-Repository = "https://github.com/maxcollombin/CartoSymTranscoder.git"
-Issues = "https://github.com/maxcollombin/CartoSymTranscoder/issues"
+Homepage = "https://github.com/maxcollombin/pycartosym"
+Documentation = "https://github.com/maxcollombin/pycartosym/blob/main/README.md"
+Repository = "https://github.com/maxcollombin/pycartosym.git"
+Issues = "https://github.com/maxcollombin/pycartosym/issues"
 
 [project.scripts]
-cartosym = "cartosym_transcoder.cli:main"
+cartosym = "pycartosym.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -69,7 +69,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-cartosym_transcoder = ["*.md", "schemas/*.json"]
+pycartosym = ["*.md", "schemas/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -83,12 +83,12 @@ filterwarnings = [
 [tool.black]
 line-length = 88
 target-version = ['py310', 'py311', 'py312', 'py313', 'py314']
-extend-exclude = 'src/cartosym_transcoder/grammar/generated'
+extend-exclude = 'src/pycartosym/grammar/generated'
 
 [tool.ruff]
 line-length = 88
 target-version = "py310"
-extend-exclude = ["src/cartosym_transcoder/grammar/generated"]
+extend-exclude = ["src/pycartosym/grammar/generated"]
 
 [tool.ruff.lint]
 # E/F/W: flake8 parity. I: isort parity. UP: pyupgrade (safe on the
@@ -114,7 +114,7 @@ convention = "google"
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["cartosym_transcoder"]
+known-first-party = ["pycartosym"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -122,4 +122,4 @@ plugins = ["pydantic.mypy"]
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-exclude = ["^src/cartosym_transcoder/grammar/generated/"]
+exclude = ["^src/pycartosym/grammar/generated/"]

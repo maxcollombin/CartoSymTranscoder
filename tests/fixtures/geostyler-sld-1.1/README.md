@@ -3,7 +3,7 @@
 A copy of the SLD 1.1 test data from
 [`geostyler/geostyler-sld-parser`](https://github.com/geostyler/geostyler-sld-parser),
 `data/slds/1.1/`, used by `tests/test_sld_se_geostyler.py` to exercise the
-`cartosym_transcoder.codecs.sld_se` reader/writer against third-party SLD/SE
+`pycartosym.codecs.sld_se` reader/writer against third-party SLD/SE
 1.1.0 documents (not just this project's own hand-written fixtures in
 `examples/sld/`).
 

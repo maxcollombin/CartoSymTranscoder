@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.codecs.sld.reader import SldReader
+from pycartosym.codecs.sld.reader import SldReader
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "examples" / "sld"

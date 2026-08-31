@@ -575,7 +575,7 @@ class SpatialRelatePredicate(BoolExpression):
     def _validate_de9im_pattern(cls, v: str) -> str:
         """Reject a ``pattern`` that is not a well-formed DE-9IM pattern.
 
-        Delegates to :func:`cartosym_transcoder.models.de9im.is_valid_de9im_pattern`
+        Delegates to :func:`pycartosym.models.de9im.is_valid_de9im_pattern`
         so the pattern alphabet (``0 1 2 T F *``) lives in one place.
         """
         from ..models.de9im import is_valid_de9im_pattern

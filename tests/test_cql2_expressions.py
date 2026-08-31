@@ -5,7 +5,7 @@ SpatialPredicate, SpatialRelatePredicate, TemporalPredicate, ArrayPredicate).
 import pytest
 from pydantic import ValidationError
 
-from cartosym_transcoder.cql2.model import (
+from pycartosym.cql2.model import (
     ArrayPredicate,
     BboxLiteral,
     GeometryExpression,

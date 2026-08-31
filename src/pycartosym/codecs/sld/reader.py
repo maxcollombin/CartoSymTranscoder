@@ -7,8 +7,8 @@ raise :exc:`NotImplementedError` rather than being silently skipped, per
 this project's lossless-transcoding requirement.
 
 :class:`SldReader` is parametrised by an
-:class:`~cartosym_transcoder.codecs.sld._dialect.SldDialect`; the wiring in
-:mod:`cartosym_transcoder.codecs.sld` binds it to SE 1.1.0.
+:class:`~pycartosym.codecs.sld._dialect.SldDialect`; the wiring in
+:mod:`pycartosym.codecs.sld` binds it to SE 1.1.0.
 """
 
 from __future__ import annotations

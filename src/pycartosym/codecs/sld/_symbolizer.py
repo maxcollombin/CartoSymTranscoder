@@ -21,7 +21,7 @@ there). A point ``se:Graphic``'s ``se:Rotation`` has no CartoSym field
 and is still silently dropped, pending a mapping decision.
 
 Every function here is dialect-agnostic: the caller passes a
-:class:`~cartosym_transcoder.codecs.sld._dialect.SldDialect` (``d``) and all
+:class:`~pycartosym.codecs.sld._dialect.SldDialect` (``d``) and all
 XML element/parameter construction and lookup goes through it, so the same
 code serialises SLD 1.0.0 (``CssParameter``, unprefixed) and SE 1.1.0
 (``se:SvgParameter``).

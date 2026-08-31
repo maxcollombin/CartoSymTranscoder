@@ -13,8 +13,8 @@ from antlr4.error.ErrorListener import ErrorListener
 from jsonschema import ValidationError
 from jsonschema import validate as jsonschema_validate
 
-from cartosym_transcoder.grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
-from cartosym_transcoder.grammar.generated.CartoSymCSSLexer import CartoSymCSSLexer
+from pycartosym.grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
+from pycartosym.grammar.generated.CartoSymCSSLexer import CartoSymCSSLexer
 
 from . import __version__
 from .cli_style import (
@@ -106,7 +106,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
 def _add_common_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "--version", action="version", version=f"cartosym-transcoder {__version__}"
+        "--version", action="version", version=f"pycartosym {__version__}"
     )
     parser.add_argument(
         "-q",

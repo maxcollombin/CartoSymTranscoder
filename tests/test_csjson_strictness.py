@@ -15,14 +15,12 @@ from pathlib import Path
 import pytest
 from jsonschema import validate as jsonschema_validate
 
-from cartosym_transcoder.converter import Converter
+from pycartosym.converter import Converter
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = ROOT / "examples"
 EXPECTED_DIR = ROOT / "tests" / "fixtures" / "expected"
-SCHEMA_PATH = (
-    ROOT / "src" / "cartosym_transcoder" / "schemas" / "CartoSym-JSON.schema.json"
-)
+SCHEMA_PATH = ROOT / "src" / "pycartosym" / "schemas" / "CartoSym-JSON.schema.json"
 
 _SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 _CSCSS = sorted(f.stem for f in EXAMPLES_DIR.glob("*.cscss"))
@@ -74,7 +72,7 @@ class TestEmptyAndDegenerateInput:
         assert converter.cscss_to_csjson(cscss) == {"stylingRules": []}
 
     def test_malformed_cscss_raises(self, converter):
-        from cartosym_transcoder.exceptions import CartoSymSyntaxError
+        from pycartosym.exceptions import CartoSymSyntaxError
 
         with pytest.raises(CartoSymSyntaxError):
             converter.cscss_to_csjson("this is definitely not cscss !!!")

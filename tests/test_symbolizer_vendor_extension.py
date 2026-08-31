@@ -11,7 +11,7 @@ a likely typo.
 import pytest
 from pydantic import ValidationError
 
-from cartosym_transcoder.models.symbolizers import Symbolizer
+from pycartosym.models.symbolizers import Symbolizer
 
 
 @pytest.mark.parametrize(

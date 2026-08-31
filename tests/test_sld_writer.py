@@ -10,11 +10,11 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from cartosym_transcoder.codecs.sld._dialect import SE_1_1_0
-from cartosym_transcoder.codecs.sld._symbolizer import symbolizer_to_elements
-from cartosym_transcoder.codecs.sld.writer import SldWriter
-from cartosym_transcoder.converter import Converter
-from cartosym_transcoder.models.styles import Style
+from pycartosym.codecs.sld._dialect import SE_1_1_0
+from pycartosym.codecs.sld._symbolizer import symbolizer_to_elements
+from pycartosym.codecs.sld.writer import SldWriter
+from pycartosym.converter import Converter
+from pycartosym.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = ROOT / "examples"
@@ -155,7 +155,7 @@ class TestWriteBasicSymbolizers:
         assert size.text == "10"
 
     def test_marker_circle_round_trips_through_reader(self):
-        from cartosym_transcoder.codecs.sld.reader import SldReader
+        from pycartosym.codecs.sld.reader import SldReader
 
         style_dict = _rule_style(
             {
@@ -358,7 +358,7 @@ class TestWriteScaleDenominator:
             )
 
     def test_roundtrip_through_read(self):
-        from cartosym_transcoder.codecs.sld.reader import SldReader
+        from pycartosym.codecs.sld.reader import SldReader
 
         selector = {
             "op": "and",
@@ -673,7 +673,7 @@ class TestWriteImage:
         assert disp.find("se:DisplacementX", NS).text == "10"
 
     def test_image_non_zero_position_raises_for_sld_1_0_0(self):
-        from cartosym_transcoder.codecs.sld._dialect import SLD_1_0_0
+        from pycartosym.codecs.sld._dialect import SLD_1_0_0
 
         style = Style.from_dict(
             _rule_style(
@@ -1005,7 +1005,7 @@ class TestSymbolizerOpacity:
         op = root.find(".//se:RasterSymbolizer/se:Opacity", NS)
         assert op is not None and op.text == "0.5"
 
-        from cartosym_transcoder.codecs.sld.reader import SldReader
+        from pycartosym.codecs.sld.reader import SldReader
 
         back = SldReader().read(xml)
         assert back.styling_rules[0].symbolizer.opacity == 0.5

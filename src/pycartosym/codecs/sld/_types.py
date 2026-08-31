@@ -2,7 +2,7 @@
 
 SLD/SE ``se:SvgParameter`` values and XML attributes are bare numeric/hex
 strings — unlike CartoSym's ``{unit: value}`` dict convention for
-:class:`~cartosym_transcoder.models.types.UnitValue`, SE 1.1.0 core has no
+:class:`~pycartosym.models.types.UnitValue`, SE 1.1.0 core has no
 unit-of-measure attribute on these parameters, so unit information is lost
 on write (a known, confirmed gap).
 """

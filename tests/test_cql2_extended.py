@@ -15,9 +15,9 @@ Covers:
 
 import pytest
 
-from cartosym_transcoder.converter import Converter
-from cartosym_transcoder.cql2.from_text import ExpressionParser
-from cartosym_transcoder.cql2.model import (
+from pycartosym.converter import Converter
+from pycartosym.cql2.from_text import ExpressionParser
+from pycartosym.cql2.model import (
     AccentiExpression,
     CaseiExpression,
     ConcatenateExpression,
@@ -371,7 +371,7 @@ class TestGrammarPreferredOverScanner:
     """
 
     def test_leading_not_is_not_dropped(self):
-        from cartosym_transcoder.cql2.model import (
+        from pycartosym.cql2.model import (
             NotExpression,
             UnaryOperationExpression,
         )
@@ -380,7 +380,7 @@ class TestGrammarPreferredOverScanner:
         assert isinstance(result, (UnaryOperationExpression, NotExpression))
 
     def test_arithmetic_precedence_is_parsed(self):
-        from cartosym_transcoder.cql2.model import BinaryOperationExpression
+        from pycartosym.cql2.model import BinaryOperationExpression
 
         result = parse("a + b * c")
         assert isinstance(result, BinaryOperationExpression)

@@ -155,7 +155,7 @@ wheels = [
 ]
 
 [[package]]
-name = "cartosym-transcoder"
+name = "pycartosym"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
@@ -197,7 +197,7 @@ requires-dist = [
     { name = "antlr4-python3-runtime", specifier = ">=4.13.0" },
     { name = "antlr4-tools", marker = "extra == 'dev'", specifier = ">=0.2.0" },
     { name = "black", marker = "extra == 'dev'" },
-    { name = "cartosym-transcoder", extras = ["dev", "sld", "cql2", "maplibre"], marker = "extra == 'all'" },
+    { name = "pycartosym", extras = ["dev", "sld", "cql2", "maplibre"], marker = "extra == 'all'" },
     { name = "jsonschema", specifier = ">=4.0.0" },
     { name = "lxml", marker = "extra == 'sld'", specifier = ">=4.9.0" },
     { name = "mypy", marker = "extra == 'dev'" },

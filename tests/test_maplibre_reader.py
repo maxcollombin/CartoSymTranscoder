@@ -20,8 +20,8 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.codecs.maplibre import MaplibreReader
-from cartosym_transcoder.models.styles import Style
+from pycartosym.codecs.maplibre import MaplibreReader
+from pycartosym.models.styles import Style
 
 _ATOMIC = Path(__file__).parent / "fixtures" / "maplibre" / "atomic"
 

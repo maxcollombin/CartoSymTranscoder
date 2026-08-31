@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from cartosym_transcoder.converter import Converter
+from pycartosym.converter import Converter
 
 ROOT = Path(__file__).resolve().parents[3]
 EXAMPLES_DIR = ROOT / "examples"

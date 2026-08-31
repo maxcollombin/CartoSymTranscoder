@@ -288,7 +288,7 @@ class Converter:
     def _format_selector_expr(self, expr, _quote_bare_strings: bool = True) -> str:
         """Format a CQL2-JSON selector dict as a CSCSS filter string.
 
-        Thin wrapper over :func:`cartosym_transcoder.cql2.to_text.expression_to_text`;
+        Thin wrapper over :func:`pycartosym.cql2.to_text.expression_to_text`;
         the logic lives in the ``cql2`` package.
         """
         from .cql2.to_text import expression_to_text
