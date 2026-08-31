@@ -49,7 +49,13 @@ class TestExitCodes:
         assert r.returncode == 4
 
     def test_transcode_gap_is_its_own_code(self):
-        r = run(str(EXAMPLES / "0-basic.cscss"), "--to-format", "maplibre", "--print")
+        # 0-basic.cscss used to hit this too (a symbolizer-less rule had no
+        # MapLibre mapping); it now converts to an empty `layers: []`
+        # (safe to drop, nothing lost — see MaplibreWriter._is_empty_of_paint).
+        # Raster/coverage remains a genuine, unrelated gap.
+        r = run(
+            str(EXAMPLES / "5-coverage-dem.cscss"), "--to-format", "maplibre", "--print"
+        )
         assert r.returncode == 5
 
 

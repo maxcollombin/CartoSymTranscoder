@@ -84,6 +84,152 @@ def test_fill_and_line_layers_from_a_hand_built_style():
     assert_maplibre_valid(out)
 
 
+def test_symbolizerless_rule_is_dropped_not_an_error():
+    """A rule that draws nothing (visibility only) is safe to omit — the
+    common case of a cascade's base/gate rule, but also holds standalone
+    (no nesting involved). Mirrors the SLD/SE writer's identical policy.
+    """
+    style = Style.from_dict(
+        {"stylingRules": [{"name": "gate", "symbolizer": {"visibility": False}}]}
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"] == []
+    assert_maplibre_valid(out)
+
+
+def test_raster_only_rule_still_raises_not_dropped():
+    """Unlike a genuinely empty rule, one carrying unsupported (raster)
+    content must still raise — dropping it would silently lose data.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {"name": "dem", "symbolizer": {"singleChannel": "elevation"}}
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError, match="single_channel"):
+        MaplibreWriter().write(style)
+
+
+def test_nested_cascade_produces_independent_layers():
+    """A cascading refinement (a selector-bearing nestedRules entry) has no
+    MapLibre nesting equivalent — it must flatten into its own layer, AND-
+    merged selector and merged symbolizer, same as the SLD/SE writer.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Landuse",
+                    "selector": {"op": "=", "args": [{"property": "type"}, "vector"]},
+                    "symbolizer": {"visibility": False},
+                    "nestedRules": [
+                        {
+                            "selector": {
+                                "op": "=",
+                                "args": [{"property": "FunctionCode"}, "park"],
+                            },
+                            "symbolizer": {"fill": {"color": "darkGreen"}},
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    # the empty base/gate rule is dropped; one layer remains
+    assert len(out["layers"]) == 1
+    layer = out["layers"][0]
+    assert layer["paint"] == {"fill-color": "darkGreen"}
+    assert layer["filter"] == [
+        "all",
+        ["==", ["get", "type"], "vector"],
+        ["==", ["get", "FunctionCode"], "park"],
+    ]
+    assert_maplibre_valid(out)
+
+
+def test_unnamed_cascade_children_get_synthesized_ids():
+    """A refinement usually only narrows the selector and carries no name
+    of its own — it inherits its nearest named ancestor's, disambiguated
+    with a positional suffix (a MapLibre layer id must be unique).
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Landuse",
+                    "symbolizer": {"visibility": False},
+                    "nestedRules": [
+                        {
+                            "selector": {
+                                "op": "=",
+                                "args": [{"property": "K"}, "a"],
+                            },
+                            "symbolizer": {"fill": {"color": "red"}},
+                        },
+                        {
+                            "selector": {
+                                "op": "=",
+                                "args": [{"property": "K"}, "b"],
+                            },
+                            "symbolizer": {"fill": {"color": "blue"}},
+                        },
+                    ],
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert [lyr["id"] for lyr in out["layers"]] == ["Landuse-1", "Landuse-2"]
+    assert_maplibre_valid(out)
+
+
+def test_explicitly_named_cascade_child_keeps_its_own_name():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Landuse",
+                    "symbolizer": {"visibility": False},
+                    "nestedRules": [
+                        {
+                            "name": "Parks",
+                            "selector": {
+                                "op": "=",
+                                "args": [{"property": "K"}, "park"],
+                            },
+                            "symbolizer": {"fill": {"color": "green"}},
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert [lyr["id"] for lyr in out["layers"]] == ["Parks"]
+
+
+def test_selectorless_nested_rule_is_rejected():
+    """A selector-less nestedRules entry is an OGC 'else' rule — MapLibre
+    has no equivalent concept, so this must raise rather than be dropped.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Roads",
+                    "symbolizer": {"stroke": {"color": "red"}},
+                    "nestedRules": [{"symbolizer": {"stroke": {"color": "gray"}}}],
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError, match="'else' rule"):
+        MaplibreWriter().write(style)
+
+
 def test_visibility_false_becomes_layout_none():
     style = Style.from_dict(
         {
