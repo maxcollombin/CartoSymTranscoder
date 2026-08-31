@@ -3,9 +3,9 @@
 The standalone `CQL2Text.g4` grammar (`vendor/cartosymcss-grammar/CQL2Text.g4`,
 generated into `pycartosym.grammar.generated.cql2text`) is exercised here
 against the official OGC CQL2-Text example corpus. This is a grammar-only
-conformance check — it does not touch `cql2/from_text.py`, which still
-parses via its own hand-rolled scanner; wiring a tree-walker onto this
-grammar to replace that scanner is a separate follow-up.
+conformance check — see `test_cql2text_treewalker.py` for the tree-walker
+built on top of it (`cql2/from_cql2text.py`, now `cql2/from_text.py`'s
+primary parsing path).
 
 See `tests/fixtures/cql2/text/README.md` for provenance.
 """

@@ -100,7 +100,7 @@ def post_process_selector(selector: Any) -> Any:
                 try:
                     from .from_text import ExpressionParser
 
-                    parsed = ExpressionParser._parse_single_expression(prop)
+                    parsed = ExpressionParser._parse_expression_text(prop)
                     converted = expression_to_json(parsed)
                     if (
                         converted

@@ -48,8 +48,8 @@ def parse_full_chain(text: str):
 
     For constructs that are not standard CQL2-Text (hex literals — see
     ``TestHexNumber``, verified absent from the OGC ABNF when
-    ``CQL2Text.g4`` was written) but that the CartoSym-CSS grammar / the
-    hand-rolled scanner still accept as a fallback.
+    ``CQL2Text.g4`` was written) but that the ``parse_expression`` text-scan
+    fallback still accepts.
     """
     return ExpressionParser._parse_expression_text(text)
 
@@ -352,8 +352,10 @@ class TestGeometryBuffer:
 
 class TestHexNumber:
     """0x-prefixed hex literals are not CQL2-Text (absent from the OGC ABNF,
-    ``CQL2Text.g4`` deliberately omits them) — parsed via ``parse_full_chain``,
-    which falls through to the CartoSym-CSS grammar / hand-rolled scanner.
+    ``CQL2Text.g4`` deliberately omits them) and not the CartoSym-CSS
+    grammar's own ``#RRGGBB``-style ``HEX_LITERAL`` token either — parsed
+    via ``parse_full_chain``, which falls through to the
+    ``parse_expression`` text-scan fallback.
     """
 
     def test_hex_lowercase(self):
@@ -380,9 +382,9 @@ class TestHexNumber:
 class TestGrammarPreferredOverScanner:
     """``parse_cql2_text`` (the standalone ``CQL2Text.g4`` tree-walker, now
     ``_parse_expression_text``'s primary path) gets both of these right;
-    the old hand-rolled scanner had no arithmetic precedence and dropped a
-    leading ``not``. Hex CQL2-Text still falls back further, past this
-    tree-walker, to the CartoSym-CSS grammar / scanner (``TestHexNumber``).
+    the old hand-rolled scanner (removed) had no arithmetic precedence and
+    dropped a leading ``not``. Hex literals still fall back further, past
+    this tree-walker, to the ``parse_expression`` text-scan (``TestHexNumber``).
     """
 
     def test_leading_not_is_not_dropped(self):
