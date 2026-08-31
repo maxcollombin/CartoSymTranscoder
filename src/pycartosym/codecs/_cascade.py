@@ -1,19 +1,23 @@
-"""Flatten CartoSym nested-rule *cascades* into independent SLD/SE rules.
+"""Flatten CartoSym nested-rule *cascades* into independent rules.
 
-A ``StylingRule.nestedRules`` entry **with its own selector** is a
-cascading refinement: its selector is implicitly AND-ed with the parent's
-and its symbolizer is a partial override merged onto the parent's
-(CartoSym's ``alter`` mechanism, including indexed
-``marker.elements[N]`` / ``label.elements[N]`` element overrides). SE
-1.1.0 has no cascade — a renderer paints *every* matching ``se:Rule`` —
-so each subtree is pre-flattened here into independent rules, each
-carrying the fully-merged selector and symbolizer, parent before child so
-SE's document-order painting keeps the child on top.
+Shared by any codec whose target format has no cascade concept of its own
+(SLD/SE's ``se:Rule``, MapLibre's flat ``layers`` list — a
+``StylingRule`` here, unlike either, nests refinements). A
+``StylingRule.nestedRules`` entry **with its own selector** is a cascading
+refinement: its selector is implicitly AND-ed with the parent's and its
+symbolizer is a partial override merged onto the parent's (CartoSym's
+``alter`` mechanism, including indexed ``marker.elements[N]`` /
+``label.elements[N]`` element overrides). Each subtree is pre-flattened
+here into independent rules, each carrying the fully-merged selector and
+symbolizer, parent before child (so a document-order-painting consumer —
+SE's ``se:Rule`` list — keeps the child on top).
 
 A nested rule **without** a selector keeps its OGC "else" meaning: it is
 left as a ``nestedRules`` entry (with its symbolizer merged onto its
-ancestors') for the writer's ``_flatten_nested_rules`` to emit as an
-``se:ElseFilter`` sibling.
+ancestors') for a consumer to interpret on its own terms (the SLD writer's
+``_flatten_nested_rules`` emits it as an ``se:ElseFilter`` sibling; a
+consumer with no such concept — MapLibre's writer, currently — can treat
+it as it treats any other nested rule).
 """
 
 from __future__ import annotations

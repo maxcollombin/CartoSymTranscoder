@@ -19,8 +19,8 @@ from collections import OrderedDict
 from lxml import etree
 
 from ...models.styles import Style, StylingRule
+from .._cascade import flatten_cascade_rules
 from ..base import CodecWriter
-from ._cascade import flatten_cascade_rules
 from ._dialect import SE_1_1_0, SldDialect
 from ._filter import (
     extract_feature_type_name,

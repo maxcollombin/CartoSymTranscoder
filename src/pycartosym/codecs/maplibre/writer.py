@@ -12,6 +12,17 @@ instead (see :mod:`._zoom`). A fill-only symbolizer carrying the
 Raster symbolizers, multi-element markers/labels, other graphic types,
 and non-literal values raise :exc:`NotImplementedError`.
 
+``StylingRule.nestedRules`` (a cascading refinement, e.g.
+``[attr = value] { ... }`` narrowing a parent rule) has no MapLibre
+nesting equivalent — ``layers`` is a flat list — so it is flattened into
+independent rules first (see :func:`_flatten_rules`, reusing
+:mod:`..._cascade`); a flattened rule with no name of its own inherits
+its nearest named ancestor's, disambiguated with a positional suffix. A
+rule that draws nothing (visibility/opacity/zOrder only — typically a
+cascade's base/gate rule) is dropped rather than raising (see
+:func:`_is_empty_of_paint`); one that instead carries unsupported
+(raster) content still raises.
+
 A CartoSym style has no data-source concept, so the output declares one
 synthetic empty GeoJSON source (``cartosym``) that every layer references
 — enough to satisfy the MapLibre style specification.
@@ -21,7 +32,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...models.styles import Style
+from ...models.styles import Style, StylingRule
+from .._cascade import flatten_cascade_rules
 from ..base import CodecWriter
 from ._expressions import value_to_maplibre_expr
 from ._filter import selector_to_filter
@@ -359,6 +371,74 @@ def _symbol_layer(layer_id: str, label: Any, marker: Any) -> dict[str, Any]:
     }
 
 
+def _flatten_rules(styling_rules: list[StylingRule]) -> list[StylingRule]:
+    """Flatten CartoSym nested-rule cascades into independent rules.
+
+    MapLibre's ``layers`` is a flat list — unlike ``StylingRule``, it has
+    no nesting concept — so a cascading refinement
+    (``[attr = value] { ... }`` under a parent rule) must become its own
+    top-level entry before :func:`_rule_to_layer` can see it. Reuses the
+    codec-agnostic :func:`~pycartosym.codecs._cascade.flatten_cascade_rules`
+    (selector AND + symbolizer merge), one top-level rule's subtree at a
+    time so a name synthesized below never leaks across siblings.
+
+    A flattened rule with no ``name``/``stylingRuleName`` of its own — the
+    common case for a refinement, which usually only narrows the selector
+    — inherits its nearest named ancestor's name, disambiguated with a
+    positional suffix (a MapLibre layer id must be unique, unlike an SE
+    rule which needs no name at all).
+    """
+    if not any(rule.nested_rules for rule in styling_rules):
+        return list(styling_rules)
+
+    out: list[StylingRule] = []
+    for rule in styling_rules:
+        current_name: str | None = None
+        counter = 0
+        for flat in flatten_cascade_rules([rule.to_dict()]):
+            if flat.get("nestedRules"):
+                raise NotImplementedError(
+                    "a selector-less nestedRules entry (OGC 'else' rule) has "
+                    "no MapLibre mapping in this codec"
+                )
+            name = flat.get("name") or flat.get("stylingRuleName")
+            if name:
+                current_name = name
+                counter = 0
+            elif current_name is not None:
+                counter += 1
+                flat["name"] = f"{current_name}-{counter}"
+            out.append(StylingRule.from_dict(flat))
+    return out
+
+
+def _is_empty_of_paint(rule: Any) -> bool:
+    """True if *rule* draws nothing and is safe to drop from ``layers``.
+
+    Mirrors the SLD/SE writer's policy for a symbolizer-less rule (no
+    symbolizer at all, or only ``visibility``/``opacity``/``zOrder`` —
+    typically the base rule of a cascade, e.g. ``visibility: false`` gating
+    scale-conditioned refinements): nothing is lost by omitting it. A rule
+    that instead carries unsupported content (raster fields — see
+    :data:`_UNSUPPORTED_SYMBOLIZER_PARTS`) is *not* empty — it still needs
+    to reach :func:`_rule_to_layer` and raise there, not be silently
+    dropped here.
+    """
+    sym = rule.symbolizer
+    if sym is None:
+        return True
+    if any(
+        getattr(sym, part, None) is not None for part in _UNSUPPORTED_SYMBOLIZER_PARTS
+    ):
+        return False
+    return (
+        sym.fill is None
+        and sym.stroke is None
+        and sym.marker is None
+        and sym.label is None
+    )
+
+
 def _rule_to_layer(rule: Any) -> dict[str, Any]:
     sym = rule.symbolizer
     if sym is None:
@@ -464,7 +544,10 @@ class MaplibreWriter(CodecWriter):
             NotImplementedError: the style uses a construct this codec
                 does not map yet (see the module docstring).
         """
-        layers = [_rule_to_layer(rule) for rule in style.styling_rules]
+        rules = _flatten_rules(style.styling_rules)
+        layers = [
+            _rule_to_layer(rule) for rule in rules if not _is_empty_of_paint(rule)
+        ]
         sources: dict[str, Any] = {}
         # A `background` layer has no `source` — only declare the synthetic
         # one when a layer actually references it.
