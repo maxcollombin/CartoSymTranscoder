@@ -1,11 +1,14 @@
 """MapLibre GL layer → CartoSym styling-rule mapping (reader side).
 
 Scope of this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` layers
-whose paint / layout values are **constants**. Anything else —
-``background`` / ``raster`` layers, MapLibre expressions or legacy
-interpolation functions as values — raises :exc:`NotImplementedError`. A
-partial mapping would silently drop styling, which this project does not
-do. Layer ``filter`` maps to ``rule.selector`` (see :mod:`._filter`).
+whose paint / layout scalar values are constants, or one of six MapLibre
+value-expression operators — ``get`` / ``case`` / ``match`` /
+``interpolate`` / ``step`` / ``coalesce`` (see :mod:`._expressions`).
+Anything else — ``background`` / ``raster`` layers, legacy zoom/property
+functions (``{"stops": …}``), or any other expression operator — raises
+:exc:`NotImplementedError`. A partial mapping would silently drop styling,
+which this project does not do. Layer ``filter`` maps to ``rule.selector``
+(see :mod:`._filter`).
 
 A ``symbol`` layer maps to a ``label`` (from ``text-field``) and/or a
 ``marker`` holding one ``Image`` (from ``icon-image``).
@@ -19,6 +22,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ._expressions import maplibre_expr_to_value
 from ._filter import filter_to_selector
 
 # Paint keys that carry no CartoSym-symbology meaning and are dropped
@@ -71,18 +75,20 @@ _ANCHOR_TO_ALIGNMENT: dict[str, tuple[str, str]] = {
 
 
 def _constant(value: Any, prop: str) -> Any:
-    """Return *value*, or raise if it is a MapLibre expression / function.
+    """Return *value*, mapping a MapLibre expression to its CartoSym form.
 
-    A ``list`` is a MapLibre expression (``["get", "x"]`` …); a ``dict`` is
-    a legacy interpolation function (``{"stops": …}``). Both are deferred
-    to the expression-mapping pass.
+    A ``list`` is a MapLibre expression (``["get", "x"]`` …) — mapped via
+    :func:`._expressions.maplibre_expr_to_value` for the six operators it
+    covers, and rejected for anything else. A ``dict`` is a legacy
+    zoom/property function (``{"stops": …}``) — out of scope, always
+    rejected.
     """
-    if isinstance(value, (list, dict)):
+    if isinstance(value, dict):
         raise NotImplementedError(
-            f"{prop}: data-driven / zoom values (MapLibre expressions and "
-            "legacy functions) are not mapped yet"
+            f"{prop}: legacy zoom/property functions ({{'stops': …}}) are "
+            "not mapped by this codec"
         )
-    return value
+    return maplibre_expr_to_value(value, prop)
 
 
 def _literal_offset(value: Any, prop: str) -> list:

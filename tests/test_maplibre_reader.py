@@ -1,13 +1,14 @@
 """MapLibre reader — fill / line / circle / symbol layers, constant values.
 
 In scope this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` layers
-whose paint / layout values are constants (``circle`` → a ``marker`` with
-one ``Circle``; ``symbol`` → a ``label`` with one ``Text`` and/or a
-``marker`` with one ``Image``). ``background`` / ``raster`` layers,
-MapLibre expressions, legacy functions, and symbol constructs this pass
-does not cover (a multi-family ``text-font`` stack, ``symbol-placement:
-line``, …) must raise ``NotImplementedError`` (a clean rejection — never
-another exception type).
+whose paint / layout values are constants, or one of the six MapLibre
+value-expression operators covered by ``codecs.maplibre._expressions``
+(``circle`` → a ``marker`` with one ``Circle``; ``symbol`` → a ``label``
+with one ``Text`` and/or a ``marker`` with one ``Image``). ``background`` /
+``raster`` layers, legacy zoom/property functions, any other expression
+operator, and symbol constructs this pass does not cover (a multi-family
+``text-font`` stack, ``symbol-placement: line``, …) must raise
+``NotImplementedError`` (a clean rejection — never another exception type).
 """
 
 from __future__ import annotations
@@ -204,7 +205,27 @@ def test_unsupported_filter_key_raises():
         )
 
 
-def test_data_driven_value_raises():
+def test_get_expression_maps_to_property_ref():
+    """['get', 'colour'] is one of the six in-scope value expressions."""
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": "fill",
+                    "source": "s",
+                    "paint": {"fill-color": ["get", "colour"]},
+                }
+            ],
+        }
+    )
+    fill = style.styling_rules[0].symbolizer.fill
+    assert fill.color.property == "colour"
+
+
+def test_legacy_zoom_function_raises():
     with pytest.raises(NotImplementedError):
         MaplibreReader().read(
             {
@@ -215,7 +236,28 @@ def test_data_driven_value_raises():
                         "id": "l",
                         "type": "fill",
                         "source": "s",
-                        "paint": {"fill-color": ["get", "colour"]},
+                        "paint": {"fill-color": {"stops": [[0, "blue"], [10, "red"]]}},
+                    }
+                ],
+            }
+        )
+
+
+def test_out_of_scope_expression_operator_raises():
+    """A comparison/arithmetic expression is real MapLibre syntax, but not
+    one of the six operators this codec's value-expression pass covers.
+    """
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            {
+                "version": 8,
+                "sources": {},
+                "layers": [
+                    {
+                        "id": "l",
+                        "type": "fill",
+                        "source": "s",
+                        "paint": {"fill-opacity": ["+", ["get", "a"], 1]},
                     }
                 ],
             }

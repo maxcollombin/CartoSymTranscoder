@@ -12,7 +12,13 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ..cql2.model import BoolExpression, NumericExpression
 from .base import AlterMixin, BaseCartoSymModel, CommentMixin
-from .types import FlexibleAngle, FlexibleColor, FlexibleOpacity, UnitValue
+from .types import (
+    FlexibleAngle,
+    FlexibleColor,
+    FlexibleOpacity,
+    FlexibleSize,
+    UnitValue,
+)
 
 # A vendor-extension property on a symbolizer, per the conceptual model's
 # generic vendor-extension mechanism: a symbolizer property named
@@ -261,7 +267,7 @@ class Font(BaseCartoSymModel):
     """Font specification."""
 
     face: str | None = Field(None, description="Font family name")
-    size: UnitValue | str | float | None = Field(None, description="Font size")
+    size: FlexibleSize | None = Field(None, description="Font size")
     bold: bool | None = Field(None, description="Bold weight")
     italic: bool | None = Field(None, description="Italic style")
     underline: bool | None = Field(None, description="Underline decoration")
@@ -402,7 +408,7 @@ class CircleGraphic(ClosedShape):
     """
 
     center: UnitPoint | None = Field(None, description="Circle centre")
-    radius: UnitValue | str | float | None = Field(None, description="Circle radius")
+    radius: FlexibleSize | None = Field(None, description="Circle radius")
 
 
 class RectangleGraphic(ClosedShape):
