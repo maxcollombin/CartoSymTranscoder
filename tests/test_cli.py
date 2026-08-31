@@ -52,9 +52,16 @@ class TestExitCodes:
         # 0-basic.cscss used to hit this too (a symbolizer-less rule had no
         # MapLibre mapping); it now converts to an empty `layers: []`
         # (safe to drop, nothing lost — see MaplibreWriter._is_empty_of_paint).
-        # Raster/coverage remains a genuine, unrelated gap.
+        # 5-coverage-dem.cscss used to hit this too (raster/coverage was
+        # entirely unmapped); a singleChannel+colorMap now maps to a
+        # color-relief layer (see MaplibreWriter._raster). Band selection
+        # (colorChannels) remains a genuine gap — no MapLibre layer draws
+        # from anything but an already-rendered image.
         r = run(
-            str(EXAMPLES / "5-coverage-dem.cscss"), "--to-format", "maplibre", "--print"
+            str(EXAMPLES / "6-coverage-sentinel2.cscss"),
+            "--to-format",
+            "maplibre",
+            "--print",
         )
         assert r.returncode == 5
 

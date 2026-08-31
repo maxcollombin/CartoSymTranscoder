@@ -10,8 +10,9 @@ that match MapLibre's own zoom-range shape, which map to
 :func:`._filter.strip_datalayer_id` for why). A fill-only symbolizer
 carrying the ``vendor.maplibre.layer-type: "background"`` extension (see
 :mod:`._layers`) maps to a ``background`` layer instead of ``fill``.
-Raster symbolizers, graphic element types other than ``Dot``/``Circle``/
-``Image``/``Text``, and non-literal values raise :exc:`NotImplementedError`.
+A coverage symbolizer maps separately (see below); graphic element types
+other than ``Dot``/``Circle``/``Image``/``Text``, and non-literal values,
+raise :exc:`NotImplementedError`.
 
 Each element of ``marker.elements``/``label.elements`` maps to its own
 point layer, dispatched by the element's own ``type`` — a ``Dot``/
@@ -54,8 +55,16 @@ cascade's base/gate rule) is dropped rather than raising (see
 (raster) content still raises.
 
 A CartoSym style has no data-source concept, so the output declares one
-synthetic empty GeoJSON source (``cartosym``) that every layer references
-— enough to satisfy the MapLibre style specification.
+synthetic empty GeoJSON source (``cartosym``) that every vector layer
+references — enough to satisfy the MapLibre style specification. A
+coverage symbolizer (``singleChannel``/``colorMap``/``hillShading``…)
+routes to a *different* synthetic source instead — a placeholder
+``raster-dem`` (``cartosym-dem``) — since none of these fields may combine
+with ``fill``/``stroke``/``marker``/``label`` in one rule; see
+:mod:`._raster` for the achievable subset (``color-relief``/``hillshade``)
+and the honest gaps (band selection/arithmetic, per-channel alpha, an
+opacity ramp, ``hillShading.factor``, a shading-intensity colour/opacity
+ramp).
 """
 
 from __future__ import annotations
@@ -66,6 +75,7 @@ from ...models.styles import Style, StylingRule
 from ...models.types import UnitType, UnitValue
 from .._cascade import flatten_cascade_rules
 from ..base import CodecWriter
+from . import _raster
 from ._expressions import value_to_maplibre_expr
 from ._filter import selector_to_filter, strip_datalayer_id
 from ._layers import _ANCHOR_TO_ALIGNMENT
@@ -76,9 +86,10 @@ _SOURCE = "cartosym"
 # CartoSym (hAlignment, vAlignment) -> MapLibre text-anchor token.
 _ALIGNMENT_TO_ANCHOR = {v: k for k, v in _ANCHOR_TO_ALIGNMENT.items()}
 
-# Symbolizer parts with no mapping in this pass — presence is an error,
-# not a silent drop.
-_UNSUPPORTED_SYMBOLIZER_PARTS = (
+# Coverage/raster symbolizer parts (see `_raster` for what maps and what
+# doesn't) — presence routes a rule to `_raster_layers` instead of the
+# vector fill/line/circle/symbol path.
+_RASTER_SYMBOLIZER_PARTS = (
     "color_channels",
     "alpha_channel",
     "single_channel",
@@ -536,17 +547,15 @@ def _is_empty_of_paint(rule: Any) -> bool:
     symbolizer at all, or only ``visibility``/``opacity``/``zOrder`` —
     typically the base rule of a cascade, e.g. ``visibility: false`` gating
     scale-conditioned refinements): nothing is lost by omitting it. A rule
-    that instead carries unsupported content (raster fields — see
-    :data:`_UNSUPPORTED_SYMBOLIZER_PARTS`) is *not* empty — it still needs
-    to reach :func:`_rule_to_layers` and raise there, not be silently
-    dropped here.
+    that instead carries coverage/raster content (see
+    :data:`_RASTER_SYMBOLIZER_PARTS`) is *not* empty — it still needs to
+    reach :func:`_rule_to_layers`, which maps the achievable subset and
+    raises on the rest (see :mod:`._raster`), not be silently dropped here.
     """
     sym = rule.symbolizer
     if sym is None:
         return True
-    if any(
-        getattr(sym, part, None) is not None for part in _UNSUPPORTED_SYMBOLIZER_PARTS
-    ):
+    if any(getattr(sym, part, None) is not None for part in _RASTER_SYMBOLIZER_PARTS):
         return False
     return (
         sym.fill is None
@@ -584,7 +593,7 @@ def _apply_shared_rule_props(
 
     if sym.visibility is False:
         layer.setdefault("layout", {})["visibility"] = "none"
-    elif sym.visibility is not None:
+    elif sym.visibility is not True and sym.visibility is not None:
         raise NotImplementedError(
             "non-constant symbolizer.visibility → MapLibre is not mapped yet"
         )
@@ -650,15 +659,98 @@ def _point_layer_specs(sym: Any) -> list[tuple[str, Any]]:
     return [_element_point_spec(el) for el in (*marker_elements, *label_elements)]
 
 
+def _strip_redundant_coverage_type(selector: Any) -> Any:
+    """Drop a ``sysId dataLayer.type = coverage`` conjunct from *selector*.
+
+    Only called once a rule is already routed to a raster/hillshade/
+    color-relief layer (see :func:`_rule_to_layers`) — at that point the
+    "coverage" tag is provably redundant, nothing else could have produced
+    those layers, the same reasoning :func:`._filter.strip_datalayer_id`
+    applies to ``dataLayer.id``. A ``dataLayer.type`` on a *vector* rule
+    (e.g. ``dataLayer.type = vector``), or any other ``sysId``, is a
+    separate, still-open gap — not touched here.
+    """
+    if not isinstance(selector, dict):
+        return selector
+    op = selector.get("op")
+    if op == "and":
+        kept = [
+            stripped
+            for a in selector.get("args", [])
+            if (stripped := _strip_redundant_coverage_type(a)) is not None
+        ]
+        if not kept:
+            return None
+        if len(kept) == 1:
+            return kept[0]
+        return {"op": "and", "args": kept}
+    if op == "=":
+        args = selector.get("args", [])
+        if len(args) == 2:
+            has_type_sysid = any(
+                isinstance(a, dict) and a.get("sysId") == "dataLayer.type" for a in args
+            )
+            has_coverage_literal = "coverage" in args
+            if has_type_sysid and has_coverage_literal:
+                return None
+    return selector
+
+
+def _raster_layers(layer_id: str, sym: Any) -> list[dict[str, Any]]:
+    """The ``color-relief``/``hillshade`` layer(s) a coverage symbolizer needs.
+
+    See :mod:`._raster` for what maps and what is an honest gap.
+    """
+    if sym.color_channels is not None:
+        raise NotImplementedError(
+            "symbolizer.colorChannels has no MapLibre mapping in this "
+            "codec — a raster/hillshade/color-relief layer draws from an "
+            "already-rendered image, it cannot select source bands"
+        )
+    if sym.alpha_channel is not None:
+        raise NotImplementedError(
+            "symbolizer.alphaChannel has no MapLibre mapping in this codec"
+        )
+    if sym.opacity_map is not None:
+        raise NotImplementedError(
+            "symbolizer.opacityMap has no MapLibre mapping in this codec"
+        )
+
+    have_color = sym.single_channel is not None or sym.color_map is not None
+    if have_color and (sym.single_channel is None or sym.color_map is None):
+        raise NotImplementedError(
+            "singleChannel and colorMap must both be present for the "
+            "MapLibre color-relief mapping in this codec"
+        )
+
+    multi = have_color and sym.hill_shading is not None
+
+    def _rid(kind: str) -> str:
+        return f"{layer_id}-{kind}" if multi else str(layer_id)
+
+    layers: list[dict[str, Any]] = []
+    if have_color:
+        layers.append(
+            _raster.color_relief_layer(
+                _rid("color-relief"), sym.single_channel, sym.color_map, _literal
+            )
+        )
+    if sym.hill_shading is not None:
+        layers.append(
+            _raster.hillshade_layer(_rid("hillshade"), sym.hill_shading, _literal)
+        )
+
+    if not layers:
+        raise NotImplementedError(
+            "empty coverage symbolizer has no MapLibre mapping in this codec"
+        )
+    return layers
+
+
 def _rule_to_layers(rule: Any) -> list[dict[str, Any]]:
     sym = rule.symbolizer
     if sym is None:
         raise NotImplementedError("styling rule without a symbolizer")
-    for part in _UNSUPPORTED_SYMBOLIZER_PARTS:
-        if getattr(sym, part, None) is not None:
-            raise NotImplementedError(
-                f"symbolizer.{part} has no MapLibre mapping in this codec"
-            )
 
     layer_id = rule.name or rule.styling_rule_name
     if not layer_id:
@@ -666,6 +758,27 @@ def _rule_to_layers(rule: Any) -> list[dict[str, Any]]:
 
     minzoom, maxzoom, remaining_selector = extract_zoom_range(rule.selector)
     remaining_selector = strip_datalayer_id(remaining_selector)
+
+    is_raster = any(
+        getattr(sym, part, None) is not None for part in _RASTER_SYMBOLIZER_PARTS
+    )
+    if is_raster:
+        if (
+            sym.fill is not None
+            or sym.stroke is not None
+            or sym.marker is not None
+            or sym.label is not None
+        ):
+            raise NotImplementedError(
+                "a symbolizer cannot combine coverage/raster fields with "
+                "fill/stroke/marker/label in this codec"
+            )
+        remaining_selector = _strip_redundant_coverage_type(remaining_selector)
+        layers = _raster_layers(layer_id, sym)
+        for layer in layers:
+            _apply_shared_rule_props(layer, sym, minzoom, maxzoom, remaining_selector)
+        return layers
+
     vendor_layer_type = _vendor_layer_type(sym)
 
     if vendor_layer_type == "background":
@@ -751,11 +864,13 @@ class MaplibreWriter(CodecWriter):
             for layer in _rule_to_layers(rule)
         ]
         sources: dict[str, Any] = {}
-        # A `background` layer has no `source` — only declare the synthetic
-        # one when a layer actually references it.
+        # A `background` layer has no `source` — only declare a synthetic
+        # source when a layer actually references it.
         if any(layer.get("source") == _SOURCE for layer in layers):
             sources[_SOURCE] = {
                 "type": "geojson",
                 "data": {"type": "FeatureCollection", "features": []},
             }
+        if any(layer.get("source") == _raster.DEM_SOURCE for layer in layers):
+            sources[_raster.DEM_SOURCE] = _raster.dem_source()
         return {"version": 8, "sources": sources, "layers": layers}
