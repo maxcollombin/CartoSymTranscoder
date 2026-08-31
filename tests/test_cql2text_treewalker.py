@@ -5,10 +5,9 @@ Structural unit tests per construct, plus a full run over the official
 ``test_cql2text_grammar_corpus.py`` for provenance) already used to
 grammar-conformance-test ``CQL2Text.g4`` itself.
 
-Not yet exercised here: ``pycartosym.cql2.parse_text`` / ``cql2/from_text.py``
-are untouched — this module is not wired in as the primary CQL2-Text entry
-point yet (a follow-up PR). See ``from_cql2text``'s module docstring for the
-model-hierarchy-split limitation the corpus test below documents.
+This module is also exercised indirectly via ``pycartosym.cql2.parse_text``
+(``cql2/from_text.py``), which now tries this tree-walker first — see
+``test_cql2_parser.py``/``test_cql2_extended.py``.
 """
 
 from __future__ import annotations
@@ -50,51 +49,14 @@ from pycartosym.cql2.model import (
 )
 
 _CORPUS = Path(__file__).parent / "fixtures" / "cql2" / "text"
-
-# Fixtures that combine a BETWEEN/LIKE/IN/IS-NULL predicate (a
-# `BoolExpression` subclass) with AND/OR/a standalone NOT under the
-# generic `BinaryOperationExpression`/`UnaryOperationExpression`
-# (`Expression`-only `left`/`right`/`operand`) — a pre-existing
-# model-hierarchy split, not introduced by this walker: the same crash
-# reproduces today via `cql2.parse_text` / `parse_expression_ctx` for
-# equivalent CartoSym-CSS-grammar-parseable text (e.g.
-# ``"name like 'foo' and value > 10"``). Fixing it means deciding how
-# predicates compose with plain expressions across the model — out of
-# scope for this additive tree-walker; tracked as bascule (PR 2b) work.
-_KNOWN_HIERARCHY_SPLIT_FAILURES = {
-    "example06a.txt",
-    "example07.txt",
-    "example08.txt",
-    "example16.txt",
-    "example19.txt",
-    "example25.txt",
-    "example36.txt",
-    "example38.txt",
-    "example40.txt",
-    "example42.txt",
-    "example43.txt",
-    "example43-alt01.txt",
-    "example44.txt",
-    "example44-alt01.txt",
-}
 _FIXTURES = sorted(_CORPUS.glob("*.txt"))
 
 
 @pytest.mark.parametrize("path", _FIXTURES, ids=[p.name for p in _FIXTURES])
 def test_official_corpus(path: Path):
     text = path.read_text(encoding="utf-8")
-    if path.name in _KNOWN_HIERARCHY_SPLIT_FAILURES:
-        with pytest.raises(ValidationError):
-            parse_cql2_text(text)
-        return
     model = parse_cql2_text(text)
     assert model is not None
-
-
-def test_known_hierarchy_split_allowlist_is_exact():
-    """Every allow-listed name must exist, so a renamed/removed fixture is caught."""
-    names = {p.name for p in _FIXTURES}
-    assert _KNOWN_HIERARCHY_SPLIT_FAILURES <= names
 
 
 def test_invalid_syntax_raises():

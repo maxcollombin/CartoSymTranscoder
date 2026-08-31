@@ -16,6 +16,7 @@ Covers:
 import pytest
 
 from pycartosym.converter import Converter
+from pycartosym.cql2.from_cql2text import parse_cql2_text
 from pycartosym.cql2.from_text import ExpressionParser
 from pycartosym.cql2.model import (
     AccentiExpression,
@@ -38,7 +39,18 @@ from pycartosym.cql2.model import (
 
 
 def parse(text: str):
-    """Parse *text* via ExpressionParser._parse_expression_text."""
+    """Parse *text* via the CQL2-Text tree-walker (from_cql2text.parse_cql2_text)."""
+    return parse_cql2_text(text)
+
+
+def parse_full_chain(text: str):
+    """Parse *text* via ``cql2.parse_text``'s full fallback chain.
+
+    For constructs that are not standard CQL2-Text (hex literals — see
+    ``TestHexNumber``, verified absent from the OGC ABNF when
+    ``CQL2Text.g4`` was written) but that the CartoSym-CSS grammar / the
+    hand-rolled scanner still accept as a fallback.
+    """
     return ExpressionParser._parse_expression_text(text)
 
 
@@ -339,35 +351,38 @@ class TestGeometryBuffer:
 
 
 class TestHexNumber:
+    """0x-prefixed hex literals are not CQL2-Text (absent from the OGC ABNF,
+    ``CQL2Text.g4`` deliberately omits them) — parsed via ``parse_full_chain``,
+    which falls through to the CartoSym-CSS grammar / hand-rolled scanner.
+    """
 
     def test_hex_lowercase(self):
-        result = parse("0xff")
+        result = parse_full_chain("0xff")
         assert isinstance(result, ConstantExpression)
         assert result.value == 255
 
     def test_hex_uppercase(self):
-        result = parse("0xFF")
+        result = parse_full_chain("0xFF")
         assert isinstance(result, ConstantExpression)
         assert result.value == 255
 
     def test_hex_multi_digit(self):
-        result = parse("0xAB12")
+        result = parse_full_chain("0xAB12")
         assert isinstance(result, ConstantExpression)
         assert result.value == 0xAB12
 
     def test_hex_zero(self):
-        result = parse("0x00")
+        result = parse_full_chain("0x00")
         assert isinstance(result, ConstantExpression)
         assert result.value == 0
 
 
 class TestGrammarPreferredOverScanner:
-    """``_parse_expression_text`` walks the ANTLR tree when the text parses.
-
-    Two forms the old hand-rolled scanner got wrong (it has no arithmetic
-    precedence and dropped a leading ``not``); the grammar path handles both.
-    Upper-case-keyword / hex CQL2-Text still falls back to the scanner
-    (covered by ``TestHexNumber`` and the BETWEEN/LIKE/IN cases above).
+    """``parse_cql2_text`` (the standalone ``CQL2Text.g4`` tree-walker, now
+    ``_parse_expression_text``'s primary path) gets both of these right;
+    the old hand-rolled scanner had no arithmetic precedence and dropped a
+    leading ``not``. Hex CQL2-Text still falls back further, past this
+    tree-walker, to the CartoSym-CSS grammar / scanner (``TestHexNumber``).
     """
 
     def test_leading_not_is_not_dropped(self):

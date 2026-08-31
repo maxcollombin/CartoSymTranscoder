@@ -13,15 +13,14 @@ implementation. Two entry points:
   own left-recursive alternative order.
 * :meth:`ExpressionParser._parse_expression_text` (str) — the CQL2-Text
   entry point (``cql2.parse_text``), plus ``parse_expression`` and the
-  repair sites in ``ast_converter``. It first tries to lex+parse the
-  string as a CartoSym-CSS ``expression`` and walk that tree
-  (:meth:`_text_to_expr_ctx`); only when that fails — CQL2-Text uses
-  case-insensitive keywords and hex literals the case-sensitive
-  CartoSym-CSS grammar rejects — does it fall back to the hand-rolled
+  repair sites in ``ast_converter``. It first tries the standalone
+  ``CQL2Text.g4`` tree-walker (:func:`.from_cql2text.parse_cql2_text`);
+  only on failure does it fall back to lexing+parsing the string as a
+  CartoSym-CSS ``expression`` and walking that tree
+  (:meth:`_text_to_expr_ctx`), then finally to the hand-rolled
   ``_parse_expression_text_legacy`` scanner (quote- and bracket-aware:
-  ``name = 'a and b'`` is not split on the quoted ``and``). Replacing
-  that fallback wholesale needs a dedicated ANTLR CQL2-Text grammar
-  (the CartoSym-CSS grammar cannot serve as one) — out of scope here.
+  ``name = 'a and b'`` is not split on the quoted ``and``) — the last two
+  are a safety net kept for now, not expected to trigger in normal use.
 
 Covers CQL2 spatial / temporal / array predicates, BETWEEN / IN / LIKE /
 IS NULL, WKT and temporal literals, arithmetic, member access, function
@@ -99,10 +98,10 @@ _GEOM_MANIPULATION_UNARY = _v.GEOM_MANIPULATION_UNARY
 _GEOM_BUFFER = _v.GEOM_BUFFER
 _KNOWN_CQL2_CALLS = _v.KNOWN_CQL2_CALLS
 
-# The expression model hierarchy is split: value/operator nodes subclass
-# ``Expression``, while predicates subclass ``BoolExpression`` /
-# ``ComparisonPredicate`` (no common ancestor but ``BaseModel``). Parser
-# helpers hand back nodes from either side, so their return type is loose.
+# Parser helpers hand back nodes of many different concrete types — plain
+# ``Expression`` subclasses, ``BoolExpression``/``ComparisonPredicate``
+# predicates (also ``Expression`` subclasses, see ``model.BoolExpression``),
+# occasionally ``None`` or a bare ``list`` — so the return type stays loose.
 _ExprNode = Any
 
 
@@ -722,14 +721,22 @@ class ExpressionParser:
     def _parse_expression_text(text: str) -> _ExprNode:
         """Parse a CQL2-Text / CartoSym-CSS expression string to a model.
 
-        Prefers the grammar: if *text* parses cleanly as a CartoSym-CSS
-        ``expression``, walk that tree (:meth:`parse_expression_ctx`).
-        Falls back to :meth:`_parse_expression_text_legacy` (the
-        hand-rolled scanner) for CQL2-Text forms the case-sensitive
-        CartoSym-CSS grammar does not accept — upper-case keywords
-        (``LIKE``/``BETWEEN``/``IN``/``ILIKE``), hexadecimal literals.
+        Prefers the standalone ``CQL2Text.g4`` grammar
+        (:func:`.from_cql2text.parse_cql2_text`) — a real CQL2-Text
+        tree-walker, case-insensitive keywords and all. Falls back to the
+        CartoSym-CSS ``expression`` grammar
+        (:meth:`_text_to_expr_ctx`/:meth:`parse_expression_ctx`), then to
+        :meth:`_parse_expression_text_legacy` (the hand-rolled scanner) —
+        kept as a safety net while the CQL2-Text grammar's own coverage is
+        still being proven out; not expected to trigger in normal use.
         """
         text = text.strip()
+        try:
+            from .from_cql2text import parse_cql2_text
+
+            return parse_cql2_text(text)
+        except Exception:  # noqa: BLE001 - fall back to the CartoSym-CSS grammar
+            pass
         ctx = ExpressionParser._text_to_expr_ctx(text)
         if ctx is not None:
             try:
