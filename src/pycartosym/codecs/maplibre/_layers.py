@@ -4,12 +4,13 @@ Scope of this pass: ``fill`` / ``line`` / ``circle`` / ``symbol`` /
 ``background`` layers whose paint / layout scalar values are constants,
 or one of six MapLibre value-expression operators — ``get`` / ``case`` /
 ``match`` / ``interpolate`` / ``step`` / ``coalesce`` (see
-:mod:`._expressions`). Anything else — ``raster`` layers, a layer's
-``minzoom``/``maxzoom`` (zoom-range visibility has no CartoSym mapping in
-this codec), legacy zoom/property functions (``{"stops": …}``), or any
-other expression operator — raises :exc:`NotImplementedError`. A partial
-mapping would silently drop styling, which this project does not do.
-Layer ``filter`` maps to ``rule.selector`` (see :mod:`._filter`).
+:mod:`._expressions`). Anything else — ``raster`` layers, legacy
+zoom/property functions (``{"stops": …}``), or any other expression
+operator — raises :exc:`NotImplementedError`. A partial mapping would
+silently drop styling, which this project does not do. Layer ``filter``
+maps to ``rule.selector`` (see :mod:`._filter`); a layer's
+``minzoom``/``maxzoom`` also merge into ``rule.selector``, as ``viz.sd``
+conjuncts (see :mod:`._zoom`).
 
 A ``symbol`` layer maps to a ``label`` (from ``text-field``) and/or a
 ``marker`` holding one ``Image`` (from ``icon-image``). A ``background``
@@ -30,6 +31,7 @@ from typing import Any
 
 from ._expressions import maplibre_expr_to_value
 from ._filter import filter_to_selector
+from ._zoom import merge_zoom_range
 
 # Paint keys that carry no CartoSym-symbology meaning and are dropped
 # rather than rejected: they tune rasteriser quality, not the portrayal.
@@ -68,10 +70,6 @@ _SYMBOL_LAYOUT: frozenset[str] = frozenset(
 _BACKGROUND_PAINT: frozenset[str] = frozenset(
     {"background-color", "background-opacity"}
 )
-
-# Layer keys with no CartoSym mapping in this codec — presence raises
-# rather than being silently dropped.
-_UNSUPPORTED_LAYER_KEYS: frozenset[str] = frozenset({"minzoom", "maxzoom"})
 
 # MapLibre text-anchor token → CartoSym (hAlignment, vAlignment).
 _ANCHOR_TO_ALIGNMENT: dict[str, tuple[str, str]] = {
@@ -380,13 +378,6 @@ def layer_to_styling_rule(layer: dict[str, Any]) -> dict[str, Any]:
         NotImplementedError: for a layer type, value, or property this
             pass does not map.
     """
-    for key in _UNSUPPORTED_LAYER_KEYS:
-        if key in layer:
-            raise NotImplementedError(
-                f"layer {key!r} (zoom-range visibility) has no CartoSym "
-                "mapping in this codec"
-            )
-
     layer_type = layer.get("type")
     handler = _HANDLERS.get(layer_type or "")
     if handler is None:
@@ -398,8 +389,13 @@ def layer_to_styling_rule(layer: dict[str, Any]) -> dict[str, Any]:
     if visibility is not None:
         symbolizer["visibility"] = visibility
 
+    filter_selector = filter_to_selector(layer["filter"]) if "filter" in layer else None
+    selector = merge_zoom_range(
+        layer.get("minzoom"), layer.get("maxzoom"), filter_selector
+    )
+
     rule: dict[str, Any] = {"name": layer["id"]}
-    if "filter" in layer:
-        rule["selector"] = filter_to_selector(layer["filter"])
+    if selector is not None:
+        rule["selector"] = selector
     rule["symbolizer"] = symbolizer
     return rule

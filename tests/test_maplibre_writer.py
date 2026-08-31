@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from pycartosym.codecs.maplibre import MaplibreReader, MaplibreWriter
+from pycartosym.codecs.maplibre._zoom import scale_denominator_from_zoom
 from pycartosym.models.styles import Style
 
 from ._maplibre_spec import assert_maplibre_valid
@@ -36,6 +37,24 @@ def test_round_trip_is_a_model_fixed_point(stem: str):
     style = read.read(_ATOMIC / f"{stem}.json")
     again = read.read(MaplibreWriter().write(style))
     assert again.to_dict() == style.to_dict()
+
+
+def test_zoom_range_round_trip_recovers_integer_zoom():
+    layer = {
+        "id": "fill",
+        "type": "fill",
+        "source": "cartosym",
+        "minzoom": 10,
+        "maxzoom": 14,
+        "paint": {"fill-color": "red"},
+    }
+    read = MaplibreReader()
+    style = read.read({"version": 8, "sources": {}, "layers": [layer]})
+    out_layer = MaplibreWriter().write(style)["layers"][0]
+    assert out_layer["minzoom"] == 10
+    assert out_layer["maxzoom"] == 14
+    assert isinstance(out_layer["minzoom"], int)
+    assert isinstance(out_layer["maxzoom"], int)
 
 
 def test_empty_style_has_no_sources():
@@ -434,6 +453,115 @@ def test_background_vendor_tag_becomes_background_layer():
     assert out["layers"] == [
         {"id": "bg", "type": "background", "paint": {"background-color": "red"}}
     ]
+    assert_maplibre_valid(out)
+
+
+def test_viz_sd_selector_becomes_zoom_range():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "fill",
+                    "selector": {
+                        "op": "and",
+                        "args": [
+                            {
+                                "op": "<=",
+                                "args": [
+                                    {"sysId": "viz.sd"},
+                                    scale_denominator_from_zoom(10),
+                                ],
+                            },
+                            {
+                                "op": ">",
+                                "args": [
+                                    {"sysId": "viz.sd"},
+                                    scale_denominator_from_zoom(12),
+                                ],
+                            },
+                        ],
+                    },
+                    "symbolizer": {"fill": {"color": "red"}},
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["minzoom"] == 10
+    assert layer["maxzoom"] == 12
+    assert "filter" not in layer
+    assert_maplibre_valid(out)
+
+
+def test_viz_sd_selector_merges_with_residual_filter():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "fill",
+                    "selector": {
+                        "op": "and",
+                        "args": [
+                            {
+                                "op": "<=",
+                                "args": [
+                                    {"sysId": "viz.sd"},
+                                    scale_denominator_from_zoom(10),
+                                ],
+                            },
+                            {"op": "=", "args": [{"property": "class"}, "water"]},
+                        ],
+                    },
+                    "symbolizer": {"fill": {"color": "red"}},
+                }
+            ]
+        }
+    )
+    layer = MaplibreWriter().write(style)["layers"][0]
+    assert layer["minzoom"] == 10
+    assert layer["filter"] == ["==", ["get", "class"], "water"]
+
+
+def test_viz_sd_strict_lower_bound_is_rejected():
+    """``viz.sd < N`` has no MapLibre zoom-range shape (only ``<=``/``>``)."""
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "fill",
+                    "selector": {"op": "<", "args": [{"sysId": "viz.sd"}, 100000]},
+                    "symbolizer": {"fill": {"color": "red"}},
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_background_with_zoom_range_selector_is_kept():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "bg",
+                    "selector": {
+                        "op": "<=",
+                        "args": [{"sysId": "viz.sd"}, scale_denominator_from_zoom(5)],
+                    },
+                    "symbolizer": {
+                        "fill": {"color": "red"},
+                        "vendor.maplibre.layer-type": "background",
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["minzoom"] == 5
+    assert "filter" not in layer
     assert_maplibre_valid(out)
 
 

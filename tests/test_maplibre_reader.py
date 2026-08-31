@@ -6,12 +6,13 @@ of the six MapLibre value-expression operators covered by
 ``codecs.maplibre._expressions`` (``circle`` → a ``marker`` with one
 ``Circle``; ``symbol`` → a ``label`` with one ``Text`` and/or a
 ``marker`` with one ``Image``; ``background`` → a ``Fill`` symbolizer
-tagged ``vendor.maplibre.layer-type: "background"``). ``raster`` layers,
-a layer's ``minzoom``/``maxzoom``, legacy zoom/property functions, any
-other expression operator, and symbol constructs this pass does not
-cover (a multi-family ``text-font`` stack, ``symbol-placement: line``,
-…) must raise ``NotImplementedError`` (a clean rejection — never another
-exception type).
+tagged ``vendor.maplibre.layer-type: "background"``). A layer's
+``minzoom``/``maxzoom`` merge into ``rule.selector`` as ``viz.sd``
+conjuncts (see ``codecs.maplibre._zoom``). ``raster`` layers, legacy
+zoom/property functions, any other expression operator, and symbol
+constructs this pass does not cover (a multi-family ``text-font`` stack,
+``symbol-placement: line``, …) must raise ``NotImplementedError`` (a
+clean rejection — never another exception type).
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from pycartosym.codecs.maplibre import MaplibreReader
+from pycartosym.codecs.maplibre._zoom import scale_denominator_from_zoom
 from pycartosym.models.styles import Style
 
 _ATOMIC = Path(__file__).parent / "fixtures" / "maplibre" / "atomic"
@@ -442,14 +444,65 @@ def test_background_pattern_raises():
         MaplibreReader().read(_fill_style(layer))
 
 
-@pytest.mark.parametrize("zoom_key", ["minzoom", "maxzoom"])
-def test_layer_zoom_range_raises(zoom_key: str):
+def test_minzoom_maps_to_viz_sd_selector():
     layer = {
         "id": "fill",
         "type": "fill",
         "source": "s",
         "paint": {"fill-color": "red"},
-        zoom_key: 10,
+        "minzoom": 10,
     }
-    with pytest.raises(NotImplementedError):
-        MaplibreReader().read(_fill_style(layer))
+    rule = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"][0]
+    assert rule["selector"] == {
+        "op": "<=",
+        "args": [{"sysId": "viz.sd"}, scale_denominator_from_zoom(10)],
+    }
+
+
+def test_maxzoom_maps_to_viz_sd_selector():
+    layer = {
+        "id": "fill",
+        "type": "fill",
+        "source": "s",
+        "paint": {"fill-color": "red"},
+        "maxzoom": 12,
+    }
+    rule = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"][0]
+    assert rule["selector"] == {
+        "op": ">",
+        "args": [{"sysId": "viz.sd"}, scale_denominator_from_zoom(12)],
+    }
+
+
+def test_minzoom_and_filter_merge_into_one_selector():
+    layer = {
+        "id": "fill",
+        "type": "fill",
+        "source": "s",
+        "filter": ["==", "class", "water"],
+        "paint": {"fill-color": "red"},
+        "minzoom": 10,
+    }
+    rule = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"][0]
+    assert rule["selector"] == {
+        "op": "and",
+        "args": [
+            {
+                "op": "<=",
+                "args": [{"sysId": "viz.sd"}, scale_denominator_from_zoom(10)],
+            },
+            {"op": "=", "args": [{"property": "class"}, "water"]},
+        ],
+    }
+
+
+def test_minzoom_zero_is_a_no_op():
+    layer = {
+        "id": "fill",
+        "type": "fill",
+        "source": "s",
+        "paint": {"fill-color": "red"},
+        "minzoom": 0,
+    }
+    rule = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"][0]
+    assert "selector" not in rule
