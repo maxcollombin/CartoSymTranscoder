@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cartosym-transcoder"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     {name = "Maxime Collombin", email = "maxime.collombin@netplus.ch"},
 ]
@@ -49,7 +49,7 @@ cql2 = [
     "pygeofilter>=0.2.0",
 ]
 all = [
-    "cartosym-transcoder[dev,sld,cql2]",
+    "cartosym-transcoder[dev,sld,cql2,maplibre]",
 ]
 
 [project.urls]
