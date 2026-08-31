@@ -2,20 +2,21 @@
 
 [![CI](https://github.com/maxcollombin/pycartosym/actions/workflows/ci.yml/badge.svg)](https://github.com/maxcollombin/pycartosym/actions/workflows/ci.yml)
 
-A Python package for lossless transcoding between [CartoSym CSS](https://github.com/opengeospatial/styles-and-symbology) (`.cscss`) and other encodings associated with the OGC Style & Symbology conceptual model — CS-JSON, SLD/SE, and MapLibre Style.
+A Python package for lossless transcoding between [CartoSym CSS](https://github.com/opengeospatial/styles-and-symbology) (`.cscss`) and other encodings of the OGC Style & Symbology conceptual model (CS-JSON, SLD/SE), plus MapLibre Style as a practical interoperability target.
 
 ## Supported Formats
 
-| Format | Extension | Read | Write |
-| --- | --- | --- | --- |
-| CartoSym-CSS | `.cscss` | ✅ | ✅ |
-| CS-JSON | `.cs.json` | ✅ | ✅ |
-| SLD/SE (1.1.0, 1.0.0, GeoServer vendor extension) | `.sld` | ✅ | ✅ |
-| MapLibre Style | `.json` | ✅ | ✅ |
+| Format | Extension | Standard | Read | Write |
+| --- | --- | --- | --- | --- |
+| CartoSym-CSS | `.cscss` | OGC Style & Symbology | yes | yes |
+| CS-JSON | `.cs.json` | OGC Style & Symbology | yes | yes |
+| SLD/SE (1.1.0, 1.0.0) | `.sld` | OGC | yes | yes |
+| SLD 1.0.0 with GeoServer `<VendorOption>` pass-through | `.sld` | GeoServer vendor extension, not OGC | yes | yes |
+| MapLibre Style | `.json` | MapLibre/Mapbox de facto spec, not OGC | yes | yes |
 
-SLD/SE and MapLibre are covered for the constructs each format actually
-expresses — a symbolizer or property with no equivalent on the other side
-raises rather than silently dropping data.
+Each codec is covered for the constructs the target format actually
+expresses (a symbolizer or property with no equivalent on the other side
+raises rather than silently dropping data).
 
 ## Installation
 
@@ -41,48 +42,25 @@ project's `.venv` with `source .venv/bin/activate`.
 ## Usage
 
 ```bash
-# Convert CSCSS → CS-JSON (format auto-detected from the file extensions)
-cartosym examples/0-basic.cscss -o output/0-basic.cs.json
+# Format auto-detected from the file extensions where that's unambiguous
+cartosym <input-file> -o <output-file>
 
-# Convert CS-JSON → CSCSS
-cartosym output/0-basic.cs.json -o output/0-basic.cscss
+# Explicit target format (needed for the SLD dialects and MapLibre,
+# since a plain .sld/.json extension can't disambiguate those)
+cartosym --to-format <sld|sld:1.0.0|sld:geoserver|maplibre|cscss|csjson> <input-file> -o <output-file>
 
-# Convert SLD/SE → CS-JSON (the .sld extension auto-detects)
-cartosym examples/sld/1-polygon-fill-stroke.sld -o output/1-polygon.cs.json
+# Display structure info for a CSCSS file, without converting it
+cartosym parse <input-file>
 
-# CS-JSON → SLD 1.0.0 / the GeoServer <VendorOption> dialect / MapLibre —
-# name the target explicitly, since a plain .sld/.json extension can't
-# disambiguate the SLD dialect (or MapLibre from CS-JSON)
-cartosym --to-format sld:1.0.0 output/1-polygon.cs.json -o output/1-polygon-10.sld
-cartosym --to-format sld:geoserver output/1-polygon.cs.json -o output/1-polygon-gs.sld
-cartosym --to-format maplibre your-style.cs.json -o your-style.maplibre.json
+# Validate a .cscss or .cs.json file against the grammar/JSON schema
+cartosym validate <input-file>
 
-# Print the result to the console instead of writing a file
-cartosym examples/0-basic.cscss --print
-
-# Convert and validate the output against the JSON schema
-cartosym examples/0-basic.cscss -o output/0-basic.cs.json --validate
-
-# Overwrite an existing output file
-cartosym examples/0-basic.cscss -o output/0-basic.cs.json --force
-
-# Parse a CSCSS file (display structure info)
-cartosym parse examples/0-basic.cscss
-
-# Validate a file
-cartosym validate examples/0-basic.cs.json
-
-# Help & version
+# Full option and format reference
 cartosym --help
-cartosym --version
 ```
 
-More worked examples live under [`examples/`](examples/) (`examples/sld/`
-for SLD/SE), including the full round-trip a given `.cscss` file goes
-through in the test suite. Each codec only covers the constructs it maps
-today — a `NotImplementedError` naming the unsupported construct means a
-real, documented gap, not a silent data drop; see the format's codec
-module for current coverage.
+Real input files to try these against live under [`examples/`](examples/)
+(`examples/sld/` for SLD/SE).
 
 ## Development
 
