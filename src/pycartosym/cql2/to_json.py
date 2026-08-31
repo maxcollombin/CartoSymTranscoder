@@ -555,9 +555,15 @@ def convert_literal_value(value: str | int | float) -> Any:
         except ValueError:
             return value  # Keep as string if not valid hex
 
-    # Handle numbers with units (e.g., "2.0px") -> UnitValue format for CS.JSON
-    if value.endswith(("px", "em", "%", "pt", "pc")):
-        units = ["px", "em", "pt", "pc", "%"]
+    # Handle numbers with units (e.g., "2.0px") -> UnitValue format for CS.JSON.
+    # Every models.types.UnitType suffix, not just the screen-unit subset —
+    # a ground-unit width like "8.0 m" silently stayed a bare string here
+    # otherwise (only caught downstream, if at all, by whichever codec
+    # consumes it — see the MapLibre writer's ``Stroke.width`` handling).
+    # Multi-character suffixes are checked before the single-character "m"
+    # so e.g. "8.0 mm" isn't mis-sliced as a 1-char "m" match first.
+    units = ["px", "mm", "cm", "in", "pt", "em", "pc", "ft", "m", "%"]
+    if value.endswith(tuple(units)):
         for unit in units:
             if value.endswith(unit):
                 number_part = value[: -len(unit)]

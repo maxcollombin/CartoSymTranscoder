@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from pycartosym.models.types import UnitType, UnitValue
 from pycartosym.parser import CartoSymParser
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
@@ -83,6 +84,37 @@ class TestAlterFlag:
         assert (
             sym.stroke.alter is True
         ), "stroke.width in nested rule must set alter=True"
+        assert sym.stroke.width == UnitValue(value=4.0, unit=UnitType.PIXELS), (
+            "stroke.width override must parse the unit suffix, not stay the "
+            "bare string '4.0 px'"
+        )
+
+    def test_stroke_dot_width_non_px_unit_parses_too(self):
+        """stroke.width: 8.0 m must parse to a UnitValue, same as any px override.
+
+        Regression test: the dot-notation override path
+        (``parser.py::enterPropertyAssignment``) used to assign the raw
+        string straight to ``Stroke.width`` — invisible for ``px`` (still a
+        plausible-looking string) but silently wrong for any other unit,
+        since ``Stroke.width: UnitValue | str | float`` validates a bare
+        string as its own ``str`` union member instead of raising.
+        """
+        cscss = """\
+[Base]
+{
+   stroke: {color: gray; width: 5.0 px};
+
+   [viz.sd < 10000]
+   {
+      stroke.width: 8.0 m;
+   }
+}
+"""
+        style = self.parser.parse_string_to_pydantic(cscss)
+        nested = style.styling_rules[0].nested_rules[0]
+        assert nested.symbolizer.stroke.width == UnitValue(
+            value=8.0, unit=UnitType.METERS
+        )
 
     # ── fill.color + stroke.color combined ─────────────────────────
 
