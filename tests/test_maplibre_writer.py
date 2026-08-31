@@ -65,6 +65,106 @@ def test_empty_style_has_no_sources():
     assert out == {"version": 8, "sources": {}, "layers": []}
 
 
+def test_stroke_width_unwraps_a_px_unit_value():
+    """``stroke.width`` from CSCSS (``2.0 px``) validates into a
+    ``UnitValue`` — MapLibre ``line-width`` needs a bare pixel number.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "roads",
+                    "symbolizer": {"stroke": {"width": {"px": 2.0}}},
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["paint"]["line-width"] == 2.0
+    assert_maplibre_valid(out)
+
+
+def test_stroke_width_in_a_non_px_unit_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "roads",
+                    "symbolizer": {"stroke": {"width": {"mm": 2.0}}},
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_circle_element_px_dict_fields_are_unwrapped():
+    """A graphic element inside ``Marker.elements`` stays an untyped
+    ``dict`` (see ``models/symbolizers.py``), so ``radius``/``thickness``
+    arrive as a bare ``{"px": …}`` dict rather than a validated
+    ``UnitValue`` — both shapes must unwrap the same way.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Circle",
+                                    "outline": {"thickness": {"px": 1.5}},
+                                    "radius": {"px": 6},
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    paint = out["layers"][0]["paint"]
+    assert paint["circle-stroke-width"] == 1.5
+    assert paint["circle-radius"] == 6
+    assert_maplibre_valid(out)
+
+
+def test_rgb_literal_color_becomes_hex():
+    """CartoSym's ``Color`` accepts a ``[r, g, b]`` 0-255 literal (what a
+    CSCSS ``#rrggbb`` hex literal actually parses into) — MapLibre needs
+    a colour string.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {"name": "areas", "symbolizer": {"fill": {"color": [32, 32, 32]}}}
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["paint"]["fill-color"] == "#202020"
+    assert_maplibre_valid(out)
+
+
+def test_rgba_literal_color_becomes_hex():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "areas",
+                    "symbolizer": {"fill": {"color": [255, 0, 0, 128]}},
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["paint"]["fill-color"] == "#ff000080"
+    assert_maplibre_valid(out)
+
+
 def test_fill_and_line_layers_from_a_hand_built_style():
     style = Style.from_dict(
         {
@@ -488,7 +588,11 @@ def test_label_with_circle_marker_is_rejected():
         MaplibreWriter().write(style)
 
 
-def test_label_with_fill_is_rejected():
+def test_label_with_fill_becomes_two_layers():
+    """A symbolizer with both a label and a fill has no single-layer
+    MapLibre equivalent — it expands to a ``fill`` layer and a ``symbol``
+    layer, id-suffixed since the rule name alone is no longer unique.
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -502,8 +606,14 @@ def test_label_with_fill_is_rejected():
             ]
         }
     )
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(style)
+    out = MaplibreWriter().write(style)
+    assert [(lyr["id"], lyr["type"]) for lyr in out["layers"]] == [
+        ("labels-fill", "fill"),
+        ("labels-symbol", "symbol"),
+    ]
+    assert out["layers"][0]["paint"] == {"fill-color": "red"}
+    assert out["layers"][1]["layout"] == {"text-field": "a"}
+    assert_maplibre_valid(out)
 
 
 def test_font_bold_is_rejected():
@@ -549,7 +659,40 @@ def test_rule_selector_becomes_layer_filter():
     assert_maplibre_valid(out)
 
 
-def test_sysid_selector_is_rejected():
+def test_multi_layer_rule_shares_filter_and_visibility():
+    """``filter``/``visibility`` apply identically to every layer a single
+    rule expands into, not just the first.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "selector": {"op": "=", "args": [{"property": "k"}, "v"]},
+                    "symbolizer": {
+                        "visibility": False,
+                        "fill": {"color": "red"},
+                        "stroke": {"color": "black", "width": 3},
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert len(out["layers"]) == 2
+    for layer in out["layers"]:
+        assert layer["filter"] == ["==", ["get", "k"], "v"]
+        assert layer["layout"] == {"visibility": "none"}
+    assert_maplibre_valid(out)
+
+
+def test_datalayer_id_selector_is_dropped_not_an_error():
+    """A ``sysId dataLayer.id = <name>`` conjunct is the implicit
+    self-reference a CartoSym-CSS ``RuleName[...]`` rule always carries —
+    redundant with the MapLibre layer's own ``id`` and with no
+    data-source concept to bind to in this codec — dropped rather than
+    raised on, unlike any other ``sysId``.
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -561,11 +704,61 @@ def test_sysid_selector_is_rejected():
             ]
         }
     )
+    out = MaplibreWriter().write(style)
+    assert "filter" not in out["layers"][0]
+    assert_maplibre_valid(out)
+
+
+def test_datalayer_id_conjunct_dropped_among_siblings():
+    """The same conjunct, AND-combined with a real property predicate,
+    is stripped out while the rest of the filter survives.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "selector": {
+                        "op": "and",
+                        "args": [
+                            {"op": "=", "args": [{"sysId": "dataLayer.id"}, "L"]},
+                            {"op": "=", "args": [{"property": "k"}, "v"]},
+                        ],
+                    },
+                    "symbolizer": {"fill": {"color": "red"}},
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["filter"] == ["==", ["get", "k"], "v"]
+    assert_maplibre_valid(out)
+
+
+def test_other_sysid_selector_is_still_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "selector": {
+                        "op": "=",
+                        "args": [{"sysId": "dataLayer.type"}, "vector"],
+                    },
+                    "symbolizer": {"fill": {"color": "red"}},
+                }
+            ]
+        }
+    )
     with pytest.raises(NotImplementedError):
         MaplibreWriter().write(style)
 
 
-def test_fill_with_full_stroke_is_rejected():
+def test_fill_with_full_stroke_becomes_fill_and_line_layers():
+    """A stroke with a ``width``/``opacity`` (not just a plain outline
+    colour) has no ``fill-outline-color`` equivalent — it gets its own
+    ``line`` layer alongside the ``fill`` one, id-suffixed.
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -579,8 +772,65 @@ def test_fill_with_full_stroke_is_rejected():
             ]
         }
     )
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(style)
+    out = MaplibreWriter().write(style)
+    assert [(lyr["id"], lyr["type"]) for lyr in out["layers"]] == [
+        ("x-fill", "fill"),
+        ("x-line", "line"),
+    ]
+    assert out["layers"][0]["paint"] == {"fill-color": "red"}
+    assert out["layers"][1]["paint"] == {"line-color": "black", "line-width": 3}
+    assert_maplibre_valid(out)
+
+
+def test_fill_with_plain_outline_stroke_stays_one_layer():
+    """A stroke with only a ``color`` (no ``width``/``opacity``) still
+    inlines into ``fill-outline-color`` — no split, unchanged behaviour.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "symbolizer": {
+                        "fill": {"color": "red"},
+                        "stroke": {"color": "black"},
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert [(lyr["id"], lyr["type"]) for lyr in out["layers"]] == [("x", "fill")]
+    assert out["layers"][0]["paint"] == {
+        "fill-color": "red",
+        "fill-outline-color": "black",
+    }
+    assert_maplibre_valid(out)
+
+
+def test_circle_marker_with_fill_becomes_two_layers():
+    """A symbolizer with both a marker and a fill/stroke needs several
+    MapLibre layers too — same split, ``circle`` instead of ``symbol``.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "fill": {"color": "red"},
+                        "marker": {"elements": [{"type": "Circle", "radius": 5}]},
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert [(lyr["id"], lyr["type"]) for lyr in out["layers"]] == [
+        ("pts-fill", "fill"),
+        ("pts-circle", "circle"),
+    ]
+    assert_maplibre_valid(out)
 
 
 def test_background_vendor_tag_becomes_background_layer():

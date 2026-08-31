@@ -2,15 +2,32 @@
 
 The inverse of :mod:`.reader`, and with the same scope: a ``fill`` /
 ``line`` / ``marker`` (single ``Circle`` or ``Image``) / ``label``
-(single ``Text``) symbolizer with constant values maps to one MapLibre
+(single ``Text``) symbolizer with constant values maps to a MapLibre
 layer (``fill`` / ``line`` / ``circle`` / ``symbol``); a rule selector
 maps to the layer ``filter``, except any ``viz.sd`` conjuncts that match
 MapLibre's own zoom-range shape, which map to ``minzoom``/``maxzoom``
-instead (see :mod:`._zoom`). A fill-only symbolizer carrying the
+instead (see :mod:`._zoom`), and a ``sysId dataLayer.id`` equality
+conjunct, dropped rather than mapped (see :func:`._filter.strip_datalayer_id`
+for why). A fill-only symbolizer carrying the
 ``vendor.maplibre.layer-type: "background"`` extension (see
 :mod:`._layers`) maps to a ``background`` layer instead of ``fill``.
 Raster symbolizers, multi-element markers/labels, other graphic types,
 and non-literal values raise :exc:`NotImplementedError`.
+
+A symbolizer combining more than one of {fill, a full stroke (width or
+opacity, not just a plain outline colour), a marker/label point layer}
+has no single-layer MapLibre equivalent, so it maps to *several* layers
+instead (see :func:`_rule_to_layers`) — one CartoSym rule can expand to
+several ``layers`` entries. They share the rule's ``filter``/``minzoom``/
+``maxzoom``/``visibility`` and are ordered fill, then line, then
+circle/symbol (so a point layer draws on top of its area/line siblings,
+the conventional order); their ``id`` is disambiguated with a
+``-fill``/``-line``/``-circle``/``-symbol`` suffix — a bare rule name is
+kept only when a single layer is produced, unchanged from before. A
+stroke with only a ``color`` (no ``width``/``opacity``) stays inlined as
+the fill layer's ``fill-outline-color``, as before, rather than spawning
+a separate line layer. A label combined with a non-``Image`` marker
+still has no mapping (two point layers from one rule) and still raises.
 
 ``StylingRule.nestedRules`` (a cascading refinement, e.g.
 ``[attr = value] { ... }`` narrowing a parent rule) has no MapLibre
@@ -33,10 +50,11 @@ from __future__ import annotations
 from typing import Any
 
 from ...models.styles import Style, StylingRule
+from ...models.types import UnitType, UnitValue
 from .._cascade import flatten_cascade_rules
 from ..base import CodecWriter
 from ._expressions import value_to_maplibre_expr
-from ._filter import selector_to_filter
+from ._filter import selector_to_filter, strip_datalayer_id
 from ._layers import _ANCHOR_TO_ALIGNMENT
 from ._zoom import extract_zoom_range
 
@@ -62,12 +80,52 @@ def _literal(value: Any, prop: str) -> Any:
 
     A :mod:`...models.value_expressions` model (``PropertyRef``,
     ``CaseExpression``, …) round-trips back to its MapLibre array via
-    :func:`._expressions.value_to_maplibre_expr`; anything else this codec
-    does not map (a precise ``Color``/``UnitValue`` model, …) raises.
+    :func:`._expressions.value_to_maplibre_expr`; a ``Color``'s
+    ``list[int]`` RGB(A) 0-255 form (what a CSCSS ``#rrggbb`` hex literal
+    actually parses into — a named colour or ``#``-string colour stays a
+    plain string and needs none of this) becomes a hex string via
+    :func:`_rgb_to_hex`; anything else this codec does not map (a
+    ``UnitValue`` in a non-``px`` unit, …) raises.
     """
     if isinstance(value, (str, int, float, bool)):
         return value
+    if (
+        isinstance(value, list)
+        and len(value) in (3, 4)
+        and all(isinstance(c, int) and not isinstance(c, bool) for c in value)
+    ):
+        return _rgb_to_hex(value)
     return value_to_maplibre_expr(value, prop)
+
+
+def _rgb_to_hex(rgb: list[int]) -> str:
+    """A 0-255 RGB(A) triple/quad as a MapLibre-compatible hex colour string."""
+    hex_str = "#" + "".join(f"{c:02x}" for c in rgb[:3])
+    if len(rgb) == 4:
+        hex_str += f"{rgb[3]:02x}"
+    return hex_str
+
+
+def _px_number(value: Any, ctx: str) -> Any:
+    """Unwrap a plain-pixel unit value to a bare number.
+
+    MapLibre has no unit system of its own — a numeric paint/layout
+    property (``line-width``, ``circle-radius``, ``circle-stroke-width``)
+    is always already in pixels — so a CartoSym px value round-trips 1:1.
+    Two shapes reach here: a validated ``UnitValue`` (a top-level
+    ``Stroke.width``, going through normal Pydantic field validation) or
+    a bare ``{"px": …}`` dict (a graphic-element field inside
+    ``Marker.elements``, which stays an untyped ``dict`` — see
+    ``models/symbolizers.py``). Anything else (a non-``px`` unit, a bare
+    number, a :mod:`...models.value_expressions` model) passes through
+    unchanged for :func:`_literal` to handle — a non-``px`` unit has no
+    pixel-space equivalent and raises there, same as before.
+    """
+    if isinstance(value, UnitValue) and value.unit == UnitType.PIXELS:
+        return value.value
+    if isinstance(value, dict) and set(value) == {"px"}:
+        return value["px"]
+    return value
 
 
 def _reject_stroke_extras(stroke: Any, ctx: str) -> None:
@@ -78,7 +136,13 @@ def _reject_stroke_extras(stroke: Any, ctx: str) -> None:
             )
 
 
-def _fill_layer(layer_id: str, fill: Any, stroke: Any) -> dict[str, Any]:
+def _fill_layer(layer_id: str, fill: Any, inline_stroke: Any) -> dict[str, Any]:
+    """Build the ``fill`` layer.
+
+    *inline_stroke* is only ever a plain-colour stroke — a stroke needing
+    its own line layer is filtered out by the caller
+    (:func:`_rule_to_layers`) before reaching here.
+    """
     for attr in ("pattern", "hatch", "dotpattern", "stipple", "alter"):
         if getattr(fill, attr, None) is not None:
             raise NotImplementedError(
@@ -91,15 +155,10 @@ def _fill_layer(layer_id: str, fill: Any, stroke: Any) -> dict[str, Any]:
     if fill.opacity is not None:
         paint["fill-opacity"] = _literal(fill.opacity, "fill.opacity")
 
-    if stroke is not None:
-        _reject_stroke_extras(stroke, "fill symbolizer")
-        if stroke.width is not None or stroke.opacity is not None:
-            raise NotImplementedError(
-                "a fill symbolizer with a full stroke needs a separate MapLibre "
-                "line layer — not supported yet (only a plain outline colour is)"
-            )
-        if stroke.color is not None:
-            paint["fill-outline-color"] = _literal(stroke.color, "stroke.color")
+    if inline_stroke is not None:
+        _reject_stroke_extras(inline_stroke, "fill symbolizer")
+        if inline_stroke.color is not None:
+            paint["fill-outline-color"] = _literal(inline_stroke.color, "stroke.color")
 
     return {"id": layer_id, "type": "fill", "source": _SOURCE, "paint": paint}
 
@@ -161,7 +220,9 @@ def _line_layer(layer_id: str, stroke: Any) -> dict[str, Any]:
     if stroke.color is not None:
         paint["line-color"] = _literal(stroke.color, "stroke.color")
     if stroke.width is not None:
-        paint["line-width"] = _literal(stroke.width, "stroke.width")
+        paint["line-width"] = _literal(
+            _px_number(stroke.width, "stroke.width"), "stroke.width"
+        )
     if stroke.opacity is not None:
         paint["line-opacity"] = _literal(stroke.opacity, "stroke.opacity")
     return {"id": layer_id, "type": "line", "source": _SOURCE, "paint": paint}
@@ -202,11 +263,15 @@ def _circle_layer(layer_id: str, marker: Any) -> dict[str, Any]:
         ):
             value = _attr(outline, cs_key)
             if value is not None:
+                if cs_key == "thickness":
+                    value = _px_number(value, "Circle.outline.thickness")
                 paint[mb_key] = _literal(value, f"Circle.outline.{cs_key}")
 
     radius = _attr(circle, "radius")
     if radius is not None:
-        paint["circle-radius"] = _literal(radius, "Circle.radius")
+        paint["circle-radius"] = _literal(
+            _px_number(radius, "Circle.radius"), "Circle.radius"
+        )
 
     opacity = _attr(circle, "opacity")
     if opacity is not None:
@@ -377,7 +442,7 @@ def _flatten_rules(styling_rules: list[StylingRule]) -> list[StylingRule]:
     MapLibre's ``layers`` is a flat list — unlike ``StylingRule``, it has
     no nesting concept — so a cascading refinement
     (``[attr = value] { ... }`` under a parent rule) must become its own
-    top-level entry before :func:`_rule_to_layer` can see it. Reuses the
+    top-level entry before :func:`_rule_to_layers` can see it. Reuses the
     codec-agnostic :func:`~pycartosym.codecs._cascade.flatten_cascade_rules`
     (selector AND + symbolizer merge), one top-level rule's subtree at a
     time so a name synthesized below never leaks across siblings.
@@ -421,7 +486,7 @@ def _is_empty_of_paint(rule: Any) -> bool:
     scale-conditioned refinements): nothing is lost by omitting it. A rule
     that instead carries unsupported content (raster fields — see
     :data:`_UNSUPPORTED_SYMBOLIZER_PARTS`) is *not* empty — it still needs
-    to reach :func:`_rule_to_layer` and raise there, not be silently
+    to reach :func:`_rule_to_layers` and raise there, not be silently
     dropped here.
     """
     sym = rule.symbolizer
@@ -439,77 +504,17 @@ def _is_empty_of_paint(rule: Any) -> bool:
     )
 
 
-def _rule_to_layer(rule: Any) -> dict[str, Any]:
-    sym = rule.symbolizer
-    if sym is None:
-        raise NotImplementedError("styling rule without a symbolizer")
-    for part in _UNSUPPORTED_SYMBOLIZER_PARTS:
-        if getattr(sym, part, None) is not None:
-            raise NotImplementedError(
-                f"symbolizer.{part} has no MapLibre mapping in this codec"
-            )
+def _apply_shared_rule_props(
+    layer: dict[str, Any],
+    sym: Any,
+    minzoom: int | float | None,
+    maxzoom: int | float | None,
+    remaining_selector: Any,
+) -> None:
+    """Apply the rule-level properties every layer from one rule shares.
 
-    layer_id = rule.name or rule.styling_rule_name
-    if not layer_id:
-        raise NotImplementedError("styling rule without a name → MapLibre layer id")
-
-    minzoom, maxzoom, remaining_selector = extract_zoom_range(rule.selector)
-
-    vendor_layer_type = _vendor_layer_type(sym)
-    if vendor_layer_type == "background" and (
-        sym.fill is None
-        or sym.stroke is not None
-        or sym.marker is not None
-        or sym.label is not None
-    ):
-        raise NotImplementedError(
-            "vendor.maplibre.layer-type=background requires a fill-only "
-            "symbolizer (no stroke, marker, or label)"
-        )
-    if vendor_layer_type == "background" and remaining_selector is not None:
-        raise NotImplementedError(
-            "a background layer has no filter — rule.selector must reduce to "
-            "nothing but viz.sd zoom-range conjuncts on a "
-            "vendor.maplibre.layer-type=background symbolizer"
-        )
-
-    marker_type = None
-    if sym.marker is not None:
-        elements = sym.marker.elements
-        if isinstance(elements, list) and len(elements) == 1:
-            marker_type = _attr(elements[0], "type")
-
-    if sym.label is not None or marker_type == "Image":
-        if sym.fill is not None or sym.stroke is not None:
-            raise NotImplementedError(
-                "a symbolizer with both a label/icon marker and fill/stroke "
-                "needs several MapLibre layers — not supported"
-            )
-        if sym.label is not None and marker_type not in (None, "Image"):
-            raise NotImplementedError(
-                "a symbolizer with both a label and a non-Image marker needs "
-                "several MapLibre layers — not supported"
-            )
-        layer = _symbol_layer(layer_id, sym.label, sym.marker)
-    elif sym.marker is not None:
-        if sym.fill is not None or sym.stroke is not None:
-            raise NotImplementedError(
-                "a symbolizer with both a marker and fill/stroke needs several "
-                "MapLibre layers — not supported"
-            )
-        layer = _circle_layer(layer_id, sym.marker)
-    elif sym.fill is not None:
-        if vendor_layer_type == "background":
-            layer = _background_layer(layer_id, sym.fill, sym.stroke)
-        else:
-            layer = _fill_layer(layer_id, sym.fill, sym.stroke)
-    elif sym.stroke is not None:
-        layer = _line_layer(layer_id, sym.stroke)
-    else:
-        raise NotImplementedError(
-            "symbolizer with no fill / stroke / marker has no MapLibre mapping"
-        )
-
+    Namely ``minzoom``/``maxzoom``/``filter`` and ``visibility``.
+    """
     if minzoom is not None or maxzoom is not None or remaining_selector is not None:
         # Re-key so `minzoom`/`maxzoom`/`filter` sit before `layout`/
         # `paint`, as styles are conventionally written.
@@ -531,7 +536,96 @@ def _rule_to_layer(rule: Any) -> dict[str, Any]:
         raise NotImplementedError(
             "non-constant symbolizer.visibility → MapLibre is not mapped yet"
         )
-    return layer
+
+
+def _rule_to_layers(rule: Any) -> list[dict[str, Any]]:
+    sym = rule.symbolizer
+    if sym is None:
+        raise NotImplementedError("styling rule without a symbolizer")
+    for part in _UNSUPPORTED_SYMBOLIZER_PARTS:
+        if getattr(sym, part, None) is not None:
+            raise NotImplementedError(
+                f"symbolizer.{part} has no MapLibre mapping in this codec"
+            )
+
+    layer_id = rule.name or rule.styling_rule_name
+    if not layer_id:
+        raise NotImplementedError("styling rule without a name → MapLibre layer id")
+
+    minzoom, maxzoom, remaining_selector = extract_zoom_range(rule.selector)
+    remaining_selector = strip_datalayer_id(remaining_selector)
+    vendor_layer_type = _vendor_layer_type(sym)
+
+    if vendor_layer_type == "background":
+        if (
+            sym.fill is None
+            or sym.stroke is not None
+            or sym.marker is not None
+            or sym.label is not None
+        ):
+            raise NotImplementedError(
+                "vendor.maplibre.layer-type=background requires a fill-only "
+                "symbolizer (no stroke, marker, or label)"
+            )
+        if remaining_selector is not None:
+            raise NotImplementedError(
+                "a background layer has no filter — rule.selector must reduce "
+                "to nothing but viz.sd zoom-range conjuncts on a "
+                "vendor.maplibre.layer-type=background symbolizer"
+            )
+        layers = [_background_layer(layer_id, sym.fill, sym.stroke)]
+    else:
+        marker_type = None
+        if sym.marker is not None:
+            elements = sym.marker.elements
+            if isinstance(elements, list) and len(elements) == 1:
+                marker_type = _attr(elements[0], "type")
+
+        point: tuple[str, Any] | None = None
+        if sym.label is not None or marker_type == "Image":
+            if sym.label is not None and marker_type not in (None, "Image"):
+                raise NotImplementedError(
+                    "a symbolizer with both a label and a non-Image marker "
+                    "needs several MapLibre layers — not supported"
+                )
+            point = ("symbol", lambda lid: _symbol_layer(lid, sym.label, sym.marker))
+        elif sym.marker is not None:
+            point = ("circle", lambda lid: _circle_layer(lid, sym.marker))
+
+        # A plain-colour stroke (no width/opacity) stays inlined into the
+        # fill layer as `fill-outline-color`, as before; a full stroke, or
+        # one with no fill to attach to, gets its own `line` layer.
+        needs_line = sym.stroke is not None and (
+            sym.fill is None
+            or sym.stroke.width is not None
+            or sym.stroke.opacity is not None
+        )
+        inline_stroke = (
+            sym.stroke if (sym.stroke is not None and not needs_line) else None
+        )
+
+        multi = sum((sym.fill is not None, needs_line, point is not None)) > 1
+
+        def _id(kind: str) -> str:
+            return f"{layer_id}-{kind}" if multi else layer_id
+
+        layers = []
+        if sym.fill is not None:
+            layers.append(_fill_layer(_id("fill"), sym.fill, inline_stroke))
+        if needs_line:
+            layers.append(_line_layer(_id("line"), sym.stroke))
+        if point is not None:
+            point_kind, point_builder = point
+            layers.append(point_builder(_id(point_kind)))
+
+        if not layers:
+            raise NotImplementedError(
+                "symbolizer with no fill / stroke / marker has no MapLibre mapping"
+            )
+
+    for layer in layers:
+        _apply_shared_rule_props(layer, sym, minzoom, maxzoom, remaining_selector)
+    return layers
 
 
 class MaplibreWriter(CodecWriter):
@@ -546,7 +640,10 @@ class MaplibreWriter(CodecWriter):
         """
         rules = _flatten_rules(style.styling_rules)
         layers = [
-            _rule_to_layer(rule) for rule in rules if not _is_empty_of_paint(rule)
+            layer
+            for rule in rules
+            if not _is_empty_of_paint(rule)
+            for layer in _rule_to_layers(rule)
         ]
         sources: dict[str, Any] = {}
         # A `background` layer has no `source` — only declare the synthetic

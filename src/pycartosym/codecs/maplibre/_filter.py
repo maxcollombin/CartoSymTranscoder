@@ -9,7 +9,16 @@ dict that ``StylingRule.selector`` carries
 
 Special MapLibre keys (``$type``, ``$id``, ``geometry-type``) and
 data-driven operands have no CQL2 equivalent and raise
-:exc:`NotImplementedError`.
+:exc:`NotImplementedError`. A ``sysId dataLayer.id = <name>`` equality
+conjunct — the implicit self-reference a CartoSym-CSS ``RuleName[...]``
+rule always carries (its parser-generated ``sysId`` twin of the rule's
+own name, unrelated to any real per-feature filtering) — is dropped
+rather than raised on: this codec has no data-source concept (see
+:mod:`.writer`'s module docstring) for a real ``dataLayer.id`` to bind
+to, and the value is redundant with the MapLibre layer's own ``id``
+regardless (see :func:`strip_datalayer_id`). Any other ``sysId``, or a
+``dataLayer.id`` compared with anything but ``=``, still raises — real
+information this codec has no target for.
 """
 
 from __future__ import annotations
@@ -111,6 +120,39 @@ def filter_to_selector(mb_filter: list[Any]) -> dict[str, Any]:
         return is_null if op == "!has" else {"op": "not", "args": [is_null]}
 
     raise NotImplementedError(f"MapLibre filter operator {op!r} is not supported")
+
+
+def strip_datalayer_id(selector: Any) -> Any:
+    """Drop a ``sysId dataLayer.id = <literal>`` conjunct from *selector*.
+
+    Walks the same ``and``-conjunction shape :func:`._zoom.extract_zoom_range`
+    does, removing any ``dataLayer.id = <name>`` equality leaf wherever it
+    appears (either operand order) and re-collapsing what remains — a
+    single surviving conjunct is unwrapped, none leaves ``None``. See the
+    module docstring for why this one sysId is dropped rather than raised
+    on.
+    """
+    if not isinstance(selector, dict):
+        return selector
+    op = selector.get("op")
+    if op == "and":
+        kept = [
+            stripped
+            for a in selector.get("args", [])
+            if (stripped := strip_datalayer_id(a)) is not None
+        ]
+        if not kept:
+            return None
+        if len(kept) == 1:
+            return kept[0]
+        return {"op": "and", "args": kept}
+    if op == "=":
+        args = selector.get("args", [])
+        if len(args) == 2 and any(
+            isinstance(a, dict) and a.get("sysId") == "dataLayer.id" for a in args
+        ):
+            return None
+    return selector
 
 
 # ── selector → MapLibre filter ───────────────────────────────────────────
