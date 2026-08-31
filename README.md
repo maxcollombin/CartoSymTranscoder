@@ -1,6 +1,22 @@
-# CartoSym Transcoder
+# pycartosym
 
-A Python package for lossless transcoding between [CartoSym CSS](https://github.com/opengeospatial/styles-and-symbology) (`.cscss`) and CS-JSON (`.cs.json`).
+[![CI](https://github.com/maxcollombin/pycartosym/actions/workflows/ci.yml/badge.svg)](https://github.com/maxcollombin/pycartosym/actions/workflows/ci.yml)
+
+A Python package for lossless transcoding between [CartoSym CSS](https://github.com/opengeospatial/styles-and-symbology) (`.cscss`) and other encodings of the OGC Style & Symbology conceptual model (CS-JSON, SLD/SE), plus MapLibre Style as a practical interoperability target.
+
+## Supported Formats
+
+| Format | Extension | Standard | Read | Write |
+| --- | --- | --- | --- | --- |
+| CartoSym-CSS | `.cscss` | OGC Style & Symbology | yes | yes |
+| CS-JSON | `.cs.json` | OGC Style & Symbology | yes | yes |
+| SLD/SE (1.1.0, 1.0.0) | `.sld` | OGC | yes | yes |
+| SLD 1.0.0 with GeoServer `<VendorOption>` pass-through | `.sld` | GeoServer vendor extension, not OGC | yes | yes |
+| MapLibre Style | `.json` | MapLibre/Mapbox de facto spec, not OGC | yes | yes |
+
+Each codec is covered for the constructs the target format actually
+expresses (a symbolizer or property with no equivalent on the other side
+raises rather than silently dropping data).
 
 ## Installation
 
@@ -15,7 +31,7 @@ pip install pycartosym
 ```bash
 git clone https://github.com/maxcollombin/pycartosym.git
 cd pycartosym
-uv sync
+uv sync --all-extras
 ```
 
 The generated ANTLR lexer/parser are already committed under
@@ -26,43 +42,25 @@ project's `.venv` with `source .venv/bin/activate`.
 ## Usage
 
 ```bash
-# Convert CSCSS → CS-JSON
-cartosym examples/0-basic.cscss -o output/0-basic.cs.json
+# Format auto-detected from the file extensions where that's unambiguous
+cartosym <input-file> -o <output-file>
 
-# Convert CS-JSON → CSCSS
-cartosym output/0-basic.cs.json -o output/0-basic.cscss
+# Explicit target format (needed for the SLD dialects and MapLibre,
+# since a plain .sld/.json extension can't disambiguate those)
+cartosym --to-format <sld|sld:1.0.0|sld:geoserver|maplibre|cscss|csjson> <input-file> -o <output-file>
 
-# Explicit format selection
-cartosym --from-format cscss --to-format csjson examples/0-basic.cscss -o output/0-basic.cs.json
+# Display structure info for a CSCSS file, without converting it
+cartosym parse <input-file>
 
-# Print the result to the console instead of writing a file
-cartosym examples/0-basic.cscss --print
+# Validate a .cscss or .cs.json file against the grammar/JSON schema
+cartosym validate <input-file>
 
-# Convert and validate the output against the JSON schema
-cartosym examples/0-basic.cscss -o output/0-basic.cs.json --validate
-
-# Overwrite an existing output file
-cartosym examples/0-basic.cscss -o output/0-basic.cs.json --force
-
-# Parse a CSCSS file (display structure info)
-cartosym parse examples/0-basic.cscss
-
-# Validate a file
-cartosym validate examples/example-functional.cs.json
-
-# Help & version
+# Full option and format reference
 cartosym --help
-cartosym --version
 ```
 
-## Supported Formats
-
-| Format | Extension | Read | Write |
-| --- | --- | --- | --- |
-| CartoSym-CSS | `.cscss` | ✅ | ✅ |
-| CS-JSON | `.cs.json` | ✅ | ✅ |
-| SLD/SE | `.sld` | 🚧 | 🚧 |
-| MapLibre Style | `.json` | 🚧 | 🚧 |
+Real input files to try these against live under [`examples/`](examples/)
+(`examples/sld/` for SLD/SE).
 
 ## Development
 
