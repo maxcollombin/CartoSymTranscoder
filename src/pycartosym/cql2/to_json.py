@@ -299,7 +299,12 @@ def expression_to_json(expression: Any) -> Any:
         elif expression.temporal_type == "timestamp":
             return {"timestamp": expression.value}
         elif expression.temporal_type == "interval":
-            return {"interval": expression.interval}
+            return {
+                "interval": [
+                    v if isinstance(v, str) else expression_to_json(v)
+                    for v in expression.interval
+                ]
+            }
 
     # Handle CQL2 BboxLiteral
     if hasattr(expression, "bbox") and isinstance(
