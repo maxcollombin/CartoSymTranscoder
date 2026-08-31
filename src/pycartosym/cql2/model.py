@@ -489,12 +489,17 @@ class TemporalPredicate(BoolExpression):
         "t_metby",
         "t_overlaps",
         "t_overlappedby",
-        "t_begins",
-        "t_begunby",
+        # OGC 21-065r2's Allen-relation names are "starts"/"startedby" and
+        # "finishes"/"finishedby" (matching `T_STARTS`/`T_STARTEDBY`/
+        # `T_FINISHES`/`T_FINISHEDBY` in the CQL2-Text grammar) — this
+        # Literal previously spelled them "begins"/"begunby"/"ends"/
+        # "endedby", which no CQL2-Text/JSON producer ever emits.
+        "t_starts",
+        "t_startedby",
         "t_during",
         "t_contains",
-        "t_ends",
-        "t_endedby",
+        "t_finishes",
+        "t_finishedby",
         "t_equals",
         "t_intersects",
         "t_disjoint",
@@ -720,12 +725,25 @@ class TemporalLiteral(TemporalExpression):
 
     temporal_type: Literal["date", "timestamp", "interval"]
     value: str | None = None  # For date / timestamp
-    interval: list[str] | None = None  # For interval (2 values: start, end)
+    # For interval (2 values: start, end). A bound is usually a literal
+    # string, but per the CQL2-JSON schema's `intervalArray` (each item
+    # `oneOf` instantString / ".." / propertyRef / systemIdentifier /
+    # functionCall / conditionalExpression) it may also be a property
+    # reference or function call, e.g. `INTERVAL(starts_at, ends_at)` —
+    # common in the official CQL2-Text corpus (T_DURING, T_CONTAINS…).
+    interval: list[str | Expression] | None = None
 
     def to_cql2_json(self) -> dict[str, Any]:
         """Serialise as CQL2-JSON temporal literal."""
         if self.temporal_type == "interval" and self.interval:
-            return {"interval": self.interval}
+            from .to_json import expression_to_json
+
+            return {
+                "interval": [
+                    v if isinstance(v, str) else expression_to_json(v)
+                    for v in self.interval
+                ]
+            }
         elif self.value:
             return {self.temporal_type: self.value}
         return {}
