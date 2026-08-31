@@ -8,6 +8,7 @@ from pycartosym.codecs.maplibre._zoom import (
     extract_zoom_range,
     merge_zoom_range,
     scale_denominator_from_zoom,
+    zoom_filter_conjunct,
     zoom_from_scale_denominator,
 )
 
@@ -94,10 +95,56 @@ def test_extract_zoom_range_picks_tightest_bound():
 
 
 @pytest.mark.parametrize("op", ["<", ">=", "=", "!="])
-def test_extract_zoom_range_rejects_non_maplibre_operators(op: str):
+def test_extract_zoom_range_leaves_non_minmax_operators_for_the_filter_fallback(
+    op: str,
+):
+    """``<``/``>=``/``=``/``!=`` have no minzoom/maxzoom shape (only
+    ``<=``/``>`` do) — left in ``remaining`` rather than raised, for
+    :func:`.selector_to_filter` to turn into a ``["zoom"]`` filter
+    conjunct via :func:`zoom_filter_conjunct` instead.
+    """
     selector = {"op": op, "args": [{"sysId": "viz.sd"}, 100000]}
-    with pytest.raises(NotImplementedError):
-        extract_zoom_range(selector)
+    assert extract_zoom_range(selector) == (None, None, selector)
+
+
+@pytest.mark.parametrize(
+    ("op", "filter_op"),
+    [("<", ">"), (">=", "<="), ("=", "=="), ("!=", "!=")],
+)
+def test_zoom_filter_conjunct_covers_the_non_minmax_operators(op: str, filter_op: str):
+    selector = {"op": op, "args": [{"sysId": "viz.sd"}, 100000]}
+    assert zoom_filter_conjunct(selector) == [
+        filter_op,
+        ["zoom"],
+        zoom_from_scale_denominator(100000),
+    ]
+
+
+def test_zoom_filter_conjunct_handles_flipped_operand_order():
+    # `100000 > viz.sd` reads the same as `viz.sd < 100000`
+    selector = {"op": ">", "args": [100000, {"sysId": "viz.sd"}]}
+    assert zoom_filter_conjunct(selector) == [
+        ">",
+        ["zoom"],
+        zoom_from_scale_denominator(100000),
+    ]
+
+
+def test_zoom_filter_conjunct_ignores_minmax_shapes():
+    """The two shapes ``extract_zoom_range`` already maps to minzoom/maxzoom
+    are not also offered as a filter conjunct.
+    """
+    assert (
+        zoom_filter_conjunct({"op": "<=", "args": [{"sysId": "viz.sd"}, 100000]})
+        is None
+    )
+    assert (
+        zoom_filter_conjunct({"op": ">", "args": [{"sysId": "viz.sd"}, 100000]}) is None
+    )
+
+
+def test_zoom_filter_conjunct_ignores_non_viz_sd_comparisons():
+    assert zoom_filter_conjunct({"op": "<", "args": [{"property": "class"}, 1]}) is None
 
 
 def test_extract_zoom_range_ignores_non_viz_sd_conjuncts():

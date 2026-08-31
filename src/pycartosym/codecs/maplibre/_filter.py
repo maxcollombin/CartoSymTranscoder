@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ._zoom import zoom_filter_conjunct
+
 # MapLibre comparison op -> CQL2 op
 _CMP: dict[str, str] = {
     "==": "=",
@@ -131,6 +133,16 @@ def selector_to_filter(selector: Any) -> list[Any]:
         raise NotImplementedError(
             f"selector {selector!r} → MapLibre filter is not supported"
         )
+
+    # A viz.sd comparison with no minzoom/maxzoom shape (extract_zoom_range
+    # already pulled out the two that do) still has an exact MapLibre
+    # equivalent via the ["zoom"] filter expression — see
+    # ``_zoom.zoom_filter_conjunct``. Checked ahead of the generic
+    # property-comparison dispatch below since viz.sd is a sysId, not a
+    # feature property.
+    zoom_conjunct = zoom_filter_conjunct(selector)
+    if zoom_conjunct is not None:
+        return zoom_conjunct
 
     op = selector["op"]
     args = selector.get("args", [])
