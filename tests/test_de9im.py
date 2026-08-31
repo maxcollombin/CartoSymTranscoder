@@ -1,8 +1,8 @@
-"""Tests for cartosym_transcoder.models.de9im — DE-9IM lookup table and utilities."""
+"""Tests for pycartosym.models.de9im — DE-9IM lookup table and utilities."""
 
 import pytest
 
-from cartosym_transcoder.models.de9im import (
+from pycartosym.models.de9im import (
     CQL2_SPATIAL_PREDICATES,
     DE9IM_PREDICATES,
     get_patterns,

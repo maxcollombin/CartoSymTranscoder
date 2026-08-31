@@ -2,9 +2,9 @@
 
 This is the ``{"op": …, "args": …}`` → ``a = 'b' and c > 1`` half of the
 CQL2 codec, lifted verbatim out of
-:class:`cartosym_transcoder.converter.Converter` (the functions here never
+:class:`pycartosym.converter.Converter` (the functions here never
 touched ``self`` — they only called one another). Import the stable entry
-points from :mod:`cartosym_transcoder.cql2` rather than from here directly.
+points from :mod:`pycartosym.cql2` rather than from here directly.
 """
 
 from __future__ import annotations

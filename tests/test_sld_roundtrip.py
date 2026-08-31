@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.codecs.sld.reader import SldReader
-from cartosym_transcoder.codecs.sld.writer import SldWriter
-from cartosym_transcoder.models.styles import Style
+from pycartosym.codecs.sld.reader import SldReader
+from pycartosym.codecs.sld.writer import SldWriter
+from pycartosym.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = sorted((ROOT / "examples" / "sld").glob("*.sld"))
@@ -109,7 +109,7 @@ class TestCliSmokeTest:
             [
                 sys.executable,
                 "-m",
-                "cartosym_transcoder.cli",
+                "pycartosym.cli",
                 str(src),
                 "-o",
                 str(csjson_out),
@@ -126,7 +126,7 @@ class TestCliSmokeTest:
             [
                 sys.executable,
                 "-m",
-                "cartosym_transcoder.cli",
+                "pycartosym.cli",
                 str(csjson_out),
                 "-o",
                 str(sld_out),

@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.codecs.maplibre import MaplibreReader, MaplibreWriter
-from cartosym_transcoder.models.styles import Style
+from pycartosym.codecs.maplibre import MaplibreReader, MaplibreWriter
+from pycartosym.models.styles import Style
 
 from ._maplibre_spec import assert_maplibre_valid
 from .test_maplibre_reader import IN_SCOPE

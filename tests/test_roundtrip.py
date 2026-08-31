@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.converter import Converter
-from cartosym_transcoder.models.styles import Style
+from pycartosym.converter import Converter
+from pycartosym.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = ROOT / "examples"
@@ -119,7 +119,7 @@ class TestSelectorParsing:
         IS | IS NOT | LIKE | NOT LIKE. `!=` must be a hard syntax error,
         not silently swallowed.
         """
-        from cartosym_transcoder.exceptions import CartoSymSyntaxError
+        from pycartosym.exceptions import CartoSymSyntaxError
 
         with pytest.raises(CartoSymSyntaxError):
             self.converter.cscss_to_csjson("[population != 0]\n{ visibility: true; }")
@@ -360,7 +360,7 @@ class TestFontNormalization:
     """Verify font dict values are coerced to proper types."""
 
     def setup_method(self):
-        from cartosym_transcoder.ast_converter import _coerce_font_dict
+        from pycartosym.ast_converter import _coerce_font_dict
 
         self.coerce = _coerce_font_dict
 
@@ -414,7 +414,7 @@ class TestGraphicElementNormalization:
     """Verify _normalize_graphic_element handles text and alignment."""
 
     def setup_method(self):
-        from cartosym_transcoder.ast_converter import _normalize_graphic_element
+        from pycartosym.ast_converter import _normalize_graphic_element
 
         self.normalize = _normalize_graphic_element
 
@@ -525,7 +525,7 @@ class TestColorParsing:
     """Verify _parse_color_value handles various formats."""
 
     def setup_method(self):
-        from cartosym_transcoder.ast_converter import _parse_color_value
+        from pycartosym.ast_converter import _parse_color_value
 
         self.parse = _parse_color_value
 

@@ -2,7 +2,7 @@
 
 Scope: the six MapLibre operators this pass targets — ``get``, ``case``,
 ``match``, ``interpolate``, ``step``, ``coalesce`` — mapped onto the typed
-models in :mod:`cartosym_transcoder.models.value_expressions`. Every other
+models in :mod:`pycartosym.models.value_expressions`. Every other
 MapLibre expression operator (comparisons, ``all``/``any``/``!``, ``zoom``,
 the arithmetic/string operators, ``interpolate-hcl``/``-lab``, ``let``/
 ``var``, ...) raises :exc:`NotImplementedError` naming the operator — a

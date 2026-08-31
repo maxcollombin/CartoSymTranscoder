@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from cartosym_transcoder.codecs.maplibre._expressions import (
+from pycartosym.codecs.maplibre._expressions import (
     maplibre_expr_to_value,
     value_to_maplibre_expr,
 )
@@ -19,7 +19,7 @@ from cartosym_transcoder.codecs.maplibre._expressions import (
 # Round-trip cases: (MapLibre expression array, CartoSym value dict).
 # Fed through maplibre_expr_to_value / value_to_maplibre_expr directly, and
 # through the full Style model (Fill.color) to prove Pydantic validates the
-# dict into the matching typed cartosym_transcoder.models.value_expressions
+# dict into the matching typed pycartosym.models.value_expressions
 # class and the writer reconstructs the exact same array back.
 ROUND_TRIP = [
     (
@@ -161,7 +161,7 @@ def test_expression_through_style_model(mb_expr, _value):
     to the exact same MapLibre array — the Style model is the pivot, per
     this project's conversion pipeline.
     """
-    from cartosym_transcoder.models.styles import Style
+    from pycartosym.models.styles import Style
 
     color = maplibre_expr_to_value(mb_expr, "c")
     style = Style.model_validate(

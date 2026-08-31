@@ -12,12 +12,12 @@ from pathlib import Path
 from antlr4 import CommonTokenStream, InputStream, ParseTreeWalker
 from antlr4.error.ErrorListener import ErrorListener
 
-from cartosym_transcoder.exceptions import CartoSymSyntaxError
-from cartosym_transcoder.models.symbolizers import Fill as ModelFill
-from cartosym_transcoder.models.symbolizers import Label as ModelLabel
-from cartosym_transcoder.models.symbolizers import Marker as ModelMarker
-from cartosym_transcoder.models.symbolizers import Stroke as ModelStroke
-from cartosym_transcoder.models.symbolizers import Symbolizer as ModelSymbolizer
+from pycartosym.exceptions import CartoSymSyntaxError
+from pycartosym.models.symbolizers import Fill as ModelFill
+from pycartosym.models.symbolizers import Label as ModelLabel
+from pycartosym.models.symbolizers import Marker as ModelMarker
+from pycartosym.models.symbolizers import Stroke as ModelStroke
+from pycartosym.models.symbolizers import Symbolizer as ModelSymbolizer
 
 from .ast import Metadata, StyleSheet, StylingRule, StylingRuleList
 from .ast import PropertyAssignment as AstPropertyAssignment
@@ -255,7 +255,7 @@ class CartoSymParser:
 
 
 class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
-    """ANTLR listener that builds a :class:`~cartosym_transcoder.ast.StyleSheet`.
+    """ANTLR listener that builds a :class:`~pycartosym.ast.StyleSheet`.
 
     Walks the ``CartoSymCSSGrammar`` parse tree and accumulates rules,
     selectors, symbolizers and metadata onto :attr:`stylesheet`.

@@ -1,8 +1,8 @@
-"""Back-compat shim — the SLD/SE codec moved to :mod:`cartosym_transcoder.codecs.sld`.
+"""Back-compat shim — the SLD/SE codec moved to :mod:`pycartosym.codecs.sld`.
 
-Kept so ``from cartosym_transcoder.codecs.sld_se ...`` imports (and the
+Kept so ``from pycartosym.codecs.sld_se ...`` imports (and the
 vendored-corpus test that exercises the SE 1.1.0 dialect) keep working.
-New code should import from :mod:`cartosym_transcoder.codecs.sld`.
+New code should import from :mod:`pycartosym.codecs.sld`.
 """
 
 from __future__ import annotations

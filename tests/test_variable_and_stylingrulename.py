@@ -1,5 +1,5 @@
-from cartosym_transcoder.models.styles import Style
-from cartosym_transcoder.parser import CartoSymParser
+from pycartosym.models.styles import Style
+from pycartosym.parser import CartoSymParser
 
 
 def test_variable_parsing():
@@ -148,7 +148,7 @@ def test_field_order_in_serialized_json():
 
 def test_stylingrulename_roundtrip():
     """A ``stylingRuleName`` must survive a .cscss → CS-JSON → .cscss round-trip."""
-    from cartosym_transcoder.converter import Converter
+    from pycartosym.converter import Converter
 
     cscss_src = """
     [TestLayer]

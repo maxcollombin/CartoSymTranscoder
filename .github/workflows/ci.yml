@@ -25,8 +25,8 @@ jobs:
           python-version: "3.14"
       - run: uv sync --all-extras --locked
       - run: uv run ruff check src/ tests/
-      - run: uv run black --check src/cartosym_transcoder/ tests/
-      - run: uv run mypy src/cartosym_transcoder/
+      - run: uv run black --check src/pycartosym/ tests/
+      - run: uv run mypy src/pycartosym/
 
   test:
     runs-on: ubuntu-latest

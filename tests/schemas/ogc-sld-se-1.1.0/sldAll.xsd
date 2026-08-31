@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  LOCAL PATCH (CartoSymTranscoder) - see README.md in this directory.
+  LOCAL PATCH (pycartosym) - see README.md in this directory.
   The upstream sld/1.1.0/sldAll.xsd pulls in DescribeLayer.xsd, GetMap.xsd and
   sld_capabilities.xsd, which drag in the entire WMS / WFS / OWS schema graph.
   None of that is needed to validate an SLD *style document*, so this file is

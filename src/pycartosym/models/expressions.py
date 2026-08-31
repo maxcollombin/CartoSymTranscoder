@@ -1,9 +1,9 @@
-"""Back-compat shim — the expression models moved to ``cartosym_transcoder.cql2.model``.
+"""Back-compat shim — the expression models moved to ``pycartosym.cql2.model``.
 
 CQL2 is a standalone OGC standard; its expression model now lives in the
-:mod:`cartosym_transcoder.cql2` package. Import from there in new code::
+:mod:`pycartosym.cql2` package. Import from there in new code::
 
-    from cartosym_transcoder.cql2.model import Expression, BinaryOperator
+    from pycartosym.cql2.model import Expression, BinaryOperator
 
 This module re-exports every public name so existing
 ``from ...models.expressions import X`` imports keep working.

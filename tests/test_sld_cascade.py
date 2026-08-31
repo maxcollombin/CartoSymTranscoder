@@ -9,9 +9,9 @@ into independent ``se:Rule``s.
 
 from lxml import etree
 
-from cartosym_transcoder.codecs.sld._cascade import flatten_cascade_rules
-from cartosym_transcoder.codecs.sld.writer import SldWriter
-from cartosym_transcoder.models.styles import Style
+from pycartosym.codecs.sld._cascade import flatten_cascade_rules
+from pycartosym.codecs.sld.writer import SldWriter
+from pycartosym.models.styles import Style
 
 NS = {
     "sld": "http://www.opengis.net/sld",
