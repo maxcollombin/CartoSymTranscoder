@@ -7,6 +7,7 @@ import pytest
 from pycartosym.codecs.maplibre._filter import (
     filter_to_selector,
     selector_to_filter,
+    strip_datalayer_id,
 )
 
 
@@ -129,3 +130,51 @@ def test_none_combinator():
 def test_selector_with_sysid_operand_raises():
     with pytest.raises(NotImplementedError):
         selector_to_filter({"op": "=", "args": [{"sysId": "dataLayer.id"}, "Landuse"]})
+
+
+def test_strip_datalayer_id_drops_a_lone_conjunct():
+    selector = {"op": "=", "args": [{"sysId": "dataLayer.id"}, "Landuse"]}
+    assert strip_datalayer_id(selector) is None
+
+
+def test_strip_datalayer_id_handles_reversed_operand_order():
+    selector = {"op": "=", "args": ["Landuse", {"sysId": "dataLayer.id"}]}
+    assert strip_datalayer_id(selector) is None
+
+
+def test_strip_datalayer_id_leaves_other_selectors_untouched():
+    selector = {"op": "=", "args": [{"property": "k"}, "v"]}
+    assert strip_datalayer_id(selector) == selector
+    assert strip_datalayer_id(None) is None
+
+
+def test_strip_datalayer_id_unwraps_single_surviving_sibling():
+    selector = {
+        "op": "and",
+        "args": [
+            {"op": "=", "args": [{"sysId": "dataLayer.id"}, "Landuse"]},
+            {"op": "=", "args": [{"property": "k"}, "v"]},
+        ],
+    }
+    assert strip_datalayer_id(selector) == {
+        "op": "=",
+        "args": [{"property": "k"}, "v"],
+    }
+
+
+def test_strip_datalayer_id_keeps_and_with_several_survivors():
+    selector = {
+        "op": "and",
+        "args": [
+            {"op": "=", "args": [{"sysId": "dataLayer.id"}, "Landuse"]},
+            {"op": "=", "args": [{"property": "k"}, "v"]},
+            {"op": ">", "args": [{"property": "n"}, 1]},
+        ],
+    }
+    assert strip_datalayer_id(selector) == {
+        "op": "and",
+        "args": [
+            {"op": "=", "args": [{"property": "k"}, "v"]},
+            {"op": ">", "args": [{"property": "n"}, 1]},
+        ],
+    }
