@@ -7,9 +7,9 @@ Layer Descriptor) and MapLibre GL Style.
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Maxime Collombin"
-__email__ = "maxime.collombin@example.com"
+__email__ = "maxime.collombin@netplus.ch"
 
 # Codec registry (lazy — sub-codecs register on first import of .codecs)
 from .codecs import detect_codec, get_codec, list_codecs  # noqa: F401
