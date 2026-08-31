@@ -38,6 +38,7 @@ class ExpressionType(str, Enum):
     # Additional expression-type discriminants
     NUMERIC = "numeric"
     OBJECT = "object"
+    PREDICATE = "predicate"
 
 
 class BinaryOperator(str, Enum):
@@ -232,10 +233,20 @@ StylingRuleExpression.model_rebuild()
 
 
 # Boolean Expressions (JSON Schema: boolExpression)
-class BoolExpression(BaseExpression):
-    """Base class for boolean expressions from JSON schema."""
+class BoolExpression(BaseExpression, Expression):
+    """Base class for boolean expressions from JSON schema.
 
-    type: str | None = None
+    Also an :class:`Expression` (multiple inheritance, not a plain
+    ``BaseExpression``) — predicates (``IsLikePredicate``,
+    ``SpatialPredicate``, ``NotExpression``…) need to slot into the generic
+    ``Expression`` tree wherever CQL2-Text combines them with AND/OR/NOT
+    (:class:`BinaryOperationExpression`/:class:`UnaryOperationExpression`
+    from :mod:`.from_cql2text`). ``BaseExpression`` is listed first so its
+    (``BaseCartoSymModel``) stricter ``model_config`` — ``extra="forbid"``
+    in particular — wins over ``Expression``'s plainer one.
+    """
+
+    type: ExpressionType = ExpressionType.PREDICATE
 
 
 class AndOrExpression(BoolExpression):
