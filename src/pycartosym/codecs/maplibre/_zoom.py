@@ -21,11 +21,20 @@ MapLibre's own zoom-range semantics are asymmetric — a layer is visible
 when ``minzoom <= zoom < maxzoom`` — which, since scale denominator
 decreases as zoom increases, translates to exactly two representable
 ``viz.sd`` bound shapes: ``viz.sd <= scaleDenominator(minzoom)`` and
-``viz.sd > scaleDenominator(maxzoom)``. Only those two shapes round-trip;
-a ``viz.sd`` bound using the other strictness (``<``, ``>=``) or compared
-with ``=``/``!=`` has no MapLibre zoom-range equivalent and is rejected
-rather than silently approximated — e.g. a selector inherited from the
-SLD/SE codec's own ``>=``/``<`` scale-range shape does not carry over.
+``viz.sd > scaleDenominator(maxzoom)``. Only those two shapes round-trip
+through ``minzoom``/``maxzoom`` — e.g. a selector inherited from the
+SLD/SE codec's own ``>=``/``<`` scale-range shape does not carry over
+this way. A ``viz.sd`` bound using the other strictness (``<``, ``>=``)
+or compared with ``=``/``!=`` has no *minzoom/maxzoom* equivalent, full
+stop: ``minzoom``'s ``zoom >= minzoom`` is a closed (inclusive) bound on
+a continuous zoom, and a strict bound like ``zoom > z`` has no smallest
+representable closed lower bound. Rather than approximate this away
+(rounding to the nearest representable shape), :func:`.selector_to_filter`
+falls back to a MapLibre ``filter`` conjunct on the ``["zoom"]``
+expression instead (see :func:`zoom_filter_conjunct`) — exact, but,
+per the MapLibre style spec's own ``filter`` documentation, evaluated
+only at integer zoom levels rather than continuously like
+``minzoom``/``maxzoom``.
 
 Known limitations, both inherent to mapping a zoom level (a tile-pyramid
 concept) onto a scale denominator (a cartographic-scale concept), not bugs
@@ -112,55 +121,87 @@ def _reassemble_and(conjuncts: list[Any]) -> Any | None:
     return {"op": "and", "args": conjuncts}
 
 
+def _viz_sd_operand(args: list[Any], op: str) -> tuple[str, Any] | None:
+    """Detect a 2-arg comparison's ``viz.sd`` operand, either order.
+
+    Returns ``(op, value)`` with *op* re-oriented so ``viz.sd`` reads as
+    the left operand (``N >= viz.sd`` normalises to ``viz.sd <= N``), and
+    *value* the other, numeric operand. ``None`` if *args* is not a
+    ``viz.sd``-vs-number comparison at all.
+    """
+    if len(args) != 2:
+        return None
+    left, right = args
+    if (
+        isinstance(left, dict)
+        and left.get("sysId") == _SCALE_SYSID
+        and _is_number(right)
+    ):
+        return op, right
+    if (
+        isinstance(right, dict)
+        and right.get("sysId") == _SCALE_SYSID
+        and _is_number(left)
+    ):
+        return _FLIP_OP.get(op, ""), left
+    return None
+
+
 def _zoom_bound(expr: Any) -> tuple[str, Any] | None:
     """Classify *expr* as a MapLibre-representable ``viz.sd`` zoom bound.
 
     Returns ``("minzoom", value)`` for the ``viz.sd <= value`` shape (a
     ``minzoom``) or ``("maxzoom", value)`` for the ``viz.sd > value``
     shape (a ``maxzoom``) — see the module docstring for why only these
-    two exact shapes round-trip. ``None`` if *expr* is not a ``viz.sd``
-    comparison at all. The operand order may be either way round
-    (``viz.sd <= N`` or ``N >= viz.sd``).
-
-    Raises:
-        NotImplementedError: *expr* compares ``viz.sd`` with an operator
-            that has no MapLibre zoom-range equivalent (``<``, ``>=``,
-            ``=``, ``!=``).
+    two exact shapes round-trip through ``minzoom``/``maxzoom``. ``None``
+    if *expr* is not a ``viz.sd`` comparison at all, **or** if it is one
+    with no ``minzoom``/``maxzoom`` shape (``<``, ``>=``, ``=``, ``!=``) —
+    the caller (:func:`.selector_to_filter`) falls back to
+    :func:`zoom_filter_conjunct` for those instead of raising.
     """
-    if not (
-        isinstance(expr, dict)
-        and isinstance(expr.get("args"), list)
-        and len(expr["args"]) == 2
-    ):
+    if not (isinstance(expr, dict) and isinstance(expr.get("args"), list)):
         return None
-    left, right = expr["args"]
     raw_op = expr.get("op")
-    op = raw_op if isinstance(raw_op, str) else ""
-    if (
-        isinstance(left, dict)
-        and left.get("sysId") == _SCALE_SYSID
-        and _is_number(right)
-    ):
-        value = right
-    elif (
-        isinstance(right, dict)
-        and right.get("sysId") == _SCALE_SYSID
-        and _is_number(left)
-    ):
-        op = _FLIP_OP.get(op, "")
-        value = left
-    else:
+    detected = _viz_sd_operand(expr["args"], raw_op if isinstance(raw_op, str) else "")
+    if detected is None:
         return None
+    op, value = detected
     if op == "<=":
         return "minzoom", value
     if op == ">":
         return "maxzoom", value
-    raise NotImplementedError(
-        f"viz.sd {raw_op!r} comparison has no MapLibre zoom-range mapping in "
-        "this codec — only 'viz.sd <= N' (-> minzoom) and 'viz.sd > N' "
-        "(-> maxzoom) match MapLibre's own 'minzoom <= zoom < maxzoom' "
-        "semantics"
-    )
+    return None
+
+
+# MapLibre filter-expression comparison op for a viz.sd bound with no
+# minzoom/maxzoom shape (see the module docstring) — the equivalent
+# ["zoom"] comparison, direction-flipped to match scale denominator
+# decreasing as zoom increases.
+_STRICT_TO_FILTER_OP = {"<": ">", ">=": "<=", "=": "==", "!=": "!=", "<>": "!="}
+
+
+def zoom_filter_conjunct(expr: Any) -> list[Any] | None:
+    """A ``viz.sd`` comparison with no ``minzoom``/``maxzoom`` shape.
+
+    Returned as a MapLibre ``filter`` conjunct on the ``["zoom"]``
+    expression instead. See the module docstring for why
+    ``<``/``>=``/``=``/``!=`` need this
+    fallback rather than a (rounded, inexact) ``minzoom``/``maxzoom``.
+    ``None`` if *expr* is not such a comparison — including a ``viz.sd``
+    comparison :func:`_zoom_bound` already maps to minzoom/maxzoom, or one
+    that is not a ``viz.sd`` comparison at all.
+    """
+    if not (isinstance(expr, dict) and isinstance(expr.get("args"), list)):
+        return None
+    raw_op = expr.get("op")
+    detected = _viz_sd_operand(expr["args"], raw_op if isinstance(raw_op, str) else "")
+    if detected is None:
+        return None
+    op, value = detected
+    filter_op = _STRICT_TO_FILTER_OP.get(op)
+    if filter_op is None:
+        return None
+    return [filter_op, ["zoom"], zoom_from_scale_denominator(value)]
 
 
 def extract_zoom_range(

@@ -16,7 +16,10 @@ from pathlib import Path
 import pytest
 
 from pycartosym.codecs.maplibre import MaplibreReader, MaplibreWriter
-from pycartosym.codecs.maplibre._zoom import scale_denominator_from_zoom
+from pycartosym.codecs.maplibre._zoom import (
+    scale_denominator_from_zoom,
+    zoom_from_scale_denominator,
+)
 from pycartosym.models.styles import Style
 
 from ._maplibre_spec import assert_maplibre_valid
@@ -669,8 +672,11 @@ def test_viz_sd_selector_merges_with_residual_filter():
     assert layer["filter"] == ["==", ["get", "class"], "water"]
 
 
-def test_viz_sd_strict_lower_bound_is_rejected():
-    """``viz.sd < N`` has no MapLibre zoom-range shape (only ``<=``/``>``)."""
+def test_viz_sd_strict_lower_bound_becomes_a_zoom_filter():
+    """``viz.sd < N`` has no minzoom/maxzoom shape (only ``<=``/``>`` do) —
+    it becomes a ``["zoom"]`` filter conjunct instead (see
+    ``_zoom.zoom_filter_conjunct``), not a minzoom/maxzoom layer property.
+    """
     style = Style.from_dict(
         {
             "stylingRules": [
@@ -682,8 +688,11 @@ def test_viz_sd_strict_lower_bound_is_rejected():
             ]
         }
     )
-    with pytest.raises(NotImplementedError):
-        MaplibreWriter().write(style)
+    layer = MaplibreWriter().write(style)["layers"][0]
+    assert "minzoom" not in layer
+    assert "maxzoom" not in layer
+    assert layer["filter"] == [">", ["zoom"], zoom_from_scale_denominator(100000)]
+    assert_maplibre_valid(MaplibreWriter().write(style))
 
 
 def test_background_with_zoom_range_selector_is_kept():
