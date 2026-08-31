@@ -24,7 +24,7 @@
         "stroke": {
           "color": "darkGreen",
           "opacity": 1.0,
-          "width": { "value": 2.0, "unit": "px" }
+          "width": { "px": 2.0 }
         }
       },
       "nestedRules": [
