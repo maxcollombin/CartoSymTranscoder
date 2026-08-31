@@ -80,6 +80,27 @@ from pycartosym.codecs.maplibre._filter import (
             ["!", ["==", "a", 1]],
             {"op": "not", "args": [{"op": "=", "args": [{"property": "a"}, 1]}]},
         ),
+        (
+            ["==", ["geometry-type"], "Point"],
+            {
+                "op": "=",
+                "args": [{"sysId": "dataLayer.featuresGeometryDimensions"}, 0],
+            },
+        ),
+        (
+            ["==", ["geometry-type"], "LineString"],
+            {
+                "op": "=",
+                "args": [{"sysId": "dataLayer.featuresGeometryDimensions"}, 1],
+            },
+        ),
+        (
+            ["!=", ["geometry-type"], "Polygon"],
+            {
+                "op": "<>",
+                "args": [{"sysId": "dataLayer.featuresGeometryDimensions"}, 2],
+            },
+        ),
     ],
 )
 def test_filter_to_selector(mb_filter, selector):
@@ -97,6 +118,8 @@ CANONICAL_FILTERS = [
     ["has", "name"],
     ["!", ["has", "name"]],
     ["!", ["==", ["get", "a"], 1]],
+    ["==", ["geometry-type"], "Point"],
+    ["!=", ["geometry-type"], "Polygon"],
 ]
 
 
@@ -110,7 +133,9 @@ def test_round_trip_is_a_fixed_point(mb_filter):
     [
         ["==", "$type", "Polygon"],
         ["==", "$id", 5],
-        ["==", ["geometry-type"], "Point"],
+        ["<", ["geometry-type"], "Point"],
+        [">=", ["geometry-type"], "Point"],
+        ["==", ["geometry-type"], "MultiPoint"],
         ["step", ["zoom"], 0, 10, 1],
         ["==", ["get", "a"], ["get", "b"]],
     ],
@@ -160,6 +185,48 @@ def test_strip_datalayer_id_unwraps_single_surviving_sibling():
         "op": "=",
         "args": [{"property": "k"}, "v"],
     }
+
+
+def test_selector_to_filter_geometry_dimensions_equal():
+    selector = {
+        "op": "=",
+        "args": [{"sysId": "dataLayer.featuresGeometryDimensions"}, 2],
+    }
+    assert selector_to_filter(selector) == ["==", ["geometry-type"], "Polygon"]
+
+
+def test_selector_to_filter_geometry_dimensions_not_equal():
+    selector = {
+        "op": "<>",
+        "args": [{"sysId": "dataLayer.featuresGeometryDimensions"}, 0],
+    }
+    assert selector_to_filter(selector) == ["!=", ["geometry-type"], "Point"]
+
+
+def test_selector_to_filter_geometry_dimensions_reversed_operand_order():
+    selector = {
+        "op": "=",
+        "args": [1, {"sysId": "dataLayer.featuresGeometryDimensions"}],
+    }
+    assert selector_to_filter(selector) == ["==", ["geometry-type"], "LineString"]
+
+
+def test_selector_to_filter_geometry_dimensions_bad_comparator_raises():
+    selector = {
+        "op": "<",
+        "args": [{"sysId": "dataLayer.featuresGeometryDimensions"}, 2],
+    }
+    with pytest.raises(NotImplementedError):
+        selector_to_filter(selector)
+
+
+def test_selector_to_filter_geometry_dimensions_unknown_value_raises():
+    selector = {
+        "op": "=",
+        "args": [{"sysId": "dataLayer.featuresGeometryDimensions"}, 3],
+    }
+    with pytest.raises(NotImplementedError):
+        selector_to_filter(selector)
 
 
 def test_strip_datalayer_id_keeps_and_with_several_survivors():

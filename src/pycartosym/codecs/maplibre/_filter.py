@@ -7,18 +7,28 @@ MapLibre filters come in two spellings — the *legacy* form
 dict that ``StylingRule.selector`` carries
 (``{"op": "=", "args": [{"property": "key"}, value]}``).
 
-Special MapLibre keys (``$type``, ``$id``, ``geometry-type``) and
-data-driven operands have no CQL2 equivalent and raise
-:exc:`NotImplementedError`. A ``sysId dataLayer.id = <name>`` equality
-conjunct — the implicit self-reference a CartoSym-CSS ``RuleName[...]``
-rule always carries (its parser-generated ``sysId`` twin of the rule's
-own name, unrelated to any real per-feature filtering) — is dropped
-rather than raised on: this codec has no data-source concept (see
-:mod:`.writer`'s module docstring) for a real ``dataLayer.id`` to bind
-to, and the value is redundant with the MapLibre layer's own ``id``
-regardless (see :func:`strip_datalayer_id`). Any other ``sysId``, or a
-``dataLayer.id`` compared with anything but ``=``, still raises — real
-information this codec has no target for.
+Special MapLibre key ``$id`` and data-driven operands have no CQL2
+equivalent and raise :exc:`NotImplementedError`. A
+``sysId dataLayer.id = <name>`` equality conjunct — the implicit
+self-reference a CartoSym-CSS ``RuleName[...]`` rule always carries (its
+parser-generated ``sysId`` twin of the rule's own name, unrelated to any
+real per-feature filtering) — is dropped rather than raised on: this
+codec has no data-source concept (see :mod:`.writer`'s module docstring)
+for a real ``dataLayer.id`` to bind to, and the value is redundant with
+the MapLibre layer's own ``id`` regardless (see
+:func:`strip_datalayer_id`). Any other ``sysId``, or a ``dataLayer.id``
+compared with anything but ``=``, still raises — real information this
+codec has no target for.
+
+``sysId dataLayer.featuresGeometryDimensions`` is the one exception: a
+``=``/``!=`` comparison against ``0``/``1``/``2`` maps to (from) the
+MapLibre ``["==``/``!=", ["geometry-type"], "Point"/"LineString"/
+"Polygon"]`` filter expression — unlike ``dataLayer.id``/``dataLayer.type``
+this is real per-feature information (not provably redundant with how a
+rule was routed to layers, see :mod:`.writer`), and ``geometry-type``
+happens to be MapLibre's own faithful equivalent (see
+:func:`_geometry_dimensions_filter_conjunct`). ``$type`` and a bare
+``geometry-type`` compared with anything else still raise — no mapping.
 """
 
 from __future__ import annotations
@@ -39,6 +49,15 @@ _CMP: dict[str, str] = {
 _CMP_INV = {v: k for k, v in _CMP.items()}
 
 _SPECIAL_KEYS = {"$type", "$id"}
+
+# CartoSym dataLayer.featuresGeometryDimensions <-> MapLibre geometry-type.
+# The MapLibre expression collapses Multi* onto their base type (documented
+# in the vendored v8.json spec), matching the CartoSym dimension's own
+# 0/1/2 = point/curve/surface convention (confirmed against the public
+# examples corpus: point/line/polygon feature layers use exactly these).
+_GEOMETRY_TYPE_BY_DIMENSION = {0: "Point", 1: "LineString", 2: "Polygon"}
+_DIMENSION_BY_GEOMETRY_TYPE = {v: k for k, v in _GEOMETRY_TYPE_BY_DIMENSION.items()}
+_FEATURES_GEOMETRY_DIMENSIONS_SYSID = "dataLayer.featuresGeometryDimensions"
 
 
 # ── MapLibre filter → selector ────────────────────────────────────────────
@@ -98,6 +117,25 @@ def filter_to_selector(mb_filter: list[Any]) -> dict[str, Any]:
 
     if op in _CMP:
         prop, value = args
+        if prop == ["geometry-type"]:
+            if op not in ("==", "!="):
+                raise NotImplementedError(
+                    f"MapLibre geometry-type filter operator {op!r} has no "
+                    "CartoSym selector mapping (only ==/!= do)"
+                )
+            dimension = _DIMENSION_BY_GEOMETRY_TYPE.get(_literal(value))
+            if dimension is None:
+                raise NotImplementedError(
+                    f"MapLibre geometry-type value {value!r} has no CartoSym "
+                    "featuresGeometryDimensions mapping"
+                )
+            return {
+                "op": _CMP[op],
+                "args": [
+                    {"sysId": _FEATURES_GEOMETRY_DIMENSIONS_SYSID},
+                    dimension,
+                ],
+            }
         return {
             "op": _CMP[op],
             "args": [_operand_to_property(prop), _literal(value)],
@@ -169,6 +207,48 @@ def _property_name(arg: Any) -> str:
     )
 
 
+def _geometry_dimensions_filter_conjunct(selector: Any) -> list[Any] | None:
+    """Map a ``dataLayer.featuresGeometryDimensions`` comparison to a filter.
+
+    A ``=``/``<>`` comparison maps to the equivalent MapLibre
+    ``["=="/"!=", ["geometry-type"], …]`` filter expression. Unlike
+    ``dataLayer.type``/``dataLayer.id``, this sysId is not provably
+    redundant with how a rule was routed to layers (see :mod:`.writer`'s
+    module docstring — a rule on line-dimensioned features can still add
+    a point layer via a ``marker`` element, for instance), so it maps to
+    a real filter conjunct rather than being dropped. Returns ``None``
+    for any other sysId, comparison operator, or dimension value, leaving
+    the selector to raise further down the pipeline (only ``=``/``<>``
+    against a known ``0``/``1``/``2`` dimension is mapped — see module
+    docstring).
+    """
+    if not isinstance(selector, dict):
+        return None
+    op = selector.get("op")
+    if op not in ("=", "<>"):
+        return None
+    args = selector.get("args", [])
+    if len(args) != 2:
+        return None
+    left, right = args
+    if (
+        isinstance(left, dict)
+        and left.get("sysId") == _FEATURES_GEOMETRY_DIMENSIONS_SYSID
+    ):
+        dimension = right
+    elif (
+        isinstance(right, dict)
+        and right.get("sysId") == _FEATURES_GEOMETRY_DIMENSIONS_SYSID
+    ):
+        dimension = left
+    else:
+        return None
+    geometry_type = _GEOMETRY_TYPE_BY_DIMENSION.get(dimension)
+    if geometry_type is None:
+        return None
+    return ["==" if op == "=" else "!=", ["geometry-type"], geometry_type]
+
+
 def selector_to_filter(selector: Any) -> list[Any]:
     """Convert a CartoSym selector dict to a MapLibre (expression-form) filter."""
     if not isinstance(selector, dict) or "op" not in selector:
@@ -185,6 +265,14 @@ def selector_to_filter(selector: Any) -> list[Any]:
     zoom_conjunct = zoom_filter_conjunct(selector)
     if zoom_conjunct is not None:
         return zoom_conjunct
+
+    # Same reasoning: dataLayer.featuresGeometryDimensions is a sysId, not
+    # a feature property, and has an exact MapLibre equivalent of its own
+    # (see _geometry_dimensions_filter_conjunct) — checked ahead of the
+    # generic property-comparison dispatch below.
+    geometry_conjunct = _geometry_dimensions_filter_conjunct(selector)
+    if geometry_conjunct is not None:
+        return geometry_conjunct
 
     op = selector["op"]
     args = selector.get("args", [])
