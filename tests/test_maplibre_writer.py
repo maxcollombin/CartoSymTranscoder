@@ -415,6 +415,84 @@ def test_fill_with_full_stroke_is_rejected():
         MaplibreWriter().write(style)
 
 
+def test_background_vendor_tag_becomes_background_layer():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "bg",
+                    "symbolizer": {
+                        "fill": {"color": "red"},
+                        "vendor.maplibre.layer-type": "background",
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["sources"] == {}
+    assert out["layers"] == [
+        {"id": "bg", "type": "background", "paint": {"background-color": "red"}}
+    ]
+    assert_maplibre_valid(out)
+
+
+def test_background_with_stroke_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "bg",
+                    "symbolizer": {
+                        "fill": {"color": "red"},
+                        "stroke": {"color": "black"},
+                        "vendor.maplibre.layer-type": "background",
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_background_with_selector_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "bg",
+                    "selector": {"op": "=", "args": [{"property": "k"}, "v"]},
+                    "symbolizer": {
+                        "fill": {"color": "red"},
+                        "vendor.maplibre.layer-type": "background",
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_unrecognised_vendor_extension_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "symbolizer": {
+                        "fill": {"color": "red"},
+                        "vendor.geoserver.group": "layers",
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
 def test_json_serialisable():
     style = MaplibreReader().read(_ATOMIC / "fill-color-literal.json")
     json.dumps(MaplibreWriter().write(style))
