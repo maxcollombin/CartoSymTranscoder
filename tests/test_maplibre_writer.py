@@ -1,8 +1,8 @@
 """MapLibre writer — Style → style JSON, and the read↔write round-trip.
 
 Scope mirrors the reader: ``fill`` / ``line`` / ``marker`` (single
-``Circle``) symbolizers with literal values. The round-trip checked here
-is a **model fixed point**
+``Circle`` or ``Image``) / ``label`` (single ``Text``) symbolizers with
+literal values. The round-trip checked here is a **model fixed point**
 (``read → write → read`` yields the same Style); the emitted MapLibre is
 not byte-identical to the input (a CartoSym Style has no sources / zoom /
 metadata to round-trip).
@@ -154,6 +154,206 @@ def test_text_marker_element_is_rejected():
                     "name": "t",
                     "symbolizer": {
                         "marker": {"elements": [{"type": "Text", "text": "x"}]}
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_label_text_becomes_a_symbol_layer():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "labels",
+                    "symbolizer": {
+                        "label": {
+                            "elements": [
+                                {
+                                    "type": "Text",
+                                    "text": {"property": "name"},
+                                    "position": {"x": 0, "y": 1.5},
+                                    "alignment": ["center", "top"],
+                                    "font": {
+                                        "face": "Open Sans Semibold",
+                                        "size": 12,
+                                        "color": "#1077b0",
+                                        "outline": {"color": "#fff", "size": 1},
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["type"] == "symbol"
+    assert layer["layout"] == {
+        "text-field": "{name}",
+        "text-offset": [0, 1.5],
+        "text-anchor": "top",
+        "text-font": ["Open Sans Semibold"],
+        "text-size": 12,
+    }
+    assert layer["paint"] == {
+        "text-color": "#1077b0",
+        "text-halo-color": "#fff",
+        "text-halo-width": 1,
+    }
+    assert_maplibre_valid(out)
+
+
+def test_icon_marker_becomes_a_symbol_layer():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "poi",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"id": "dot.sdf"},
+                                    "opacity": 0.8,
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["type"] == "symbol"
+    assert layer["layout"] == {"icon-image": "dot.sdf"}
+    assert layer["paint"] == {"icon-opacity": 0.8}
+    assert_maplibre_valid(out)
+
+
+def test_label_and_icon_marker_share_one_symbol_layer():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "poi",
+                    "symbolizer": {
+                        "label": {"elements": [{"type": "Text", "text": "Foo"}]},
+                        "marker": {
+                            "elements": [{"type": "Image", "image": {"id": "dot.sdf"}}]
+                        },
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert len(out["layers"]) == 1
+    layer = out["layers"][0]
+    assert layer["type"] == "symbol"
+    assert layer["layout"]["text-field"] == "Foo"
+    assert layer["layout"]["icon-image"] == "dot.sdf"
+    assert_maplibre_valid(out)
+
+
+def test_multi_element_label_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "labels",
+                    "symbolizer": {
+                        "label": {
+                            "elements": [
+                                {"type": "Text", "text": "a"},
+                                {"type": "Text", "text": "b"},
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_non_text_label_element_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "labels",
+                    "symbolizer": {
+                        "label": {"elements": [{"type": "Image", "image": {"id": "x"}}]}
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_label_with_circle_marker_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "labels",
+                    "symbolizer": {
+                        "label": {"elements": [{"type": "Text", "text": "a"}]},
+                        "marker": {"elements": [{"type": "Circle", "radius": 5}]},
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_label_with_fill_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "labels",
+                    "symbolizer": {
+                        "label": {"elements": [{"type": "Text", "text": "a"}]},
+                        "fill": {"color": "red"},
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_font_bold_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "labels",
+                    "symbolizer": {
+                        "label": {
+                            "elements": [
+                                {
+                                    "type": "Text",
+                                    "text": "a",
+                                    "font": {"bold": True},
+                                }
+                            ]
+                        }
                     },
                 }
             ]
