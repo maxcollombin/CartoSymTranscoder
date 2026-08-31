@@ -201,18 +201,238 @@ def test_symbolizerless_rule_is_dropped_not_an_error():
 
 
 def test_raster_only_rule_still_raises_not_dropped():
-    """Unlike a genuinely empty rule, one carrying unsupported (raster)
-    content must still raise — dropping it would silently lose data.
+    """Unlike a genuinely empty rule, one carrying unsupported coverage/
+    raster content must still raise — dropping it would silently lose
+    data. ``colorChannels`` (band selection) is a genuine, permanent gap —
+    see ``MaplibreWriter._raster``.
     """
     style = Style.from_dict(
         {
             "stylingRules": [
-                {"name": "dem", "symbolizer": {"singleChannel": "elevation"}}
+                {"name": "dem", "symbolizer": {"colorChannels": ["B04", "B03", "B02"]}}
             ]
         }
     )
-    with pytest.raises(NotImplementedError, match="single_channel"):
+    with pytest.raises(NotImplementedError, match="colorChannels"):
         MaplibreWriter().write(style)
+
+
+def test_single_channel_colormap_becomes_color_relief_layer():
+    """``singleChannel`` (a plain field reference) + ``colorMap`` maps to a
+    ``color-relief`` layer on a synthetic ``raster-dem`` source — the only
+    coverage/raster shape this codec has a faithful MapLibre target for
+    (see ``MaplibreWriter._raster``).
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Elevation",
+                    "symbolizer": {
+                        "singleChannel": {"property": "elevation"},
+                        "colorMap": [[0, [96, 136, 73]], [900, [226, 219, 167]]],
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["sources"]["cartosym-dem"]["type"] == "raster-dem"
+    layer = out["layers"][0]
+    assert layer["type"] == "color-relief"
+    assert layer["source"] == "cartosym-dem"
+    assert layer["paint"]["color-relief-color"] == [
+        "interpolate",
+        ["linear"],
+        ["elevation"],
+        0,
+        "#608849",
+        900,
+        "#e2dba7",
+    ]
+    assert_maplibre_valid(out)
+
+
+def test_single_channel_expression_is_rejected():
+    """A computed band expression (band arithmetic, e.g. NDVI) has no
+    MapLibre equivalent — only a plain field reference maps.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "ndvi",
+                    "symbolizer": {
+                        "singleChannel": {
+                            "op": "/",
+                            "args": [
+                                {"property": "B08"},
+                                {"property": "B04"},
+                            ],
+                        },
+                        "colorMap": [[0, "red"], [1, "green"]],
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError, match="field reference"):
+        MaplibreWriter().write(style)
+
+
+def test_hillshading_sun_becomes_hillshade_layer():
+    """``hillShading.sun.azimuth``/``.elevation`` maps to a ``hillshade``
+    layer's illumination direction/altitude — the sun-elevation convention
+    (0 at the horizon, 90 at zenith) matches ``hillshade-illumination-
+    altitude`` directly.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Elevation",
+                    "symbolizer": {
+                        "hillShading": {"sun": {"azimuth": 45.0, "elevation": 60.0}}
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["type"] == "hillshade"
+    assert layer["source"] == "cartosym-dem"
+    assert layer["paint"] == {
+        "hillshade-illumination-direction": 45.0,
+        "hillshade-illumination-altitude": 60.0,
+    }
+    assert_maplibre_valid(out)
+
+
+def test_color_relief_and_hillshade_together_become_two_layers():
+    """A symbolizer combining ``singleChannel``+``colorMap`` and
+    ``hillShading`` (sun only) maps to two layers on the same synthetic
+    ``raster-dem`` source, disambiguated with a ``-color-relief``/
+    ``-hillshade`` suffix — same idiom as the vector multi-layer case.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Elevation",
+                    "symbolizer": {
+                        "singleChannel": {"property": "elevation"},
+                        "colorMap": [[0, "black"], [1, "white"]],
+                        "hillShading": {"sun": {"azimuth": 0.0, "elevation": 45.0}},
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    ids = {layer["id"]: layer["type"] for layer in out["layers"]}
+    assert ids == {
+        "Elevation-color-relief": "color-relief",
+        "Elevation-hillshade": "hillshade",
+    }
+    assert all(layer["source"] == "cartosym-dem" for layer in out["layers"])
+    assert_maplibre_valid(out)
+
+
+def test_hillshading_factor_is_rejected():
+    """MapLibre's ``hillshade-exaggeration`` is a fixed 0-1 shading
+    intensity, not the unbounded vertical-exaggeration z-factor
+    CartoSym's ``factor`` is — no faithful unit conversion exists.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Elevation",
+                    "symbolizer": {
+                        "hillShading": {
+                            "factor": 56,
+                            "sun": {"azimuth": 45.0, "elevation": 60.0},
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError, match="factor"):
+        MaplibreWriter().write(style)
+
+
+def test_hillshading_intensity_colormap_is_rejected():
+    """A ``colorMap``/``opacityMap`` nested in ``hillShading`` ramps the
+    shading *intensity* (0..1), not elevation — ``hillshade`` paint only
+    exposes 3 fixed colours (shadow/highlight/accent), not a ramp.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Elevation",
+                    "symbolizer": {
+                        "hillShading": {
+                            "sun": {"azimuth": 45.0, "elevation": 60.0},
+                            "colorMap": [[0, "black"], [0.5, "white"]],
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError, match="colorMap"):
+        MaplibreWriter().write(style)
+
+
+def test_coverage_symbolizer_cannot_combine_with_fill():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "x",
+                    "symbolizer": {
+                        "fill": {"color": "red"},
+                        "singleChannel": {"property": "elevation"},
+                        "colorMap": [[0, "black"], [1, "white"]],
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError, match="combine"):
+        MaplibreWriter().write(style)
+
+
+def test_datalayer_type_coverage_selector_is_dropped_on_a_raster_rule():
+    """A ``sysId dataLayer.type = coverage`` conjunct is provably redundant
+    once a rule is already routed to a raster/hillshade/color-relief layer
+    — nothing else could have produced those. A ``dataLayer.type`` on a
+    *vector* rule stays rejected (see
+    ``test_other_sysid_selector_is_still_rejected``).
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Elevation",
+                    "selector": {
+                        "op": "=",
+                        "args": [{"sysId": "dataLayer.type"}, "coverage"],
+                    },
+                    "symbolizer": {
+                        "singleChannel": {"property": "elevation"},
+                        "colorMap": [[0, "black"], [1, "white"]],
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert "filter" not in out["layers"][0]
+    assert_maplibre_valid(out)
 
 
 def test_nested_cascade_produces_independent_layers():
