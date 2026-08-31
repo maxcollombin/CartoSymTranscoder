@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.codecs import get_codec
-from cartosym_transcoder.codecs.sld.reader import SldReader
-from cartosym_transcoder.codecs.sld.writer import SldWriter
+from pycartosym.codecs import get_codec
+from pycartosym.codecs.sld.reader import SldReader
+from pycartosym.codecs.sld.writer import SldWriter
 
 from ._xsd import assert_sld_valid
 

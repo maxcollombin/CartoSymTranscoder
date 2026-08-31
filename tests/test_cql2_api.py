@@ -1,8 +1,8 @@
-"""Smoke tests for the public :mod:`cartosym_transcoder.cql2` API."""
+"""Smoke tests for the public :mod:`pycartosym.cql2` API."""
 
 from __future__ import annotations
 
-from cartosym_transcoder import cql2
+from pycartosym import cql2
 
 
 def test_parse_text_returns_model():

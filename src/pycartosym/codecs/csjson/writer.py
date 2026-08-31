@@ -1,6 +1,6 @@
 """CS-JSON writer — serialise Style models to CartoSym-JSON.
 
-Delegates to :meth:`~cartosym_transcoder.converter.Converter.cscss_to_csjson`
+Delegates to :meth:`~pycartosym.converter.Converter.cscss_to_csjson`
 (which accepts a Style model directly and produces a validated dict).
 """
 

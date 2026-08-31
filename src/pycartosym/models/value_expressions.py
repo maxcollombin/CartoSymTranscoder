@@ -10,14 +10,14 @@ operators — only a generic function-call container
 
 This module gives each of those MapLibre operators its own typed Pydantic
 model layered over that generic container — the same pattern already used
-in :mod:`cartosym_transcoder.cql2.model` for e.g. ``ArithmeticExpression``
+in :mod:`pycartosym.cql2.model` for e.g. ``ArithmeticExpression``
 or ``BitwiseLogical`` (a fixed ``Literal`` ``op`` over a generic op/args
 shape). ``PropertyRef`` maps 1:1 onto the schema's own ``propertyRef``; the
 other five have no CartoSym-JSON equivalent and serialise as an ordinary
 ``functionCall`` — an honest, lossless pass-through, not an invented
 mapping.
 
-Deliberately **not** placed in :mod:`cartosym_transcoder.cql2.model`: that
+Deliberately **not** placed in :mod:`pycartosym.cql2.model`: that
 module is scoped to CQL2 (OGC 21-065r2), a standalone standard, and
 ``case``/``match``/``step``/``interpolate``/``coalesce`` are MapLibre Style
 Spec vocabulary, not CQL2 vocabulary.

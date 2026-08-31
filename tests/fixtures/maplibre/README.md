@@ -1,7 +1,7 @@
 # Vendored MapLibre style corpus
 
 MapLibre GL style documents used by `tests/test_maplibre_corpus.py` to
-exercise the `cartosym_transcoder.codecs.maplibre` reader/writer against
+exercise the `pycartosym.codecs.maplibre` reader/writer against
 real, spec-valid styles rather than hand-written ones.
 
 Everything here comes from **official MapLibre repositories** (not

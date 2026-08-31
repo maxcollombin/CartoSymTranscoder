@@ -7,19 +7,19 @@ A Python package for lossless transcoding between [CartoSym CSS](https://github.
 ### From PyPI (Coming Soon)
 
 ```bash
-pip install cartosym-transcoder
+pip install pycartosym
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/maxcollombin/CartoSymTranscoder.git
-cd CartoSymTranscoder
+git clone https://github.com/maxcollombin/pycartosym.git
+cd pycartosym
 uv sync
 ```
 
 The generated ANTLR lexer/parser are already committed under
-`src/cartosym_transcoder/grammar/generated/`, so no separate grammar build
+`src/pycartosym/grammar/generated/`, so no separate grammar build
 step is needed. Prefix commands with `uv run`, or activate the
 project's `.venv` with `source .venv/bin/activate`.
 

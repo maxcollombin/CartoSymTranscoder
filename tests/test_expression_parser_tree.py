@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from cartosym_transcoder.converter import Converter
+from pycartosym.converter import Converter
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = ROOT / "examples"

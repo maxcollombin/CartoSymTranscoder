@@ -1,6 +1,6 @@
 """CQL2 / CartoSym-CSS expression parsing -> ``cql2.model`` expression models.
 
-Public callers should use :mod:`cartosym_transcoder.cql2`
+Public callers should use :mod:`pycartosym.cql2`
 (``parse_text`` / ``parse_tree``); ``ExpressionParser`` here is the
 implementation. Two entry points:
 

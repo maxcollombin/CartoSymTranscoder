@@ -16,9 +16,9 @@ Covers:
 
 import pytest
 
-from cartosym_transcoder.converter import Converter
-from cartosym_transcoder.cql2.from_text import ExpressionParser
-from cartosym_transcoder.cql2.model import (
+from pycartosym.converter import Converter
+from pycartosym.cql2.from_text import ExpressionParser
+from pycartosym.cql2.model import (
     ArrayPredicate,
     BboxLiteral,
     ConstantExpression,

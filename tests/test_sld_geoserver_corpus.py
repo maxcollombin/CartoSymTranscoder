@@ -20,9 +20,9 @@ import re
 
 import pytest
 
-from cartosym_transcoder.codecs.sld._dialect import SLD_1_0_0_GEOSERVER
-from cartosym_transcoder.codecs.sld.reader import SldReader
-from cartosym_transcoder.codecs.sld.writer import SldWriter
+from pycartosym.codecs.sld._dialect import SLD_1_0_0_GEOSERVER
+from pycartosym.codecs.sld.reader import SldReader
+from pycartosym.codecs.sld.writer import SldWriter
 
 from ._xsd import assert_sld10_valid
 from .test_geoserver_sld_corpus import CORPUS

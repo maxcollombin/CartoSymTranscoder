@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from cartosym_transcoder.parser import CartoSymParser
+from pycartosym.parser import CartoSymParser
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 

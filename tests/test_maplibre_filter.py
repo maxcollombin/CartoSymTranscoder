@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cartosym_transcoder.codecs.maplibre._filter import (
+from pycartosym.codecs.maplibre._filter import (
     filter_to_selector,
     selector_to_filter,
 )

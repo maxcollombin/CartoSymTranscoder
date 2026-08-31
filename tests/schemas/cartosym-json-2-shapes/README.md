@@ -9,7 +9,7 @@ Used as the **authoritative reference** for the shape of the Part 2
 concepts the codecs map onto (`models/symbolizers.py` — `ShapeOutline`,
 `ClosedShape`, `CircleGraphic`; the MapLibre `circle` mapping). It is
 **not currently wired into runtime validation**: the package's runtime
-schema is the Part 1 `src/cartosym_transcoder/schemas/CartoSym-JSON.schema.json`.
+schema is the Part 1 `src/pycartosym/schemas/CartoSym-JSON.schema.json`.
 
 ## Provenance
 

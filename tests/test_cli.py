@@ -14,7 +14,7 @@ EXAMPLES = ROOT / "examples"
 
 def run(*argv: str, **kw) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-m", "cartosym_transcoder.cli", *argv],
+        [sys.executable, "-m", "pycartosym.cli", *argv],
         cwd=ROOT,
         capture_output=True,
         text=True,
