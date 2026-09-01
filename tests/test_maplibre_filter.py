@@ -245,3 +245,69 @@ def test_strip_datalayer_id_keeps_and_with_several_survivors():
             {"op": ">", "args": [{"property": "n"}, 1]},
         ],
     }
+
+
+def test_selector_to_filter_between():
+    """No single MapLibre filter primitive for ``between`` — it decomposes
+    into an ``all`` of the two boundary comparisons.
+    """
+    selector = {"op": "between", "args": [{"property": "Population"}, 1000, 5000]}
+    assert selector_to_filter(selector) == [
+        "all",
+        [">=", ["get", "Population"], 1000],
+        ["<=", ["get", "Population"], 5000],
+    ]
+
+
+def test_selector_to_filter_not_between():
+    selector = {
+        "op": "not",
+        "args": [{"op": "between", "args": [{"property": "n"}, 1, 5]}],
+    }
+    assert selector_to_filter(selector) == [
+        "!",
+        ["all", [">=", ["get", "n"], 1], ["<=", ["get", "n"], 5]],
+    ]
+
+
+def test_selector_to_filter_between_round_trips_as_and_of_comparisons():
+    """The decomposed ``all``/``>=``/``<=`` filter reads back as an
+    equivalent ``and``-of-two-comparisons selector — not reconstructed as
+    ``between`` (no MapLibre primitive marks it as one), which is fine:
+    semantically equivalent, just a different (already-supported) shape.
+    """
+    mb_filter = selector_to_filter({"op": "between", "args": [{"property": "n"}, 1, 5]})
+    assert filter_to_selector(mb_filter) == {
+        "op": "and",
+        "args": [
+            {"op": ">=", "args": [{"property": "n"}, 1]},
+            {"op": "<=", "args": [{"property": "n"}, 5]},
+        ],
+    }
+
+
+def test_selector_to_filter_like_raises():
+    selector = {"op": "like", "args": [{"property": "Name"}, "%park%"]}
+    with pytest.raises(NotImplementedError):
+        selector_to_filter(selector)
+
+
+@pytest.mark.parametrize("spelling", ["isNull", "isnull", "ISNULL"])
+def test_selector_to_filter_isnull_is_case_insensitive(spelling):
+    """The SLD reader emits lowercase ``isnull`` for ``PropertyIsNull``
+    (``codecs/sld/_filter.py``, itself case-insensitive on the way back
+    to SLD/SE XML) while this codec's own selectors spell it ``isNull`` —
+    ``StylingRule.selector`` has no fixed op casing to enforce, so both
+    must be accepted.
+    """
+    selector = {"op": spelling, "args": [{"property": "name"}]}
+    assert selector_to_filter(selector) == ["!", ["has", "name"]]
+
+
+@pytest.mark.parametrize("spelling", ["isNull", "isnull"])
+def test_selector_to_filter_not_isnull_is_case_insensitive(spelling):
+    selector = {
+        "op": "not",
+        "args": [{"op": spelling, "args": [{"property": "name"}]}],
+    }
+    assert selector_to_filter(selector) == ["has", "name"]

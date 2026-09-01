@@ -29,6 +29,20 @@ rule was routed to layers, see :mod:`.writer`), and ``geometry-type``
 happens to be MapLibre's own faithful equivalent (see
 :func:`_geometry_dimensions_filter_conjunct`). ``$type`` and a bare
 ``geometry-type`` compared with anything else still raise — no mapping.
+
+A selector ``between`` predicate (``{"op": "between", "args": [prop, lo,
+hi]}``) has no single MapLibre filter primitive, so it decomposes into
+``["all", [">=", …, lo], ["<=", …, hi]]`` — two ordinary comparisons a
+reader already folds back into an equivalent (if differently-shaped)
+``and``-of-two-comparisons selector, rather than reconstructing
+``between`` itself. A ``like``/``ilike`` predicate always raises —
+MapLibre filters (legacy or expression form) have no SQL
+``LIKE``/wildcard string-matching operator, a permanent gap rather than
+a missing wire-up. ``isNull`` op comparisons are matched
+case-insensitively (see :func:`_is_op`): this codec's own selectors
+spell it ``isNull``, but the SLD reader emits lowercase ``isnull`` for
+``PropertyIsNull`` (`StylingRule.selector` has no fixed op casing to
+enforce), and both must be accepted here.
 """
 
 from __future__ import annotations
@@ -58,6 +72,20 @@ _SPECIAL_KEYS = {"$type", "$id"}
 _GEOMETRY_TYPE_BY_DIMENSION = {0: "Point", 1: "LineString", 2: "Polygon"}
 _DIMENSION_BY_GEOMETRY_TYPE = {v: k for k, v in _GEOMETRY_TYPE_BY_DIMENSION.items()}
 _FEATURES_GEOMETRY_DIMENSIONS_SYSID = "dataLayer.featuresGeometryDimensions"
+
+
+def _is_op(op: Any, name: str) -> bool:
+    """Compare a selector ``op`` to *name* case-insensitively.
+
+    The CQL2 model's own convention capitalises ``isNull``, and this
+    codec's own :func:`filter_to_selector` emits that spelling — but the
+    SLD reader (``codecs/sld/_filter.py``) always emits lowercase
+    ``isnull`` for ``PropertyIsNull`` (itself case-insensitive on the way
+    back out to SLD/SE XML). ``StylingRule.selector`` has no fixed op
+    casing to enforce (a plain ``dict[str, Any]``, see
+    ``models/styles.py``), so consuming it here must tolerate either.
+    """
+    return isinstance(op, str) and op.lower() == name.lower()
 
 
 # ── MapLibre filter → selector ────────────────────────────────────────────
@@ -283,7 +311,7 @@ def selector_to_filter(selector: Any) -> list[Any]:
         return ["any", *[selector_to_filter(a) for a in args]]
     if op == "not":
         (inner,) = args
-        if isinstance(inner, dict) and inner.get("op") == "isNull":
+        if isinstance(inner, dict) and _is_op(inner.get("op"), "isNull"):
             # ¬(k is null)  ==  "feature has k"
             return ["has", _property_name(inner["args"][0])]
         if isinstance(inner, dict) and inner.get("op") == "in":
@@ -298,8 +326,18 @@ def selector_to_filter(selector: Any) -> list[Any]:
     if op == "in":
         prop, values = args
         return ["in", ["get", _property_name(prop)], ["literal", list(values)]]
-    if op == "isNull":
+    if _is_op(op, "isNull"):
         return ["!", ["has", _property_name(args[0])]]
+    if op == "between":
+        prop, low, high = args
+        target = ["get", _property_name(prop)]
+        return ["all", [">=", target, low], ["<=", target, high]]
+    if _is_op(op, "like"):
+        raise NotImplementedError(
+            "selector operator 'like' → MapLibre filter is not supported — "
+            "MapLibre filters have no SQL LIKE / wildcard string-matching "
+            "operator (legacy or expression form)"
+        )
 
     raise NotImplementedError(
         f"selector operator {op!r} → MapLibre filter is not supported"
