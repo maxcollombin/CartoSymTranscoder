@@ -974,6 +974,101 @@ def test_icon_marker_becomes_a_symbol_layer():
     assert_maplibre_valid(out)
 
 
+@pytest.mark.parametrize(
+    "fx, fy, anchor",
+    [
+        (0, 0, "bottom-left"),
+        (50, 0, "bottom"),
+        (100, 0, "bottom-right"),
+        (0, 50, "left"),
+        (50, 50, "center"),
+        (100, 50, "right"),
+        (0, 100, "top-left"),
+        (50, 100, "top"),
+        (100, 100, "top-right"),
+    ],
+)
+def test_icon_marker_hot_spot_maps_to_icon_anchor(fx, fy, anchor):
+    """``hotSpot`` is a fraction within the image, (0,0) lower-left/(1,1)
+    upper-right (the ``se:AnchorPoint`` convention) — that lines up
+    unflipped with which of the 9 MapLibre ``icon-anchor`` keywords
+    describes the same corner/edge/center of the icon.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "poi",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"id": "dot.sdf"},
+                                    "hotSpot": [{"pc": fx}, {"pc": fy}],
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["layout"]["icon-anchor"] == anchor
+    assert_maplibre_valid(out)
+
+
+def test_icon_marker_hot_spot_off_grid_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "poi",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"id": "dot.sdf"},
+                                    "hotSpot": [{"pc": 30}, {"pc": 50}],
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_icon_marker_hot_spot_non_percent_unit_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "poi",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"id": "dot.sdf"},
+                                    "hotSpot": [{"px": 5}, {"px": 5}],
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
 def test_label_and_icon_marker_share_one_symbol_layer():
     style = Style.from_dict(
         {

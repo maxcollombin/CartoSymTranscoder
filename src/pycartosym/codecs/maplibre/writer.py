@@ -506,10 +506,86 @@ def _text_layer_layout_paint(text_el: Any) -> tuple[dict[str, Any], dict[str, An
     return layout, paint
 
 
+# hotSpot fraction (fx, fy) -> MapLibre icon-anchor, keyed on the same
+# {0, 0.5, 1} grid as MapLibre's 9 anchor keywords. See
+# :func:`_hot_spot_to_icon_anchor` for the fraction's own (0,0)=lower-left/
+# (1,1)=upper-right convention and why it lines up with icon-anchor
+# unflipped.
+_ANCHOR_BY_FRACTION: dict[tuple[float, float], str] = {
+    (0.0, 0.0): "bottom-left",
+    (0.5, 0.0): "bottom",
+    (1.0, 0.0): "bottom-right",
+    (0.0, 0.5): "left",
+    (0.5, 0.5): "center",
+    (1.0, 0.5): "right",
+    (0.0, 1.0): "top-left",
+    (0.5, 1.0): "top",
+    (1.0, 1.0): "top-right",
+}
+
+
+def _hot_spot_fraction(component: Any) -> float | None:
+    """Read one ``hotSpot`` ``[x, y]`` component as a 0..1 fraction.
+
+    Only a ``pc`` value is understood as *percent* — the same
+    restriction (and the same overload of ``pc``, formally "picas" in
+    :class:`...models.types.UnitType`, as percent specifically for
+    ``hotSpot``/``se:AnchorPoint``) the SLD codec's own mapping already
+    applies (``codecs/sld/_symbolizer.py::_percent_to_fraction``).
+    Anything else (a different unit, a bare number, an expression)
+    returns ``None`` for the caller to reject — a graphic element inside
+    ``Marker.elements``/``Label.elements`` stays untyped, so this is
+    almost always a raw ``{"pc": N}`` dict rather than a validated
+    ``UnitValue``, but both are accepted.
+    """
+    if isinstance(component, dict) and set(component) == {"pc"}:
+        return float(component["pc"]) / 100
+    if isinstance(component, UnitValue) and component.unit == UnitType.PICAS:
+        return component.value / 100
+    return None
+
+
+def _hot_spot_to_icon_anchor(hot_spot: Any, ctx: str) -> str:
+    """Turn a resolved ``Image.hotSpot`` into a MapLibre ``icon-anchor``.
+
+    ``hotSpot`` is a fraction within the image — (0,0) is its lower-left
+    corner, (1,1) its upper-right (the ``se:AnchorPoint`` convention this
+    codebase's SLD reader already implements). That lines up, unflipped,
+    with MapLibre's ``icon-anchor``: both describe *which part of the
+    icon sits at the anchor point* (fy=0/"lower" edge of the image at
+    the point ⇔ icon-anchor ``"bottom"``, not its opposite). Only the 9
+    standard positions (0/50/100% on each axis) have an ``icon-anchor``
+    keyword; anything else raises rather than approximating via
+    ``icon-offset`` — that property scales by ``icon-size`` to get a
+    *pixel* offset, and this codec only ever has a URI for the image,
+    never its actual pixel dimensions to convert an arbitrary fraction
+    against.
+    """
+    if isinstance(hot_spot, (list, tuple)) and len(hot_spot) == 2:
+        fx, fy = _hot_spot_fraction(hot_spot[0]), _hot_spot_fraction(hot_spot[1])
+    elif isinstance(hot_spot, dict) and "x" in hot_spot and "y" in hot_spot:
+        fx, fy = _hot_spot_fraction(hot_spot["x"]), _hot_spot_fraction(hot_spot["y"])
+    else:
+        fx = fy = None
+    if fx is None or fy is None:
+        raise NotImplementedError(
+            f"{ctx} {hot_spot!r} is not a pc (percent) UnitPoint — has no "
+            "MapLibre mapping in this codec"
+        )
+    anchor = _ANCHOR_BY_FRACTION.get((fx, fy))
+    if anchor is None:
+        raise NotImplementedError(
+            f"{ctx} ({fx * 100:g}%, {fy * 100:g}%) is not one of the 9 "
+            "standard anchor positions (0/50/100% on each axis) — "
+            "MapLibre's icon-anchor only has those, and icon-offset can't "
+            "convert an arbitrary fraction without the image's actual "
+            "pixel dimensions"
+        )
+    return anchor
+
+
 def _icon_layer_layout_paint(image_el: Any) -> tuple[dict[str, Any], dict[str, Any]]:
     for attr in (
-        "hotSpot",
-        "hot_spot",
         "tint",
         "blackTint",
         "black_tint",
@@ -531,6 +607,11 @@ def _icon_layer_layout_paint(image_el: Any) -> tuple[dict[str, Any], dict[str, A
     opacity = _attr(image_el, "opacity")
     if opacity is not None:
         paint["icon-opacity"] = _literal(opacity, "Image.opacity")
+    hot_spot = _attr(image_el, "hotSpot")
+    if hot_spot is None:
+        hot_spot = _attr(image_el, "hot_spot")
+    if hot_spot is not None:
+        layout["icon-anchor"] = _hot_spot_to_icon_anchor(hot_spot, "Image.hotSpot")
     return layout, paint
 
 
