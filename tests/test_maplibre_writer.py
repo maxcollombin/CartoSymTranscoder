@@ -111,7 +111,7 @@ def test_stroke_dash_pattern_maps_to_line_dasharray_scaled_by_width():
                     "symbolizer": {
                         "stroke": {
                             "width": {"px": 4.0},
-                            "dashPattern": {"pattern": [4, 2]},
+                            "dashPattern": [4, 2],
                         }
                     },
                 }
@@ -132,7 +132,7 @@ def test_stroke_dash_pattern_without_width_is_rejected():
                     "symbolizer": {
                         "stroke": {
                             "color": "#ff0000",
-                            "dashPattern": {"pattern": [4, 2]},
+                            "dashPattern": [4, 2],
                         }
                     },
                 }
@@ -181,7 +181,7 @@ def test_stroke_dash_pattern_inlined_as_fill_outline_is_rejected():
                         "fill": {"color": "#00ff00"},
                         "stroke": {
                             "color": "#000000",
-                            "dashPattern": {"pattern": [4, 2]},
+                            "dashPattern": [4, 2],
                         },
                     },
                 }

@@ -144,6 +144,39 @@ class TestCliSmokeTest:
         assert b"PolygonSymbolizer" in sld_out.read_bytes()
 
 
+class TestDashPatternSchemaValid:
+    """``stroke.dashPattern`` is a bare array per the schema, not
+    ``{"pattern": [...]}`` — a real bug found while retesting the SLD
+    corpus against the JSON schema (fixed alongside PR #64).
+    """
+
+    def test_sld_dasharray_reads_as_bare_array(self, tmp_path):
+        src = ROOT / "examples" / "sld" / "2-line-stroke-dash.sld"
+        csjson_out = tmp_path / "out.cs.json"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pycartosym.cli",
+                str(src),
+                "-o",
+                str(csjson_out),
+                "--force",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+
+        data = json.loads(csjson_out.read_text(encoding="utf-8"))
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        jsonschema_validate(instance=data, schema=schema)
+        dash_pattern = data["stylingRules"][0]["symbolizer"]["stroke"]["dashPattern"]
+        assert dash_pattern == [4, 2]
+
+
 # examples/*.cscss that convert cleanly all the way to SLD/SE (verified
 # empirically, 2026-09-01) — the other 11 hit an already-documented gap
 # partway through (dataLayer.type/keywords/singleChannel expressions/
