@@ -254,7 +254,7 @@ class UnitPoint(BaseCartoSymModel):
 
 
 class Resource(BaseCartoSymModel):
-    """Resource reference (file, URL, etc.)"""
+    """Resource reference (file, URL, etc.)."""
 
     uri: str | None = Field(None, description="Resource URI")
     path: str | None = Field(None, description="File path")

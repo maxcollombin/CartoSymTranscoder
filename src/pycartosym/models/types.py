@@ -266,7 +266,7 @@ class UnitValue(BaseModel):
         return v
 
     def __str__(self) -> str:
-        """String representation like '10px' or '2.5mm'."""
+        """Return the string representation like '10px' or '2.5mm'."""
         return f"{self.value}{self.unit.value}"
 
     def to_dict(self) -> dict:
@@ -305,7 +305,7 @@ class Angle(BaseModel):
     unit: AngleUnit = Field(AngleUnit.DEGREES, description="Angle unit")
 
     def __str__(self) -> str:
-        """String representation like '45deg' or '1.57rad'."""
+        """Return the string representation like '45deg' or '1.57rad'."""
         return f"{self.value}{self.unit.value}"
 
 

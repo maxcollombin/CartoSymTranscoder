@@ -73,7 +73,7 @@ _FLIP_OP = {"<": ">", "<=": ">=", ">": "<", ">=": "<=", "=": "=", "!=": "!="}
 
 
 def scale_denominator_from_zoom(zoom: float) -> float:
-    """The Web Mercator scale denominator for MapLibre zoom level *zoom*."""
+    """Return the Web Mercator scale denominator for MapLibre zoom level *zoom*."""
     return _EARTH_CIRCUMFERENCE_M / (_TILE_PIXELS * _PIXEL_SIZE_M * 2**zoom)
 
 
@@ -181,7 +181,7 @@ _STRICT_TO_FILTER_OP = {"<": ">", ">=": "<=", "=": "==", "!=": "!=", "<>": "!="}
 
 
 def zoom_filter_conjunct(expr: Any) -> list[Any] | None:
-    """A ``viz.sd`` comparison with no ``minzoom``/``maxzoom`` shape.
+    """Match a ``viz.sd`` comparison with no ``minzoom``/``maxzoom`` shape.
 
     Returned as a MapLibre ``filter`` conjunct on the ``["zoom"]``
     expression instead. See the module docstring for why

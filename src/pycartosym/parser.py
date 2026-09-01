@@ -583,11 +583,11 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         return []
 
     def enterStyleSheet(self, ctx):
-        """Called when entering a stylesheet rule."""
+        """Handle entering a stylesheet rule."""
         self.stylesheet = StyleSheet()
 
     def enterMetadata(self, ctx):
-        """Called when entering metadata."""
+        """Handle entering metadata."""
         if ctx.IDENTIFIER() and ctx.CHARACTER_LITERAL():
             key = ctx.IDENTIFIER().getText()
             # Remove outer quotes from character literal
@@ -608,7 +608,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             self.stylesheet.metadata.append(metadata)
 
     def enterVariableDef(self, ctx):
-        """Called when entering a variable definition (@var = expr;)."""
+        """Handle entering a variable definition (@var = expr;)."""
         from .ast import Variable as AstVariable
 
         name = None
@@ -646,7 +646,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             )
 
     def enterStylingRule(self, ctx):
-        """Called when entering a styling rule."""
+        """Handle entering a styling rule."""
         if self.current_rule:
             self.rule_stack.append(
                 {
@@ -777,7 +777,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             self.current_selectors = []
 
     def enterSelector(self, ctx):
-        """Called when entering a selector."""
+        """Handle entering a selector."""
         # Create a new selector
         selector = Selector()
 
@@ -821,7 +821,7 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         self.current_selectors.append(selector)
 
     def enterPropertyAssignment(self, ctx):
-        """Called when entering a property assignment."""
+        """Handle entering a property assignment."""
         if ctx.lhValue() and ctx.expression():
             prop_name = ctx.lhValue().getText()
             expr_ctx = ctx.expression()

@@ -190,7 +190,7 @@ class SldWriter(CodecWriter):
         return fts
 
     def _rule_has_raster(self, rule: StylingRule) -> bool:
-        """True if *rule* or any of its nested rules carries raster fields."""
+        """Return True if *rule* or any of its nested rules carries raster fields."""
         if rule.symbolizer is not None and has_raster_fields(rule.symbolizer):
             return True
         return any(self._rule_has_raster(n) for n in rule.nested_rules or [])

@@ -95,7 +95,7 @@ def maplibre_expr_to_value(value: Any, prop: str) -> Any:
 
 
 def _match_label(label: Any, prop: str) -> Any:
-    """A ``match`` label: a literal, or a literal array of literals."""
+    """Return a ``match`` label: a literal, or a literal array of literals."""
     if isinstance(label, list):
         if not all(isinstance(item, _SCALAR) for item in label):
             raise NotImplementedError(
