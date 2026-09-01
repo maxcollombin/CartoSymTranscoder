@@ -6,13 +6,12 @@ A Python package for lossless transcoding between [CartoSym CSS](https://github.
 
 ## Supported Formats
 
-| Format | Extension | Standard | Read | Write |
-| --- | --- | --- | --- | --- |
-| CartoSym-CSS | `.cscss` | OGC Style & Symbology | yes | yes |
-| CS-JSON | `.cs.json` | OGC Style & Symbology | yes | yes |
-| SLD/SE (1.1.0, 1.0.0) | `.sld` | OGC | yes | yes |
-| SLD 1.0.0 with GeoServer `<VendorOption>` pass-through | `.sld` | GeoServer vendor extension, not OGC | yes | yes |
-| MapLibre Style | `.json` | MapLibre/Mapbox de facto spec, not OGC | yes | yes |
+CartoSym-CSS (`.cscss`) and CS-JSON (`.cs.json`) are the two OGC Style &
+Symbology encodings this package reads and writes losslessly. SLD/SE
+(`.sld`, 1.1.0 and 1.0.0, including SLD 1.0.0 with GeoServer
+`<VendorOption>` pass-through) is also OGC. MapLibre Style (`.json`) is
+the MapLibre/Mapbox de facto spec, not OGC, supported as a practical
+interoperability target. All are read and written.
 
 Each codec is covered for the constructs the target format actually
 expresses (a symbolizer or property with no equivalent on the other side
