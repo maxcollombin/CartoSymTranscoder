@@ -915,10 +915,15 @@ def test_label_text_becomes_a_symbol_layer():
 
 
 def test_font_size_unwraps_px_unit_dict():
-    """``Font.size`` as ``{"px": N}`` (what the SLD reader produces) unwraps
+    """``Font.size`` as ``{"px": N}`` unwraps to a bare number, same as
 
-    to a bare number, same as ``stroke.width``/``Circle.radius``/``Dot.size``
-    — regression test for a bug found retesting the SLD→MapLibre corpus.
+    ``stroke.width``/``Circle.radius``/``Dot.size`` — regression test for a
+    bug found retesting the SLD→MapLibre corpus. The SLD reader itself no
+    longer produces this shape (fixed at the source — it now emits the
+    schema-correct bare number, matching ``font.size``'s ``numericExpression``
+    type), but this input shape remains valid at the Pydantic model level
+    (``FlexibleSize`` accepts a ``UnitValue``/dict), so the defensive unwrap
+    stays worth covering directly.
     """
     style = Style.from_dict(
         {
