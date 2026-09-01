@@ -9,7 +9,6 @@ from __future__ import annotations
 from .base import AlterMixin, BaseCartoSymModel, CommentMixin
 from .styles import Metadata, Style, StylingRule
 from .symbolizers import (
-    DashPattern,
     DotPattern,
     Fill,
     Hatch,
@@ -91,7 +90,6 @@ __all__ = [
     "Marker",
     "Label",
     "StrokeStyling",
-    "DashPattern",
     "Hatch",
     "DotPattern",
     "Stipple",

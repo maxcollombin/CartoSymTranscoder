@@ -118,20 +118,6 @@ class StrokeStyling(BaseCartoSymModel, AlterMixin):
         return parse_flexible_unit_value(v)
 
 
-class DashPattern(BaseCartoSymModel):
-    """Dash pattern for strokes.
-
-    Can be either an array of integers or an indexed value.
-    """
-
-    # This will be a Union type later, for now simplified
-    pattern: list[int] | None = Field(
-        None, description="Dash pattern as array of integers"
-    )
-    index: int | None = Field(None, description="Index for indexed dash patterns")
-    value: int | None = Field(None, description="Value for indexed dash patterns")
-
-
 class Stroke(BaseCartoSymModel, AlterMixin):
     """Stroke symbolizer for lines and outlines.
 
@@ -150,8 +136,13 @@ class Stroke(BaseCartoSymModel, AlterMixin):
     center_line: StrokeStyling | None = Field(
         None, alias="centerLine", description="Center line styling"
     )
-    dash_pattern: DashPattern | None = Field(
-        None, alias="dashPattern", description="Dash pattern"
+    dash_pattern: list[int] | dict[str, int] | None = Field(
+        None,
+        alias="dashPattern",
+        description=(
+            "Dash pattern: array of integers, or an indexed cascade "
+            "override {index, value}"
+        ),
     )
     pattern: dict[str, Any] | None = Field(
         None, description="Stroke pattern graphic (temporary)"

@@ -29,7 +29,7 @@ class TestReadBasicSymbolizers:
         sym = style.styling_rules[0].symbolizer
         assert sym.fill is None
         assert sym.stroke.color == [169, 169, 169]
-        assert sym.stroke.dash_pattern.pattern == [4, 2]
+        assert sym.stroke.dash_pattern == [4, 2]
 
     def test_point_circle_mark(self):
         style = _read("3-point-dot-mark.sld")

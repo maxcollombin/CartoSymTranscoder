@@ -50,7 +50,7 @@ than spawning a separate line layer — so ``stroke.dashPattern`` (see
 below), which needs a line layer of its own to attach ``line-dasharray``
 to, always raises on that inlined path.
 
-``stroke.dashPattern.pattern`` maps to ``line-dasharray`` on a ``line``
+``stroke.dashPattern`` maps to ``line-dasharray`` on a ``line``
 layer, each length divided by ``stroke.width`` in px — CartoSym/SLD dash
 lengths are absolute px, MapLibre's are multiples of the line's own
 width (see :func:`_dash_array`). An ``{index, value}`` cascade-override
@@ -176,7 +176,7 @@ def _reject_stroke_extras(stroke: Any, ctx: str) -> None:
 
 
 def _dash_array(stroke: Any, ctx: str) -> list[float] | None:
-    """Turn a resolved ``stroke.dashPattern.pattern`` into a ``line-dasharray``.
+    """Turn a resolved ``stroke.dashPattern`` array into a ``line-dasharray``.
 
     CartoSym/SLD dash lengths are absolute (the same px convention as
     ``stroke.width``); MapLibre's ``line-dasharray`` is instead in
@@ -196,13 +196,13 @@ def _dash_array(stroke: Any, ctx: str) -> list[float] | None:
     dash_pattern = getattr(stroke, "dash_pattern", None)
     if dash_pattern is None:
         return None
-    pattern = getattr(dash_pattern, "pattern", None)
-    if pattern is None:
+    if not isinstance(dash_pattern, list):
         raise NotImplementedError(
-            f"{ctx}: stroke.dashPattern with no resolved 'pattern' array "
-            "(an unflattened index/value cascade-override fragment?) has "
+            f"{ctx}: stroke.dashPattern with no resolved array (an "
+            "unflattened index/value cascade-override fragment?) has "
             "no MapLibre mapping in this codec"
         )
+    pattern = dash_pattern
     width_px = (
         _px_number(stroke.width, "stroke.width") if stroke.width is not None else None
     )

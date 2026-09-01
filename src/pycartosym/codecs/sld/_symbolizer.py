@@ -358,9 +358,14 @@ def _build_stroke_element(
     if combined is not None:
         d.param(el, "stroke-opacity", combined)
     if dash_pattern is not None:
-        pattern = _g(dash_pattern, "pattern")
-        if pattern:
-            d.param(el, "stroke-dasharray", " ".join(str(int(p)) for p in pattern))
+        if not isinstance(dash_pattern, list):
+            raise NotImplementedError(
+                "Stroke.dashPattern with no resolved array (an unflattened "
+                "index/value cascade-override fragment?) has no SLD/SE "
+                "mapping in this codec"
+            )
+        if dash_pattern:
+            d.param(el, "stroke-dasharray", " ".join(str(int(p)) for p in dash_pattern))
     return el
 
 
@@ -994,7 +999,7 @@ def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
     if opacity is not None:
         result["opacity"] = parse_opacity(opacity)
     if dasharray is not None:
-        result["dashPattern"] = {"pattern": [int(float(p)) for p in dasharray.split()]}
+        result["dashPattern"] = [int(float(p)) for p in dasharray.split()]
     return result
 
 
