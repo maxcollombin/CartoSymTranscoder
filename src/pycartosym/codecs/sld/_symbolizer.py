@@ -217,7 +217,7 @@ def _opacity_float(value: Any) -> float | None:
 
 
 def _combine_opacity(base: float | None, own: Any) -> str | None:
-    """Formatted product of a symbolizer-level *base* and an element's *own* opacity.
+    """Format the product of a symbolizer-level *base* and an element's *own* opacity.
 
     SE 1.1.0 has no whole-symbolizer opacity — ``Symbolizer.opacity`` is
     folded into each leaf opacity the symbolizer emits (``fill-opacity``,
@@ -593,7 +593,7 @@ def _build_point_symbolizer(
 def _build_shape_outline_element(
     d: SldDialect, outline: Any, base_opacity: float | None = None
 ) -> etree._Element:
-    """A ``2-shapes`` ``shapeOutline`` -> ``se:Stroke`` (child of ``se:Mark``).
+    """Turn a ``2-shapes`` ``shapeOutline`` into ``se:Stroke`` (child of ``se:Mark``).
 
     ``shapeOutline`` is not a ``1-core`` ``Stroke``: it carries only
     ``color`` / ``thickness`` / ``opacity`` (no casing, centre line or
@@ -620,7 +620,7 @@ def _build_shape_outline_element(
 def _build_circle_symbolizer(
     d: SldDialect, circle: Any, base_opacity: float | None = None
 ) -> etree._Element:
-    """A ``2-shapes`` ``Circle`` element -> ``se:PointSymbolizer`` / ``se:Mark``.
+    """Turn a ``2-shapes`` ``Circle`` element into ``se:PointSymbolizer`` / ``se:Mark``.
 
     ``fill`` -> ``se:Mark/se:Fill``; ``outline`` -> ``se:Mark/se:Stroke``;
     ``radius`` -> ``se:Graphic/se:Size`` **doubled** (``se:Size`` is a

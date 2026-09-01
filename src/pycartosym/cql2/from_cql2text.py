@@ -524,7 +524,7 @@ class Cql2TextTreeWalker:
 
     @staticmethod
     def function_call(ctx) -> _ExprNode:
-        """``IDENTIFIER '(' argumentList? ')'`` -> the matching CQL2 model.
+        """Turn ``IDENTIFIER '(' argumentList? ')'`` into the matching CQL2 model.
 
         Only names that are *not* dedicated grammar keywords reach this
         rule (spatial/temporal/array predicates, WKT tags, CASEI/ACCENTI,

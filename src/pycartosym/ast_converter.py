@@ -1200,7 +1200,7 @@ class AstToPydanticConverter:
 
 
 def convert_ast_to_pydantic(ast_stylesheet: AstStyleSheet) -> Style:
-    """Convenience function to convert AST StyleSheet to Pydantic Style.
+    """Convert an AST StyleSheet to a Pydantic Style (convenience wrapper).
 
     Args:
         ast_stylesheet: ANTLR-generated AST stylesheet

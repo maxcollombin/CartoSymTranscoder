@@ -95,13 +95,12 @@ extend-exclude = ["src/pycartosym/grammar/generated"]
 # >=3.10 floor — PEP 604/585 syntax). FIX/TD: no stray TODO/FIXME/HACK
 # left in the tree — a known gap raises NotImplementedError with an inline
 # reason instead. D: pydocstyle (google convention); the undocumented-*
-# rules and D205 are enforced in `src/` only (see per-file-ignores).
-# Still staged in as a follow-up: D400 (trailing period) / D401
-# (imperative mood) / D403 (first-word case) — a naive autofix mangles
-# identifiers like `stylingRuleName`, so these need a manual pass.
+# rules, D205, and D400/D401/D403/D415 (summary-line punctuation/mood/
+# case) are enforced in `src/` only (see per-file-ignores) — fixed by a
+# manual pass, not an autofix, since a naive one mangles identifiers like
+# `stylingRuleName`.
 # ERA (commented-out code) is a separate follow-up.
 select = ["E", "F", "W", "I", "UP", "FIX", "TD", "D"]
-ignore = ["D400", "D401", "D403", "D415"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -111,6 +110,7 @@ convention = "google"
 # summary-line layout carry little there.
 "tests/**" = [
     "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "D205",
+    "D400", "D401", "D403", "D415",
 ]
 
 [tool.ruff.lint.isort]

@@ -128,7 +128,7 @@ def _literal(value: Any, prop: str) -> Any:
 
 
 def _rgb_to_hex(rgb: list[int]) -> str:
-    """A 0-255 RGB(A) triple/quad as a MapLibre-compatible hex colour string."""
+    """Render a 0-255 RGB(A) triple/quad as a MapLibre-compatible hex colour string."""
     hex_str = "#" + "".join(f"{c:02x}" for c in rgb[:3])
     if len(rgb) == 4:
         hex_str += f"{rgb[3]:02x}"
@@ -214,7 +214,7 @@ def _vendor_layer_type(sym: Any) -> str | None:
 
 
 def _background_layer(layer_id: str, fill: Any, stroke: Any) -> dict[str, Any]:
-    """A ``Fill`` symbolizer tagged ``vendor.maplibre.layer-type: background``.
+    """Turn a tagged ``vendor.maplibre.layer-type: background`` ``Fill`` into a layer.
 
     See :func:`._layers._background_symbolizer` for why the tag exists: a
     ``background`` layer's paint is structurally identical to a ``fill``
@@ -265,7 +265,7 @@ def _attr(obj: Any, key: str) -> Any:
 
 
 def _circle_paint_from_circle(circle: Any) -> dict[str, Any]:
-    """A ``2-shapes`` ``Circle`` element (fill+outline+radius) as ``circle`` paint."""
+    """Turn a ``2-shapes`` ``Circle`` element into ``circle`` paint."""
     paint: dict[str, Any] = {}
     fill = _attr(circle, "fill")
     if fill is not None and _attr(fill, "color") is not None:
@@ -297,7 +297,7 @@ def _circle_paint_from_circle(circle: Any) -> dict[str, Any]:
 
 
 def _circle_paint_from_dot(dot: Any) -> dict[str, Any]:
-    """A ``1-core`` ``Dot`` element (``color``+``size``) as ``circle`` paint.
+    """Turn a ``1-core`` ``Dot`` element (``color``+``size``) into ``circle`` paint.
 
     Matches the SLD/SE codec's own ``Dot`` mapping
     (``_build_point_symbolizer``): ``color`` is drawn as the mark's fill —
@@ -339,7 +339,7 @@ def _circle_paint_from_dot(dot: Any) -> dict[str, Any]:
 
 
 def _circle_layer_from_element(layer_id: str, el: Any) -> dict[str, Any]:
-    """A single ``Circle``/``Dot`` marker/label element as a ``circle`` layer."""
+    """Turn a single ``Circle``/``Dot`` marker/label element into a ``circle`` layer."""
     el_type = _attr(el, "type")
     if el_type == "Circle":
         paint = _circle_paint_from_circle(el)
@@ -354,7 +354,7 @@ def _circle_layer_from_element(layer_id: str, el: Any) -> dict[str, Any]:
 
 
 def _position_axis_number(value: Any, ctx: str) -> float:
-    """A ``Graphic.position`` axis as a bare number for ``text-offset``.
+    """Return a ``Graphic.position`` axis as a bare number for ``text-offset``.
 
     ``UnitPoint.x``/``.y`` is ``UnitValue | str | float`` once validated;
     only a bare number round-trips (see the reader's matching comment —
@@ -470,7 +470,7 @@ def _icon_layer_layout_paint(image_el: Any) -> tuple[dict[str, Any], dict[str, A
 
 
 def _symbol_layer(layer_id: str, text_el: Any, image_el: Any) -> dict[str, Any]:
-    """A single ``Text`` and/or ``Image`` element as a ``symbol`` layer.
+    """Turn a single ``Text`` and/or ``Image`` element into a ``symbol`` layer.
 
     *text_el*/*image_el* are individual marker/label graphic elements, not
     the ``Label``/``Marker`` container — either may be ``None``. The two
@@ -553,7 +553,7 @@ def _flatten_rules(styling_rules: list[StylingRule]) -> list[StylingRule]:
 
 
 def _is_empty_of_paint(rule: Any) -> bool:
-    """True if *rule* draws nothing and is safe to drop from ``layers``.
+    """Return True if *rule* draws nothing and is safe to drop from ``layers``.
 
     Mirrors the SLD/SE writer's policy for a symbolizer-less rule (no
     symbolizer at all, or only ``visibility``/``opacity``/``zOrder`` —
@@ -612,7 +612,7 @@ def _apply_shared_rule_props(
 
 
 def _elements_list(container: Any) -> list[Any]:
-    """The resolved element list of a ``Marker``/``Label``, or ``[]`` if absent."""
+    """Return a ``Marker``/``Label``'s resolved element list, or ``[]`` if absent."""
     if container is None:
         return []
     elements = container.elements
@@ -625,7 +625,7 @@ def _elements_list(container: Any) -> list[Any]:
 
 
 def _element_point_spec(el: Any) -> tuple[str, Any]:
-    """A ``(kind, builder)`` pair for one marker/label graphic element.
+    """Return a ``(kind, builder)`` pair for one marker/label graphic element.
 
     Dispatches on the element's own ``type`` — not on whether it came from
     ``marker.elements`` or ``label.elements``, which this codec treats
@@ -712,7 +712,7 @@ def _strip_redundant_datalayer_type(selector: Any, expected_literal: str) -> Any
 
 
 def _raster_layers(layer_id: str, sym: Any) -> list[dict[str, Any]]:
-    """The ``color-relief``/``hillshade`` layer(s) a coverage symbolizer needs.
+    """Return the ``color-relief``/``hillshade`` layer(s) a coverage symbolizer needs.
 
     See :mod:`._raster` for what maps and what is an honest gap.
     """

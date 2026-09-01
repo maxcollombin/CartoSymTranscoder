@@ -164,7 +164,7 @@ class ExpressionParser:
 
     @staticmethod
     def _atom_from_ctx(ctx) -> Any:
-        """Non-binary forms: leaves, parens, unary, conditional, between…
+        """Non-binary forms: leaves, parens, unary, conditional, between, etc.
 
         Dispatches on the grammar's *labelled* alternative context types
         (``PrimaryExprContext``, ``ParenExprContext`` …). Returns ``None``
@@ -768,7 +768,7 @@ class ExpressionParser:
 
     @staticmethod
     def _is_juxtaposition_artifact(walked: Any, text: str) -> bool:
-        """True if *walked* is a bare space-separated tuple, not a real array.
+        """Return True if *walked* is a bare space-separated tuple, not a real array.
 
         The CartoSym-CSS grammar's ``tuple`` rule accepts any run of
         space-separated identifiers/numbers, so CQL2-Text the grammar

@@ -58,7 +58,7 @@ Literal = Callable[[Any, str], Any]
 
 
 def _channel_property_name(channel: Any, ctx: str) -> str:
-    """The field name of a plain ``singleChannel``/``colorChannels`` reference.
+    """Return the field name of a plain ``singleChannel``/``colorChannels`` reference.
 
     Only a bare ``{"property": name}`` maps to MapLibre's ``["elevation"]``
     — a computed band expression has no MapLibre equivalent (see the
@@ -78,7 +78,7 @@ def _channel_property_name(channel: Any, ctx: str) -> str:
 
 
 def _color_map_stops(color_map: Any, literal: Literal) -> list[Any]:
-    """A CartoSym ``colorMap`` (``[[value, color], …]``) as flat interpolate stops."""
+    """Flatten a CartoSym ``colorMap`` into flat interpolate stops."""
     if not isinstance(color_map, list) or not color_map:
         raise NotImplementedError(f"colorMap {color_map!r} is not a supported shape")
     stops: list[Any] = []
@@ -100,7 +100,7 @@ def _color_map_stops(color_map: Any, literal: Literal) -> list[Any]:
 def color_relief_layer(
     layer_id: str, single_channel: Any, color_map: Any, literal: Literal
 ) -> dict[str, Any]:
-    """A ``singleChannel`` + ``colorMap`` pair as a ``color-relief`` layer."""
+    """Turn a ``singleChannel`` + ``colorMap`` pair into a ``color-relief`` layer."""
     _channel_property_name(single_channel, "singleChannel")
     stops = _color_map_stops(color_map, literal)
     return {
@@ -160,5 +160,5 @@ def hillshade_layer(
 
 
 def dem_source() -> dict[str, Any]:
-    """The synthetic ``raster-dem`` source every raster layer here references."""
+    """Return the synthetic ``raster-dem`` source every raster layer here references."""
     return {"type": "raster-dem", "tiles": [_DEM_TILES_URL]}

@@ -103,7 +103,7 @@ def _constant(value: Any, prop: str) -> Any:
 
 
 def _literal_offset(value: Any, prop: str) -> list:
-    """A literal 2-number ``[x, y]`` array for an array-*typed* property.
+    """Build a literal 2-number ``[x, y]`` array for an array-*typed* property.
 
     Unlike a scalar property (where any ``list`` is a MapLibre expression,
     see :func:`_constant`), an array-typed property like ``text-offset``
@@ -178,7 +178,7 @@ def _line_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
 
 
 def _circle_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
-    """A ``circle`` layer → a ``marker`` with a single ``Circle`` element.
+    """Turn a ``circle`` layer into a ``marker`` with a single ``Circle`` element.
 
     A MapLibre circle carries an interior colour, an outline colour/width
     and a radius independently — a filled, outlined, sized circle. The
@@ -215,7 +215,7 @@ def _circle_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
 
 
 def _background_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
-    """A ``background`` layer → a ``Fill`` symbolizer tagged for round-trip.
+    """Turn a ``background`` layer into a ``Fill`` symbolizer tagged for round-trip.
 
     A ``background`` layer paints the whole map viewport — it has no
     ``source``/``source-layer`` and no feature geometry, so there is no
@@ -300,7 +300,7 @@ def _symbol_font(layout: dict[str, Any], paint: dict[str, Any]) -> dict[str, Any
 
 
 def _symbol_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
-    """A ``symbol`` layer → a ``label`` (text) and/or a ``marker`` (icon)."""
+    """Turn a ``symbol`` layer into a ``label`` (text) and/or a ``marker`` (icon)."""
     paint = layer.get("paint", {})
     layout = layer.get("layout", {})
     _reject_unknown(paint, _SYMBOL_PAINT, "symbol")

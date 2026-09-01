@@ -250,14 +250,14 @@ class BoolExpression(BaseExpression, Expression):
 
 
 class AndOrExpression(BoolExpression):
-    """Logical AND/OR expression: {"op": "and|or", "args": [...]}"""
+    """Logical AND/OR expression: {"op": "and|or", "args": [...]}."""
 
     op: Literal["and", "or"]
     args: list[BoolExpression] = Field(min_length=2)
 
 
 class NotExpression(BoolExpression):
-    """Logical NOT expression: {"op": "not", "args": [...]}"""
+    """Logical NOT expression: {"op": "not", "args": [...]}."""
 
     op: Literal["not"] = "not"
     args: list[BoolExpression] = Field(min_length=1, max_length=1)
@@ -271,7 +271,7 @@ class NumericExpression(BaseExpression):
 
 
 class ArithmeticExpression(NumericExpression):
-    """Arithmetic expression: {"op": "+|-|*|/|%|**", "args": [...]}"""
+    """Arithmetic expression: {"op": "+|-|*|/|%|**", "args": [...]}."""
 
     op: Literal["+", "-", "*", "/", "%", "**"]
     args: list[NumericExpression] = Field(min_length=2)
@@ -296,21 +296,21 @@ class ScalarOperands(Expression):
 
 
 class BitwiseLogical(NumericExpression):
-    """Bitwise logical: {"op": "&|||^", "args": [...]}"""
+    """Bitwise logical: {"op": "&|||^", "args": [...]}."""
 
     op: Literal["&", "|", "^"]
     args: list[NumericExpression] = Field(min_length=2)
 
 
 class BitwiseShift(NumericExpression):
-    """Bitwise shift: {"op": "<<|>>", "args": [...]}"""
+    """Bitwise shift: {"op": "<<|>>", "args": [...]}."""
 
     op: Literal["<<", ">>"]
     args: list[NumericExpression] = Field(min_length=2)
 
 
 class BitwiseNot(NumericExpression):
-    """Bitwise NOT: {"op": "~", "args": [...]}"""
+    """Bitwise NOT: {"op": "~", "args": [...]}."""
 
     op: Literal["~"] = "~"
     args: list[NumericExpression] = Field(min_length=1, max_length=1)
@@ -324,35 +324,35 @@ class ComparisonPredicate(BoolExpression):
 
 
 class BinaryComparisonPredicate(ComparisonPredicate):
-    """Binary comparison: {"op": "=|!=|<|<=|>|>=", "args": [...]}"""
+    """Binary comparison: {"op": "=|!=|<|<=|>|>=", "args": [...]}."""
 
     op: Literal["=", "!=", "<", "<=", ">", ">="]
     args: list[NumericExpression | ScalarExpression] = Field(min_length=2, max_length=2)
 
 
 class IsNullPredicate(ComparisonPredicate):
-    """Null check: {"op": "isNull", "args": [...]}"""
+    """Null check: {"op": "isNull", "args": [...]}."""
 
     op: Literal["isNull"] = "isNull"
     args: list[Expression] = Field(min_length=1, max_length=1)
 
 
 class IsInListPredicate(ComparisonPredicate):
-    """In list check: {"op": "in", "args": [...]}"""
+    """In list check: {"op": "in", "args": [...]}."""
 
     op: Literal["in"] = "in"
     args: list[Expression | list[Expression]] = Field(min_length=2)
 
 
 class IsBetweenPredicate(ComparisonPredicate):
-    """Between check: {"op": "between", "args": [...]}"""
+    """Between check: {"op": "between", "args": [...]}."""
 
     op: Literal["between"] = "between"
     args: list[Expression] = Field(min_length=3, max_length=3)  # [value, min, max]
 
 
 class IsLikePredicate(ComparisonPredicate):
-    """Pattern matching: {"op": "like|ilike", "args": [...]}"""
+    """Pattern matching: {"op": "like|ilike", "args": [...]}."""
 
     op: Literal["like", "ilike"]
     args: list[Expression] = Field(
@@ -362,13 +362,13 @@ class IsLikePredicate(ComparisonPredicate):
 
 # Property and System References
 class PropertyRef(Expression):
-    """Property reference: {"property": "propertyName"}"""
+    """Property reference: {"property": "propertyName"}."""
 
     property: str
 
 
 class SystemIdentifier(Expression):
-    """System identifier: {"sysId": "identifier"}"""
+    """System identifier: {"sysId": "identifier"}."""
 
     sysId: str
 
@@ -388,7 +388,7 @@ class ScalarLiteral(ScalarExpression):
 
 # Enhanced Function Calls (JSON Schema format)
 class FunctionCallJSON(Expression):
-    """JSON Schema function call: {"op": "functionName", "args": [...]}"""
+    """JSON Schema function call: {"op": "functionName", "args": [...]}."""
 
     op: str  # Function name
     args: list[Expression] = Field(default_factory=list)
@@ -415,7 +415,7 @@ class TemporalExpression(Expression):
 
 
 class DateInstant(TemporalExpression):
-    """Date instant: {"op": "date", "args": [year, month, day]}"""
+    """Date instant: {"op": "date", "args": [year, month, day]}."""
 
     op: Literal["date"] = "date"
     args: list[int | float] = Field(
@@ -436,7 +436,7 @@ class TimestampInstant(TemporalExpression):
 
 
 class DateString(TemporalExpression):
-    """Date from string: {"op": "dateString", "args": [dateString, format?]}"""
+    """Date from string: {"op": "dateString", "args": [dateString, format?]}."""
 
     op: Literal["dateString"] = "dateString"
     args: list[Expression] = Field(min_length=1, max_length=2)
@@ -460,7 +460,7 @@ class InstantInstance(TemporalExpression):
 
 
 class IntervalInstance(TemporalExpression):
-    """Time interval instance: {"start": instant, "end": instant}"""
+    """Time interval instance: {"start": instant, "end": instant}."""
 
     start: TemporalExpression
     end: TemporalExpression
@@ -571,7 +571,7 @@ class SpatialPredicate(BoolExpression):
 
 
 class SpatialRelatePredicate(BoolExpression):
-    """DE-9IM relate predicate: {"op": "s_relate", "args": [geomA, geomB, pattern]}
+    """DE-9IM relate predicate: {"op": "s_relate", "args": [geomA, geomB, pattern]}.
 
     The pattern is a 9-character DE-9IM matrix string (e.g. "T*F**FFF*").
     See models/de9im.py for predicate↔pattern mapping and README for
@@ -613,7 +613,7 @@ class GeometryExpression(Expression):
 
 
 class GeometryBuffer(GeometryExpression):
-    """Geometry buffer operation: {"op": "s_buffer", "args": [geometry, distance]}"""
+    """Geometry buffer operation: {"op": "s_buffer", "args": [geometry, distance]}."""
 
     op: Literal["buffer", "s_buffer"] = "s_buffer"
     args: list[Expression] = Field(min_length=2, max_length=2)  # [geometry, distance]
@@ -790,7 +790,7 @@ class ColorExpression(Expression):
 
 
 class Color0to1(ColorExpression):
-    """Color with components in 0-1 range: {"r": 0.5, "g": 0.3, "b": 0.8, "a"?: 1.0}"""
+    """Color with components in 0-1 range: {"r": 0.5, "g": 0.3, "b": 0.8, "a"?: 1.0}."""
 
     r: float | int = Field(ge=0.0, le=1.0)
     g: float | int = Field(ge=0.0, le=1.0)
@@ -799,7 +799,7 @@ class Color0to1(ColorExpression):
 
 
 class ColorComponent0to255(ColorExpression):
-    """Color with components in 0-255 range: {"r": 128, "g": 76, "b": 204, "a"?: 255}"""
+    """Color with 0-255 components: {"r": 128, "g": 76, "b": 204, "a"?: 255}."""
 
     r: int | NumericExpression = Field(ge=0, le=255)
     g: int | NumericExpression = Field(ge=0, le=255)
@@ -808,7 +808,7 @@ class ColorComponent0to255(ColorExpression):
 
 
 class HexNumber(ColorExpression):
-    """Hexadecimal color: {"hex": "#FF5733"}"""
+    """Hexadecimal color: {"hex": "#FF5733"}."""
 
     hex: str = Field(pattern=r"^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")
 
@@ -902,28 +902,28 @@ class CharacterExpression(Expression):
 
 
 class CaseiExpression(CharacterExpression):
-    """Case-insensitive string expression: {"op": "casei", "args": [string]}"""
+    """Case-insensitive string expression: {"op": "casei", "args": [string]}."""
 
     op: Literal["casei"] = "casei"
     args: list[Expression] = Field(min_length=1, max_length=1)
 
 
 class AccentiExpression(CharacterExpression):
-    """Accent-insensitive string expression: {"op": "accenti", "args": [string]}"""
+    """Accent-insensitive string expression: {"op": "accenti", "args": [string]}."""
 
     op: Literal["accenti"] = "accenti"
     args: list[Expression] = Field(min_length=1, max_length=1)
 
 
 class ConcatenateExpression(CharacterExpression):
-    """String concatenation: {"op": "concatenate", "args": [str1, str2, ...]}"""
+    """String concatenation: {"op": "concatenate", "args": [str1, str2, ...]}."""
 
     op: Literal["concatenate"] = "concatenate"
     args: list[Expression] = Field(min_length=2)
 
 
 class FormatExpression(CharacterExpression):
-    """String formatting: {"op": "format", "args": [format_string, ...values]}"""
+    """String formatting: {"op": "format", "args": [format_string, ...values]}."""
 
     op: Literal["format"] = "format"
     args: list[Expression] = Field(min_length=1)
@@ -940,7 +940,7 @@ class SubstituteExpression(CharacterExpression):
 
 
 class LowerUpperCaseExpression(CharacterExpression):
-    """Case conversion: {"op": "lowerCase|upperCase|upper|lower", "args": [string]}"""
+    """Case conversion: {"op": "lowerCase|upperCase|upper|lower", "args": [string]}."""
 
     op: Literal["upper", "lower", "upperCase", "lowerCase"]
     args: list[Expression] = Field(min_length=1, max_length=1)
@@ -1946,7 +1946,7 @@ class MeasureExpression(Expression):
         return self.unit in angular_units
 
     def __str__(self) -> str:
-        """String representation with unit."""
+        """Return the string representation with unit."""
         unit_str = self.unit.value if hasattr(self.unit, "value") else str(self.unit)
         return f"{self.value}{unit_str}"
 

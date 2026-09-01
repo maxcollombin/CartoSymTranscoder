@@ -58,7 +58,7 @@ class _CollectingErrorListener(ErrorListener):
 
 
 def main() -> int:
-    """Main CLI entry point."""
+    """Run the CLI entry point."""
     # Pre-detect whether a named subcommand is being used so that argparse
     # doesn't confuse a file path for a subcommand name (or vice-versa).
     positionals = [a for a in sys.argv[1:] if not a.startswith("-")]

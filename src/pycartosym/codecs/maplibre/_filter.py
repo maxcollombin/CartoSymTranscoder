@@ -64,7 +64,7 @@ _FEATURES_GEOMETRY_DIMENSIONS_SYSID = "dataLayer.featuresGeometryDimensions"
 
 
 def _operand_to_property(operand: Any) -> dict[str, str]:
-    """A filter operand that names a feature property → ``{"property": name}``."""
+    """Turn a filter operand naming a feature property into ``{"property": name}``."""
     if isinstance(operand, str):
         if operand in _SPECIAL_KEYS:
             raise NotImplementedError(
