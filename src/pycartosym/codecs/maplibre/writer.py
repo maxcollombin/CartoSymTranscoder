@@ -46,7 +46,17 @@ get a further numeric suffix (``-circle-1``/``-circle-2``…) — a bare rule
 name is kept only when a single layer is produced, unchanged from
 before. A stroke with only a ``color`` (no ``width``/``opacity``) stays
 inlined as the fill layer's ``fill-outline-color``, as before, rather
-than spawning a separate line layer.
+than spawning a separate line layer — so ``stroke.dashPattern`` (see
+below), which needs a line layer of its own to attach ``line-dasharray``
+to, always raises on that inlined path.
+
+``stroke.dashPattern.pattern`` maps to ``line-dasharray`` on a ``line``
+layer, each length divided by ``stroke.width`` in px — CartoSym/SLD dash
+lengths are absolute px, MapLibre's are multiples of the line's own
+width (see :func:`_dash_array`). An ``{index, value}`` cascade-override
+fragment (``codecs/_cascade.py`` does not resolve indexed overrides for
+``dashPattern``, unlike ``elements``) raises, as does a missing/
+non-literal ``stroke.width`` to scale by.
 
 ``StylingRule.nestedRules`` (a cascading refinement, e.g.
 ``[attr = value] { ... }`` narrowing a parent rule) has no MapLibre
@@ -158,11 +168,55 @@ def _px_number(value: Any, ctx: str) -> Any:
 
 
 def _reject_stroke_extras(stroke: Any, ctx: str) -> None:
-    for attr in ("casing", "center_line", "dash_pattern", "pattern"):
+    for attr in ("casing", "center_line", "pattern"):
         if getattr(stroke, attr, None) is not None:
             raise NotImplementedError(
                 f"{ctx}: stroke.{attr} has no MapLibre mapping in this codec"
             )
+
+
+def _dash_array(stroke: Any, ctx: str) -> list[float] | None:
+    """Turn a resolved ``stroke.dashPattern.pattern`` into a ``line-dasharray``.
+
+    CartoSym/SLD dash lengths are absolute (the same px convention as
+    ``stroke.width``); MapLibre's ``line-dasharray`` is instead in
+    multiples of the line's own width ("line widths" per the vendored
+    spec — "the lengths are later scaled by the line width"). Each
+    length is therefore divided by ``stroke.width`` in px so the pattern
+    stays faithful whatever the line width is, rather than passed
+    through literally (which would only be correct at ``width == 1px``).
+
+    Raises if ``dashPattern`` carries no resolved ``pattern`` array — an
+    ``{index, value}`` cascade-override fragment, say — since
+    ``codecs/_cascade.py`` does not resolve indexed overrides for
+    ``dashPattern`` (only for ``marker``/``label`` ``elements``), so one
+    reaching here is unflattened, not a final value; or if there is no
+    literal px ``stroke.width`` to scale by.
+    """
+    dash_pattern = getattr(stroke, "dash_pattern", None)
+    if dash_pattern is None:
+        return None
+    pattern = getattr(dash_pattern, "pattern", None)
+    if pattern is None:
+        raise NotImplementedError(
+            f"{ctx}: stroke.dashPattern with no resolved 'pattern' array "
+            "(an unflattened index/value cascade-override fragment?) has "
+            "no MapLibre mapping in this codec"
+        )
+    width_px = (
+        _px_number(stroke.width, "stroke.width") if stroke.width is not None else None
+    )
+    if (
+        not isinstance(width_px, (int, float))
+        or isinstance(width_px, bool)
+        or width_px == 0
+    ):
+        raise NotImplementedError(
+            f"{ctx}: stroke.dashPattern needs a literal px stroke.width to "
+            "convert into MapLibre's line-width-relative line-dasharray, "
+            "which is missing or non-literal here"
+        )
+    return [p / width_px for p in pattern]
 
 
 def _fill_layer(layer_id: str, fill: Any, inline_stroke: Any) -> dict[str, Any]:
@@ -186,6 +240,14 @@ def _fill_layer(layer_id: str, fill: Any, inline_stroke: Any) -> dict[str, Any]:
 
     if inline_stroke is not None:
         _reject_stroke_extras(inline_stroke, "fill symbolizer")
+        if inline_stroke.dash_pattern is not None:
+            raise NotImplementedError(
+                "fill symbolizer: stroke.dashPattern has no MapLibre mapping "
+                "when the stroke stays inlined as fill-outline-color — no "
+                "stroke.width to scale by, and fill has no dasharray paint "
+                "property (give the stroke a width so it gets its own line "
+                "layer instead)"
+            )
         if inline_stroke.color is not None:
             paint["fill-outline-color"] = _literal(inline_stroke.color, "stroke.color")
 
@@ -254,6 +316,9 @@ def _line_layer(layer_id: str, stroke: Any) -> dict[str, Any]:
         )
     if stroke.opacity is not None:
         paint["line-opacity"] = _literal(stroke.opacity, "stroke.opacity")
+    dash_array = _dash_array(stroke, "line symbolizer")
+    if dash_array is not None:
+        paint["line-dasharray"] = dash_array
     return {"id": layer_id, "type": "line", "source": _SOURCE, "paint": paint}
 
 

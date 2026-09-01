@@ -99,6 +99,99 @@ def test_stroke_width_in_a_non_px_unit_is_rejected():
         MaplibreWriter().write(style)
 
 
+def test_stroke_dash_pattern_maps_to_line_dasharray_scaled_by_width():
+    """``dashPattern`` lengths are absolute px, ``line-dasharray`` is in
+    multiples of the line width — each length is divided by ``width``.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "roads",
+                    "symbolizer": {
+                        "stroke": {
+                            "width": {"px": 4.0},
+                            "dashPattern": {"pattern": [4, 2]},
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["paint"]["line-dasharray"] == [1.0, 0.5]
+    assert_maplibre_valid(out)
+
+
+def test_stroke_dash_pattern_without_width_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "roads",
+                    "symbolizer": {
+                        "stroke": {
+                            "color": "#ff0000",
+                            "dashPattern": {"pattern": [4, 2]},
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_stroke_dash_pattern_indexed_override_fragment_is_rejected():
+    """An unflattened ``{index, value}`` cascade fragment (no ``pattern``
+    array — ``_cascade.py`` does not resolve indexed overrides for
+    ``dashPattern``) has no MapLibre mapping.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "roads",
+                    "symbolizer": {
+                        "stroke": {
+                            "width": {"px": 4.0},
+                            "dashPattern": {"index": 0, "value": 6},
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_stroke_dash_pattern_inlined_as_fill_outline_is_rejected():
+    """A plain-colour stroke (no width/opacity) with a ``dashPattern``
+    stays inlined as ``fill-outline-color``, which has no dasharray and
+    no width to scale by — the combination has no MapLibre mapping.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "parcels",
+                    "symbolizer": {
+                        "fill": {"color": "#00ff00"},
+                        "stroke": {
+                            "color": "#000000",
+                            "dashPattern": {"pattern": [4, 2]},
+                        },
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
 def test_circle_element_px_dict_fields_are_unwrapped():
     """A graphic element inside ``Marker.elements`` stays an untyped
     ``dict`` (see ``models/symbolizers.py``), so ``radius``/``thickness``
