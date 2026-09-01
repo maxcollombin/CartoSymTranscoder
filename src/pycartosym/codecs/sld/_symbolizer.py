@@ -1362,7 +1362,10 @@ def _parse_text_symbolizer(d: SldDialect, ts_el: etree._Element) -> dict:
         if face is not None:
             font["face"] = face
         if size is not None:
-            font["size"] = parse_unit_value(size)
+            # A bare number, per the schema's font.size (numericExpression,
+            # not unitValue) — same as its outline["size"] sibling below,
+            # not parse_unit_value's {"px": N} dict.
+            font["size"] = parse_number(size)
         if weight is not None:
             font["bold"] = weight == "bold"
         if style is not None:

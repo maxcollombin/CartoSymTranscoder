@@ -11,17 +11,20 @@ pre-existing quirk of this codebase (worked around elsewhere via
 Model-to-model equality sidesteps it entirely.
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+from jsonschema import validate as jsonschema_validate
 
 from pycartosym.codecs.sld.reader import SldReader
 from pycartosym.codecs.sld.writer import SldWriter
 from pycartosym.models.styles import Style
 
 ROOT = Path(__file__).resolve().parent.parent
+SCHEMA_PATH = ROOT / "src" / "pycartosym" / "schemas" / "CartoSym-JSON.schema.json"
 FIXTURES = sorted((ROOT / "examples" / "sld").glob("*.sld"))
 # Fixture 10 is a deliberate out-of-scope negative case
 # (RasterSymbolizer/ContrastEnhancement); it cannot round-trip since the
@@ -139,3 +142,60 @@ class TestCliSmokeTest:
         assert result2.returncode == 0, result2.stderr
         assert sld_out.exists()
         assert b"PolygonSymbolizer" in sld_out.read_bytes()
+
+
+# examples/*.cscss that convert cleanly all the way to SLD/SE (verified
+# empirically, 2026-09-01) — the other 11 hit an already-documented gap
+# partway through (dataLayer.type/keywords/singleChannel expressions/
+# hillShading.sun, none new here) and are out of scope for this chain.
+_CSCSS_TO_SLD_CLEAN = [
+    "5-coverage-dem",
+    "11-natural_earth_continents",
+    "13-vector-point-circle",
+]
+
+
+class TestCscssToSldToCsjsonChain:
+    """Full ``.cscss -> .sld -> .cs.json`` chain via the CLI.
+
+    Complements ``TestCliSmokeTest`` (which starts from ``.sld``) and
+    ``TestRoundTrip`` (which starts from ``.sld`` and stays in SLD/SE) by
+    exercising the chain starting from CartoSym-CSS, the primary source
+    format.
+    """
+
+    @pytest.mark.parametrize("stem", _CSCSS_TO_SLD_CLEAN, ids=_CSCSS_TO_SLD_CLEAN)
+    def test_cscss_to_sld_to_csjson_via_cli(self, tmp_path, stem):
+        src = ROOT / "examples" / f"{stem}.cscss"
+        sld_out = tmp_path / "out.sld"
+        csjson_out = tmp_path / "out.cs.json"
+
+        result1 = subprocess.run(
+            [sys.executable, "-m", "pycartosym.cli", str(src), "-o", str(sld_out)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        assert result1.returncode == 0, result1.stderr
+        assert sld_out.exists()
+
+        result2 = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pycartosym.cli",
+                str(sld_out),
+                "-o",
+                str(csjson_out),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        assert result2.returncode == 0, result2.stderr
+        assert csjson_out.exists()
+
+        data = json.loads(csjson_out.read_text(encoding="utf-8"))
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        jsonschema_validate(instance=data, schema=schema)
+        assert data["stylingRules"]
