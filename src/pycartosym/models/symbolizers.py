@@ -261,6 +261,7 @@ class Resource(BaseCartoSymModel):
     id: str | None = Field(None, description="Resource ID")
     type: str | None = Field(None, description="MIME type")
     ext: str | None = Field(None, description="File extension")
+    sprite: str | None = Field(None, description="Icon atlas sprite id")
 
 
 class Font(BaseCartoSymModel):
@@ -418,6 +419,62 @@ class RectangleGraphic(ClosedShape):
     height: UnitValue | str | float = Field(..., description="Rectangle height")
 
 
+class ArcGraphic(ShapeGraphic):
+    """Open arc shape graphic (Part 2 ``arc``, from ``abstractArc``).
+
+    Stroke-only (``outline`` from :class:`ShapeGraphic`, no fill) — an arc is
+    an open curve, not an enclosed area.
+    """
+
+    type: str = Field("Arc", description="Graphic type")
+    center: UnitPoint | None = Field(None, description="Arc centre")
+    radius: FlexibleSize | None = Field(None, description="Arc radius")
+    start_angle: FlexibleAngle | None = Field(
+        None, alias="startAngle", description="Arc start angle"
+    )
+    delta_angle: FlexibleAngle | None = Field(
+        None, alias="deltaAngle", description="Arc angular extent"
+    )
+
+
+class SectorArcGraphic(ClosedShape):
+    """Pie-slice arc sector shape graphic (Part 2 ``sectorArc``).
+
+    Same ``abstractArc`` geometry as :class:`ArcGraphic`, but a closed shape
+    (``fill`` from :class:`ClosedShape`) — bounded by the two radii and the
+    arc, unlike :class:`ChordArcGraphic`'s straight chord.
+    """
+
+    type: str = Field("SectorArc", description="Graphic type")
+    center: UnitPoint | None = Field(None, description="Arc centre")
+    radius: FlexibleSize | None = Field(None, description="Arc radius")
+    start_angle: FlexibleAngle | None = Field(
+        None, alias="startAngle", description="Arc start angle"
+    )
+    delta_angle: FlexibleAngle | None = Field(
+        None, alias="deltaAngle", description="Arc angular extent"
+    )
+
+
+class ChordArcGraphic(ClosedShape):
+    """Arc chord segment shape graphic (Part 2 ``chordArc``).
+
+    Same ``abstractArc`` geometry as :class:`ArcGraphic`, but a closed shape
+    (``fill`` from :class:`ClosedShape`) — bounded by the straight chord
+    between the two endpoints, unlike :class:`SectorArcGraphic`'s two radii.
+    """
+
+    type: str = Field("ChordArc", description="Graphic type")
+    center: UnitPoint | None = Field(None, description="Arc centre")
+    radius: FlexibleSize | None = Field(None, description="Arc radius")
+    start_angle: FlexibleAngle | None = Field(
+        None, alias="startAngle", description="Arc start angle"
+    )
+    delta_angle: FlexibleAngle | None = Field(
+        None, alias="deltaAngle", description="Arc angular extent"
+    )
+
+
 class ColorMap(BaseCartoSymModel):
     """Color mapping for raster/coverage data."""
 
@@ -565,3 +622,6 @@ ShapeGraphic.model_rebuild()
 ClosedShape.model_rebuild()
 CircleGraphic.model_rebuild()
 RectangleGraphic.model_rebuild()
+ArcGraphic.model_rebuild()
+SectorArcGraphic.model_rebuild()
+ChordArcGraphic.model_rebuild()

@@ -559,7 +559,7 @@ class Converter:
                     parts.append(f"{k}: {vf}")
                 prop_lines.append(f"{shape_key}: {{{'; '.join(parts)}}}")
 
-        # radius (2-shapes Circle)
+        # radius (2-shapes Circle, Arc/SectorArc/ChordArc)
         radius = _get(el, "radius")
         if radius is not None:
             if isinstance(radius, dict) and len(radius) == 1:
@@ -568,7 +568,17 @@ class Converter:
             else:
                 prop_lines.append(f"radius: {radius}")
 
-        # center (2-shapes Circle)
+        # startAngle / deltaAngle (2-shapes Arc/SectorArc/ChordArc)
+        for angle_key in ("startAngle", "deltaAngle"):
+            angle = _get(el, angle_key)
+            if angle is not None:
+                if isinstance(angle, dict) and len(angle) == 1:
+                    unit, val = next(iter(angle.items()))
+                    prop_lines.append(f"{angle_key}: {val} {unit}")
+                else:
+                    prop_lines.append(f"{angle_key}: {angle}")
+
+        # center (2-shapes Circle, Arc/SectorArc/ChordArc)
         center = _get(el, "center")
         if center is not None:
             if hasattr(center, "x") and hasattr(center, "y"):
@@ -644,7 +654,7 @@ class Converter:
         image = _get(el, "image")
         if image is not None:
             res_parts = []
-            for k in ("uri", "path", "id", "type", "ext"):
+            for k in ("uri", "path", "id", "type", "ext", "sprite"):
                 v = _get(image, k)
                 if v is not None:
                     res_parts.append(f"{k}: '{v}'")
@@ -822,6 +832,8 @@ class Converter:
                 "thickness",
                 "distance",
                 "spacing",
+                "startAngle",
+                "deltaAngle",
             ]
             for key, value in list(data.items()):
                 if key in unit_properties and isinstance(value, str):
