@@ -421,7 +421,7 @@ def _text_layer_layout_paint(text_el: Any) -> tuple[dict[str, Any], dict[str, An
             layout["text-font"] = [_literal(face, "Font.face")]
         size = _attr(font, "size")
         if size is not None:
-            layout["text-size"] = _literal(size, "Font.size")
+            layout["text-size"] = _literal(_px_number(size, "Font.size"), "Font.size")
         color = _attr(font, "color")
         if color is not None:
             paint["text-color"] = _literal(color, "Font.color")

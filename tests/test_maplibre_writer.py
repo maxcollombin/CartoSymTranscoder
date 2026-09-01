@@ -821,6 +821,37 @@ def test_label_text_becomes_a_symbol_layer():
     assert_maplibre_valid(out)
 
 
+def test_font_size_unwraps_px_unit_dict():
+    """``Font.size`` as ``{"px": N}`` (what the SLD reader produces) unwraps
+
+    to a bare number, same as ``stroke.width``/``Circle.radius``/``Dot.size``
+    — regression test for a bug found retesting the SLD→MapLibre corpus.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "Labels",
+                    "symbolizer": {
+                        "label": {
+                            "elements": [
+                                {
+                                    "type": "Text",
+                                    "text": {"property": "name"},
+                                    "font": {"size": {"px": 12}},
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["layout"]["text-size"] == 12
+    assert_maplibre_valid(out)
+
+
 def test_icon_marker_becomes_a_symbol_layer():
     style = Style.from_dict(
         {
