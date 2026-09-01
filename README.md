@@ -58,8 +58,14 @@ cartosym validate <input-file>
 cartosym --help
 ```
 
-Real input files to try these against live under [`examples/`](examples/)
-(`examples/sld/` for SLD/SE).
+A few concrete conversions, using the files under [`examples/`](examples/)
+(`examples/sld/` for SLD/SE):
+
+```bash
+cartosym examples/0-basic.cscss -o out.cs.json
+cartosym examples/13-vector-point-circle.cscss --to-format sld -o out.sld
+cartosym examples/sld/1-polygon-fill-stroke.sld --to-format maplibre -o out.json
+```
 
 ## Development
 
