@@ -133,11 +133,18 @@ IN_SCOPE: dict[str, list[dict]] = {
             "symbolizer": {"stroke": {"color": "blue", "width": 10.0}},
         },
     ],
+    "fill-pattern-literal": [
+        {
+            "name": "fill",
+            "symbolizer": {
+                "fill": {"pattern": {"type": "Image", "image": {"id": "generic_icon"}}}
+            },
+        }
+    ],
 }
 
 OUT_OF_SCOPE = {
     "text-field-literal": "multi-family text-font stack",
-    "fill-pattern-literal": "fill-pattern paint",
     "line-width-function": "legacy zoom function on line-width",
 }
 
@@ -209,6 +216,87 @@ def test_layer_filter_maps_to_selector():
         "op": "=",
         "args": [{"property": "class"}, "water"],
     }
+
+
+def test_icon_color_maps_to_image_tint():
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": "symbol",
+                    "source": "s",
+                    "layout": {"icon-image": "dot.sdf"},
+                    "paint": {"icon-color": "#000000"},
+                }
+            ],
+        }
+    )
+    elements = style.to_dict()["stylingRules"][0]["symbolizer"]["marker"]["elements"]
+    assert elements[0]["tint"] == "#000000"
+
+
+def test_fill_pattern_literal_maps_to_image_graphic():
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": "fill",
+                    "source": "s",
+                    "paint": {"fill-pattern": "grass"},
+                }
+            ],
+        }
+    )
+    fill = style.to_dict()["stylingRules"][0]["symbolizer"]["fill"]
+    assert fill["pattern"] == {"type": "Image", "image": {"id": "grass"}}
+
+
+def test_fill_pattern_expression_is_rejected():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            {
+                "version": 8,
+                "sources": {},
+                "layers": [
+                    {
+                        "id": "l",
+                        "type": "fill",
+                        "source": "s",
+                        "paint": {"fill-pattern": ["match", ["get", "w"], 1, "a", "b"]},
+                    }
+                ],
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "layer_type, prop",
+    [("line", "line-blur"), ("symbol", "text-halo-blur")],
+)
+def test_blur_paint_is_dropped_silently(layer_type, prop):
+    extra_layout = {"layout": {"text-field": "hi"}} if layer_type == "symbol" else {}
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": layer_type,
+                    "source": "s",
+                    "paint": {prop: 1.5},
+                    **extra_layout,
+                }
+            ],
+        }
+    )
+    assert isinstance(style, Style)
 
 
 def test_unsupported_filter_key_raises():

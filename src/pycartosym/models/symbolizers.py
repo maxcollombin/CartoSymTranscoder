@@ -59,9 +59,7 @@ class Fill(BaseCartoSymModel, AlterMixin):
     opacity: FlexibleOpacity | None = Field(None, description="Fill opacity (0.0-1.0)")
 
     # Pattern fills
-    pattern: dict[str, Any] | None = Field(
-        None, description="Fill pattern graphic (temporary)"
-    )
+    pattern: Graphic | None = Field(None, description="Fill pattern graphic")
     hatch: Hatch | None = Field(None, description="Hatch pattern")
     dotpattern: DotPattern | None = Field(None, description="Dot pattern")
     stipple: Stipple | None = Field(None, description="Stipple pattern")

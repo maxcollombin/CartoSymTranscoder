@@ -35,10 +35,15 @@ from ._zoom import merge_zoom_range
 
 # Paint keys that carry no CartoSym-symbology meaning and are dropped
 # rather than rejected: they tune rasteriser quality, not the portrayal.
-_IGNORED_PAINT: frozenset[str] = frozenset({"fill-antialias"})
+# `line-blur`/`text-halo-blur` are a rendering-only blur radius, same
+# category as `fill-antialias` — neither Stroke nor FontOutline has a
+# blur field to hold them.
+_IGNORED_PAINT: frozenset[str] = frozenset(
+    {"fill-antialias", "line-blur", "text-halo-blur"}
+)
 
 _FILL_PAINT: frozenset[str] = frozenset(
-    {"fill-color", "fill-opacity", "fill-outline-color"}
+    {"fill-color", "fill-opacity", "fill-outline-color", "fill-pattern"}
 )
 _LINE_PAINT: frozenset[str] = frozenset({"line-color", "line-opacity", "line-width"})
 _CIRCLE_PAINT: frozenset[str] = frozenset(
@@ -52,7 +57,14 @@ _CIRCLE_PAINT: frozenset[str] = frozenset(
     }
 )
 _SYMBOL_PAINT: frozenset[str] = frozenset(
-    {"text-color", "text-opacity", "text-halo-color", "text-halo-width", "icon-opacity"}
+    {
+        "text-color",
+        "text-opacity",
+        "text-halo-color",
+        "text-halo-width",
+        "icon-opacity",
+        "icon-color",
+    }
 )
 _SYMBOL_LAYOUT: frozenset[str] = frozenset(
     {
@@ -141,6 +153,23 @@ def _visibility(layer: dict[str, Any]) -> bool | None:
     raise NotImplementedError(f"unexpected layout.visibility {vis!r}")
 
 
+def _fill_pattern_to_graphic(value: Any) -> dict[str, Any]:
+    """Turn a MapLibre ``fill-pattern`` value into a CartoSym Image graphic.
+
+    Only a literal sprite-id string maps — MapLibre also allows a
+    data-driven expression here (this codec's own target corpus has one,
+    a ``match`` on a numeric weight property), but CartoSym's
+    ``Resource.id`` is a plain string with no data-driven equivalent to
+    hold an expression.
+    """
+    if not isinstance(value, str):
+        raise NotImplementedError(
+            f"fill-pattern {value!r}: only a literal sprite-id string maps "
+            "to a CartoSym Image graphic in this codec"
+        )
+    return {"type": "Image", "image": {"id": value}}
+
+
 def _fill_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     paint = layer.get("paint", {})
     _reject_unknown(paint, _FILL_PAINT, "fill")
@@ -150,6 +179,8 @@ def _fill_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
         fill["color"] = _constant(paint["fill-color"], "fill-color")
     if "fill-opacity" in paint:
         fill["opacity"] = _constant(paint["fill-opacity"], "fill-opacity")
+    if "fill-pattern" in paint:
+        fill["pattern"] = _fill_pattern_to_graphic(paint["fill-pattern"])
 
     symbolizer: dict[str, Any] = {"fill": fill}
     if "fill-outline-color" in paint:
@@ -355,6 +386,12 @@ def _symbol_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
         }
         if "icon-opacity" in paint:
             image_el["opacity"] = _constant(paint["icon-opacity"], "icon-opacity")
+        if "icon-color" in paint:
+            # icon-color only recolours an SDF sprite in MapLibre — a
+            # constraint this codec can't check (no access to the actual
+            # sprite image), same caveat noted on the writer side
+            # (._icon_layer_layout_paint).
+            image_el["tint"] = _constant(paint["icon-color"], "icon-color")
         symbolizer["marker"] = {"elements": [image_el]}
     elif "icon-opacity" in paint:
         raise NotImplementedError("icon-opacity without icon-image has nothing to map")
