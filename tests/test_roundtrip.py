@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 
 import pytest
+from jsonschema import validate as jsonschema_validate
 
 from pycartosym.converter import Converter
 from pycartosym.models.styles import Style
@@ -20,6 +21,8 @@ from pycartosym.models.styles import Style
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = ROOT / "examples"
 EXPECTED_DIR = ROOT / "tests" / "fixtures" / "expected"
+SCHEMA_PATH = ROOT / "src" / "pycartosym" / "schemas" / "CartoSym-JSON.schema.json"
+_SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 
 # Every example must have a committed golden (regenerate.py keeps them in sync).
 _FORWARD_CASES = sorted(f.stem for f in EXAMPLES_DIR.glob("*.cscss"))
@@ -514,6 +517,89 @@ class TestCircleGraphic:
         el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
         assert el["type"] == "Dot"
         assert "fill" not in el and "outline" not in el and "radius" not in el
+
+
+class TestResourceSprite:
+    """``resource.sprite`` (icon atlas id) round-trips alongside uri/path/etc."""
+
+    def setup_method(self):
+        self.converter = Converter()
+
+    _CSCSS = (
+        "Amenities {\n"
+        "  marker: { elements: [\n"
+        "    Image { image: { uri: 'icons.png'; sprite: 'pin-15' } }\n"
+        "  ]};\n"
+        "}\n"
+    )
+
+    def test_sprite_parses(self):
+        result = self.converter.cscss_to_csjson(self._CSCSS)
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["image"] == {"uri": "icons.png", "sprite": "pin-15"}
+
+    def test_sprite_round_trips_through_csjson(self):
+        json1 = self.converter.cscss_to_csjson(self._CSCSS)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+
+class TestArcGraphics:
+    """CartoSym-CSS ``Arc``/``SectorArc``/``ChordArc`` (2-shapes ``abstractArc``)."""
+
+    def setup_method(self):
+        self.converter = Converter()
+
+    _CSCSS = (
+        "Amenities {\n"
+        "  marker: { elements: [\n"
+        "    Arc {\n"
+        "      outline: { color: #000000; thickness: 2 px; opacity: 1.0 };\n"
+        "      radius: 5 px;\n"
+        "      center: 0 0;\n"
+        "      startAngle: 45;\n"
+        "      deltaAngle: 90;\n"
+        "    },\n"
+        "    SectorArc {\n"
+        "      fill: { color: #ff0000; opacity: 0.6 };\n"
+        "      radius: 8 px;\n"
+        "      startAngle: 0;\n"
+        "      deltaAngle: 180;\n"
+        "    },\n"
+        "    ChordArc {\n"
+        "      fill: { color: #00ff00; opacity: 0.4 };\n"
+        "      radius: 6 px;\n"
+        "      startAngle: 30 deg;\n"
+        "      deltaAngle: 60 deg;\n"
+        "    }\n"
+        "  ]};\n"
+        "}\n"
+    )
+
+    def test_arc_family_parses(self):
+        result = self.converter.cscss_to_csjson(self._CSCSS)
+        elements = result["stylingRules"][0]["symbolizer"]["marker"]["elements"]
+        arc, sector, chord = elements
+        assert arc["type"] == "Arc"
+        assert arc["startAngle"] == 45
+        assert arc["deltaAngle"] == 90
+        assert "fill" not in arc  # an open arc has no fill
+        assert sector["type"] == "SectorArc"
+        assert sector["fill"] == {"color": [255, 0, 0], "opacity": 0.6}
+        assert chord["type"] == "ChordArc"
+        assert chord["startAngle"] == {"deg": 30}
+        assert chord["deltaAngle"] == {"deg": 60}
+
+    def test_arc_family_validates_against_schema(self):
+        result = self.converter.cscss_to_csjson(self._CSCSS)
+        jsonschema_validate(instance=result, schema=_SCHEMA)
+
+    def test_arc_family_round_trips_through_csjson(self):
+        json1 = self.converter.cscss_to_csjson(self._CSCSS)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
 
 
 # ---------------------------------------------------------------------------

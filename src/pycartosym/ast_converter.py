@@ -404,8 +404,9 @@ def _normalize_graphic_element(el: dict) -> None:
             except ValueError:
                 pass
 
-    # Shape graphics (2-shapes Circle, ...): fill / outline are nested style
-    # objects, radius is unit-bearing, center is a point. These keys are
+    # Shape graphics (2-shapes Circle, Arc/SectorArc/ChordArc, ...): fill /
+    # outline are nested style objects, radius/startAngle/deltaAngle are
+    # unit-bearing scalars, center is a point. These keys are
     # element-type-agnostic here — a Dot never carries them.
     if isinstance(el.get("fill"), dict):
         _coerce_shape_style_dict(el["fill"])
@@ -413,6 +414,9 @@ def _normalize_graphic_element(el: dict) -> None:
         _coerce_shape_style_dict(el["outline"])
     if isinstance(el.get("radius"), str):
         el["radius"] = _coerce_unit_scalar(el["radius"])
+    for angle_key in ("startAngle", "deltaAngle"):
+        if isinstance(el.get(angle_key), str):
+            el[angle_key] = _coerce_unit_scalar(el[angle_key])
     if isinstance(el.get("center"), str):
         pt = _parse_xy(el["center"])
         if pt is not None:

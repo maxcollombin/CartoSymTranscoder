@@ -472,7 +472,10 @@
     "shape": {
       "oneOf": [
          { "$ref": "#/$defs/dot" },
-         { "$ref": "#/$defs/circle" }
+         { "$ref": "#/$defs/circle" },
+         { "$ref": "#/$defs/arc" },
+         { "$ref": "#/$defs/sectorArc" },
+         { "$ref": "#/$defs/chordArc" }
         ]
     },
     "dot": {
@@ -527,6 +530,47 @@
              "radius": { "$ref": "#/$defs/unitValue" },
              "startAngle": { "$ref": "#/$defs/angle" },
              "deltaAngle": { "$ref": "#/$defs/angle" }
+          }
+         }
+       ]
+    },
+    "arc": {
+      "allOf": [
+         { "$ref": "#/$defs/abstractArc" },
+         {
+          "type": "object",
+          "required": [ "type" ],
+          "properties":
+          {
+             "type": { "type": "string", "enum": [ "Arc" ] }
+          }
+         }
+       ]
+    },
+    "sectorArc": {
+      "allOf": [
+         { "$ref": "#/$defs/closedShape" },
+         { "$ref": "#/$defs/abstractArc" },
+         {
+          "type": "object",
+          "required": [ "type" ],
+          "properties":
+          {
+             "type": { "type": "string", "enum": [ "SectorArc" ] }
+          }
+         }
+       ]
+    },
+    "chordArc": {
+      "allOf": [
+         { "$ref": "#/$defs/closedShape" },
+         { "$ref": "#/$defs/abstractArc" },
+         {
+          "type": "object",
+          "required": [ "type" ],
+          "properties":
+          {
+             "type": { "type": "string", "enum": [ "ChordArc" ] }
           }
          }
        ]
