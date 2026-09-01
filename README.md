@@ -67,6 +67,42 @@ cartosym examples/13-vector-point-circle.cscss --to-format sld -o out.sld
 cartosym examples/sld/1-polygon-fill-stroke.sld --to-format maplibre -o out.json
 ```
 
+## Python API
+
+Most users work through the `cartosym` CLI above. The `cql2` submodule also
+exposes CQL2 (the OGC 21-065r2 query-expression sublanguage that
+CartoSym-CSS embeds in `[ filter ]` selectors and CS-JSON encodes as
+`{"op": …, "args": …}`) as a stable, importable API:
+
+```python
+from pycartosym import cql2
+
+# CQL2-Text -> expression model
+expr = cql2.parse_text("population > 1000")
+
+# Expression model -> CQL2-JSON
+cql2.to_cql2_json(expr)
+# {'op': '>', 'args': [{'property': 'population'}, 1000]}
+
+# CQL2-JSON selector dict -> CartoSym-CSS filter text
+cql2.to_cql2_text({
+    "op": "and",
+    "args": [
+        {"op": "=", "args": [{"property": "a"}, 1]},
+        {"op": "like", "args": [{"property": "b"}, "x%"]},
+    ],
+})
+# "a = 1 and b like 'x%'"
+
+# Operator/function vocabulary, derived from the CQL2 Pydantic models
+cql2.vocab.SPATIAL_RELATE                       # 's_relate'
+"s_intersects" in cql2.vocab.KNOWN_CQL2_CALLS   # True
+```
+
+`cql2.parse_tree` is a lower-level entry point for converting an
+already-parsed ANTLR `expression` context (as produced while walking the
+CartoSym-CSS grammar) — most callers want `parse_text`.
+
 ## Development
 
 ```bash
