@@ -53,6 +53,17 @@ from ._zoom import merge_zoom_range
 # *fallback* behaviour when several symbols overlap — none of them changes
 # a single, non-colliding symbol's own rendered appearance, same category
 # as `text-padding` above.
+# `text-max-angle`/`text-keep-upright` only matter for text placed along a
+# line (curved glyph spacing / upside-down flipping) — inert here, same
+# reasoning as `symbol-spacing`, since this codec only maps
+# `symbol-placement: point` (anything else already raises elsewhere).
+# `symbol-sort-key` is draw/collision ordering, same category as
+# `symbol-z-order` above. `icon-padding` is the icon equivalent of
+# `text-padding` — collision-detection sizing, not the icon's own
+# rendered appearance. `icon-allow-overlap`/`text-allow-overlap` are
+# collision fallback toggles, same category as `icon-optional`.
+# `symbol-avoid-edges` only affects whether symbols cross *tile* edges —
+# a tiling/collision concern, not the symbol's own appearance.
 _IGNORED_PAINT: frozenset[str] = frozenset(
     {
         "fill-antialias",
@@ -66,6 +77,13 @@ _IGNORED_PAINT: frozenset[str] = frozenset(
         "symbol-z-order",
         "icon-optional",
         "text-optional",
+        "text-max-angle",
+        "text-keep-upright",
+        "symbol-sort-key",
+        "icon-padding",
+        "icon-allow-overlap",
+        "text-allow-overlap",
+        "symbol-avoid-edges",
     }
 )
 
@@ -78,15 +96,7 @@ _LAYOUT_DEFAULTS: dict[str, Any] = {
     "text-max-width": 10,
     "text-letter-spacing": 0,
 }
-# `icon-halo-color`'s default is fully transparent (invisible, so a
-# portrayal no-op like the others here) — only this exact spec-documented
-# string is recognised as the default; any other spelling of "transparent"
-# (a different colour space, `transparent`, alpha-0 in another format, …)
-# raises rather than being guessed at.
-_PAINT_DEFAULTS: dict[str, Any] = {
-    "line-offset": 0,
-    "icon-halo-color": "rgba(0, 0, 0, 0)",
-}
+_PAINT_DEFAULTS: dict[str, Any] = {"line-offset": 0}
 
 _FILL_PAINT: frozenset[str] = frozenset(
     {"fill-color", "fill-opacity", "fill-outline-color", "fill-pattern"}
@@ -113,6 +123,7 @@ _SYMBOL_PAINT: frozenset[str] = frozenset(
         "icon-opacity",
         "icon-color",
         "icon-halo-color",
+        "icon-halo-width",
     }
 )
 _SYMBOL_LAYOUT: frozenset[str] = frozenset(
@@ -232,6 +243,27 @@ def _reject_if_non_default(value: Any, prop: str, defaults: dict[str, Any]) -> N
         raise NotImplementedError(
             f"{prop} {value!r} (not the spec default {default!r}) has no "
             "CartoSym mapping in this codec"
+        )
+
+
+def _reject_icon_halo(paint: dict[str, Any]) -> None:
+    """Drop ``icon-halo-width``/``icon-halo-color`` together when invisible.
+
+    MapLibre's icon halo only renders when ``icon-halo-width`` is
+    non-zero — at the spec default (0, whether explicit or omitted) the
+    halo is invisible, so ``icon-halo-color`` carries no portrayal
+    content regardless of its own value (a proven no-op, not the
+    single-property default check ``_reject_if_non_default`` does
+    elsewhere in this module). A non-zero (or expression) width is a
+    real halo this codec cannot represent — unlike ``FontOutline`` on
+    the text side, ``ImageGraphic`` has no outline field — and still
+    raises.
+    """
+    width = paint.get("icon-halo-width", 0)
+    if width != 0:
+        raise NotImplementedError(
+            f"icon-halo-width {width!r} (not the spec default 0) has no "
+            "CartoSym mapping in this codec — ImageGraphic has no halo field"
         )
 
 
@@ -462,10 +494,8 @@ def _symbol_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     for prop in ("icon-size", "text-justify", "text-max-width", "text-letter-spacing"):
         if prop in layout:
             _reject_if_non_default(layout[prop], prop, _LAYOUT_DEFAULTS)
-    if "icon-halo-color" in paint:
-        _reject_if_non_default(
-            paint["icon-halo-color"], "icon-halo-color", _PAINT_DEFAULTS
-        )
+    if "icon-halo-width" in paint or "icon-halo-color" in paint:
+        _reject_icon_halo(paint)
 
     placement = layout.get("symbol-placement", "point")
     if placement != "point":
