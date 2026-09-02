@@ -299,6 +299,156 @@ def test_blur_paint_is_dropped_silently(layer_type, prop):
     assert isinstance(style, Style)
 
 
+@pytest.mark.parametrize(
+    "layer_type, extra_layout, prop, value",
+    [
+        ("symbol", {"icon-image": "dot"}, "icon-halo-blur", 1.5),
+        ("symbol", {"text-field": "hi"}, "symbol-spacing", 550),
+        ("symbol", {"text-field": "hi"}, "text-padding", 12),
+        ("symbol", {"text-field": "hi"}, "text-rotate", 45),
+        ("symbol", {"icon-image": "dot"}, "icon-rotate", 15),
+    ],
+)
+def test_symbol_hint_paint_is_dropped_silently(layer_type, extra_layout, prop, value):
+    is_paint = prop == "icon-halo-blur"
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": layer_type,
+                    "source": "s",
+                    "paint": {prop: value} if is_paint else {},
+                    "layout": {**extra_layout, **({} if is_paint else {prop: value})},
+                }
+            ],
+        }
+    )
+    assert isinstance(style, Style)
+
+
+@pytest.mark.parametrize(
+    "prop, default",
+    [("icon-size", 1), ("text-justify", "center"), ("text-max-width", 10)],
+)
+def test_symbol_layout_default_value_passes(prop, default):
+    style = MaplibreReader().read(
+        _symbol_layer({"text-field": "x", "icon-image": "dot", prop: default})
+    )
+    assert isinstance(style, Style)
+
+
+@pytest.mark.parametrize(
+    "prop, default, other",
+    [
+        ("icon-size", 1, 2),
+        ("text-justify", "center", "left"),
+        ("text-max-width", 10, 20),
+    ],
+)
+def test_symbol_layout_non_default_value_raises(prop, default, other):
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            _symbol_layer({"text-field": "x", "icon-image": "dot", prop: other})
+        )
+
+
+def test_line_offset_default_zero_passes():
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": "line",
+                    "source": "s",
+                    "paint": {"line-color": "red", "line-offset": 0},
+                }
+            ],
+        }
+    )
+    assert isinstance(style, Style)
+
+
+def test_line_offset_non_zero_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            {
+                "version": 8,
+                "sources": {},
+                "layers": [
+                    {
+                        "id": "l",
+                        "type": "line",
+                        "source": "s",
+                        "paint": {"line-color": "red", "line-offset": 5},
+                    }
+                ],
+            }
+        )
+
+
+def test_line_dasharray_literal_maps_to_dash_pattern():
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": "line",
+                    "source": "s",
+                    "paint": {"line-width": 2, "line-dasharray": [2.0, 1.0]},
+                }
+            ],
+        }
+    )
+    stroke = style.to_dict()["stylingRules"][0]["symbolizer"]["stroke"]
+    assert stroke["dashPattern"] == [4, 2]
+
+
+def test_line_dasharray_without_line_width_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            {
+                "version": 8,
+                "sources": {},
+                "layers": [
+                    {
+                        "id": "l",
+                        "type": "line",
+                        "source": "s",
+                        "paint": {"line-dasharray": [2.0, 1.0]},
+                    }
+                ],
+            }
+        )
+
+
+def test_line_dasharray_legacy_stops_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            {
+                "version": 8,
+                "sources": {},
+                "layers": [
+                    {
+                        "id": "l",
+                        "type": "line",
+                        "source": "s",
+                        "paint": {
+                            "line-width": 2,
+                            "line-dasharray": {"stops": [[13, [1, 1]]]},
+                        },
+                    }
+                ],
+            }
+        )
+
+
 def test_unsupported_filter_key_raises():
     with pytest.raises(NotImplementedError):
         MaplibreReader().read(
@@ -519,7 +669,9 @@ def test_text_halo_maps_to_font_outline():
 
 def test_unsupported_symbol_layout_key_raises():
     with pytest.raises(NotImplementedError):
-        MaplibreReader().read(_symbol_layer({"text-field": "x", "text-max-width": 10}))
+        MaplibreReader().read(
+            _symbol_layer({"text-field": "x", "symbol-avoid-edges": True})
+        )
 
 
 def _fill_style(layer: dict) -> dict:

@@ -33,19 +33,51 @@ from ._expressions import maplibre_expr_to_value
 from ._filter import filter_to_selector
 from ._zoom import merge_zoom_range
 
-# Paint keys that carry no CartoSym-symbology meaning and are dropped
-# rather than rejected: they tune rasteriser quality, not the portrayal.
-# `line-blur`/`text-halo-blur` are a rendering-only blur radius, same
-# category as `fill-antialias` — neither Stroke nor FontOutline has a
-# blur field to hold them.
+# Paint/layout keys that carry no CartoSym-symbology meaning and are
+# dropped rather than rejected, regardless of value — checked in both
+# `paint` and `layout` (see `_reject_unknown`).
+# `line-blur`/`text-halo-blur`/`icon-halo-blur` are a rendering-only blur
+# radius, same category as `fill-antialias` — neither Stroke nor
+# FontOutline has a blur field to hold them.
+# `symbol-spacing` only affects symbol-placement `line`/`line-center`
+# (MapLibre spec) — inert here, since this codec only maps
+# `symbol-placement: point` (anything else already raises elsewhere).
+# `text-padding` is collision-detection sizing (whether a label is hidden
+# next to another one) — it never changes one label's own rendered
+# appearance, so it carries no portrayal content for this codec's purposes.
+# `text-rotate`/`icon-rotate` have no CartoSym field, same open question as
+# `se:Graphic/se:Rotation` on the SLD/SE side (see `codecs/sld/_symbolizer.py`
+# — "pending a mapping decision"), so dropped the same way for consistency
+# across codecs rather than raised here alone.
 _IGNORED_PAINT: frozenset[str] = frozenset(
-    {"fill-antialias", "line-blur", "text-halo-blur"}
+    {
+        "fill-antialias",
+        "line-blur",
+        "text-halo-blur",
+        "icon-halo-blur",
+        "symbol-spacing",
+        "text-padding",
+        "text-rotate",
+        "icon-rotate",
+    }
 )
+
+# Layout/paint properties whose spec default is a portrayal no-op (the
+# same as the property being absent) — anything else raises, since there
+# is no CartoSym field for the non-default effect. See `_reject_if_non_default`.
+_LAYOUT_DEFAULTS: dict[str, Any] = {
+    "icon-size": 1,
+    "text-justify": "center",
+    "text-max-width": 10,
+}
+_PAINT_DEFAULTS: dict[str, Any] = {"line-offset": 0}
 
 _FILL_PAINT: frozenset[str] = frozenset(
     {"fill-color", "fill-opacity", "fill-outline-color", "fill-pattern"}
 )
-_LINE_PAINT: frozenset[str] = frozenset({"line-color", "line-opacity", "line-width"})
+_LINE_PAINT: frozenset[str] = frozenset(
+    {"line-color", "line-opacity", "line-width", "line-offset", "line-dasharray"}
+)
 _CIRCLE_PAINT: frozenset[str] = frozenset(
     {
         "circle-color",
@@ -77,6 +109,9 @@ _SYMBOL_LAYOUT: frozenset[str] = frozenset(
         "icon-image",
         "symbol-placement",
         "visibility",
+        "icon-size",
+        "text-justify",
+        "text-max-width",
     }
 )
 _BACKGROUND_PAINT: frozenset[str] = frozenset(
@@ -144,6 +179,24 @@ def _reject_unknown(props: dict[str, Any], known: frozenset[str], ctx: str) -> N
         )
 
 
+def _reject_if_non_default(value: Any, prop: str, defaults: dict[str, Any]) -> None:
+    """Raise unless *value* equals ``defaults[prop]`` — a spec no-op.
+
+    ``defaults`` (see ``_LAYOUT_DEFAULTS``/``_PAINT_DEFAULTS``) holds the
+    MapLibre spec default for a property this codec has no CartoSym field
+    for. Writing that literal default is equivalent to omitting the
+    property — nothing is lost passing it through silently — but any
+    other literal, or an expression, has real portrayal content this
+    codec cannot represent and must raise instead of dropping.
+    """
+    default = defaults[prop]
+    if value != default:
+        raise NotImplementedError(
+            f"{prop} {value!r} (not the spec default {default!r}) has no "
+            "CartoSym mapping in this codec"
+        )
+
+
 def _visibility(layer: dict[str, Any]) -> bool | None:
     vis = layer.get("layout", {}).get("visibility")
     if vis in (None, "visible"):
@@ -191,12 +244,40 @@ def _fill_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     return symbolizer
 
 
+def _dash_pattern_from_array(dasharray: Any, width: Any, ctx: str) -> list[int]:
+    """Turn a MapLibre ``line-dasharray`` into a CartoSym ``stroke.dashPattern``.
+
+    Inverse of the writer's ``_dash_array``: ``line-dasharray`` is in
+    multiples of the line's own width, ``dashPattern`` is absolute px —
+    each length is multiplied by ``stroke.width`` in px, rounded to the
+    nearest integer (``dashPattern``'s schema type). Only a literal array
+    of numbers maps — a legacy ``{"stops": …}`` function or any other
+    expression here is out of scope, same as elsewhere in this codec —
+    and it needs a literal numeric ``line-width`` to scale by.
+    """
+    if not isinstance(dasharray, list) or not all(
+        isinstance(v, (int, float)) and not isinstance(v, bool) for v in dasharray
+    ):
+        raise NotImplementedError(
+            f"{ctx}: {dasharray!r} is not a literal array of numbers"
+        )
+    if not isinstance(width, (int, float)) or isinstance(width, bool):
+        raise NotImplementedError(
+            f"{ctx}: needs a literal line-width to convert into CartoSym's "
+            "absolute-px stroke.dashPattern, which is missing or "
+            "non-literal here"
+        )
+    return [round(v * width) for v in dasharray]
+
+
 def _line_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     paint = layer.get("paint", {})
     _reject_unknown(paint, _LINE_PAINT, "line")
     # line-cap / line-join / line-round-limit change rendered geometry with
     # no CartoSym Stroke field — reject rather than drop.
     _reject_unknown(layer.get("layout", {}), frozenset({"visibility"}), "line layout")
+    if "line-offset" in paint:
+        _reject_if_non_default(paint["line-offset"], "line-offset", _PAINT_DEFAULTS)
 
     stroke: dict[str, Any] = {}
     if "line-color" in paint:
@@ -205,6 +286,10 @@ def _line_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
         stroke["width"] = _constant(paint["line-width"], "line-width")
     if "line-opacity" in paint:
         stroke["opacity"] = _constant(paint["line-opacity"], "line-opacity")
+    if "line-dasharray" in paint:
+        stroke["dashPattern"] = _dash_pattern_from_array(
+            paint["line-dasharray"], stroke.get("width"), "line-dasharray"
+        )
     return {"stroke": stroke}
 
 
@@ -336,6 +421,9 @@ def _symbol_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     layout = layer.get("layout", {})
     _reject_unknown(paint, _SYMBOL_PAINT, "symbol")
     _reject_unknown(layout, _SYMBOL_LAYOUT, "symbol layout")
+    for prop in ("icon-size", "text-justify", "text-max-width"):
+        if prop in layout:
+            _reject_if_non_default(layout[prop], prop, _LAYOUT_DEFAULTS)
 
     placement = layout.get("symbol-placement", "point")
     if placement != "point":
