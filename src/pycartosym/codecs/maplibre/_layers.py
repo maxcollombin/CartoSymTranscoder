@@ -496,6 +496,124 @@ _HANDLERS = {
 }
 
 
+def _find_step_zoom_properties(layer: dict[str, Any]) -> dict[tuple[str, str], list]:
+    """Return every literal top-level ``["step", ["zoom"], …]`` paint/layout value.
+
+    Keyed ``{(group, key): step_expr}``. Only a *top-level* property
+    value is considered — ``step`` nested
+    inside another expression (``["case", cond, ["step", …], …]``) is out
+    of scope, same as any other unmapped nesting in this codec. A
+    property this codec always ignores regardless of value
+    (``_IGNORED_PAINT``) is skipped too — exploding for it would only
+    multiply identical rules for no information gain.
+    """
+    found: dict[tuple[str, str], list] = {}
+    for group in ("paint", "layout"):
+        for key, value in layer.get(group, {}).items():
+            if key in _IGNORED_PAINT:
+                continue
+            if (
+                isinstance(value, list)
+                and len(value) >= 3
+                and value[0] == "step"
+                and value[1] == ["zoom"]
+            ):
+                found[(group, key)] = value
+    return found
+
+
+def _step_value_at(step_expr: list, zoom: float) -> Any:
+    """Return the ``["step", ["zoom"], out0, stop1, out1, …]`` output active at *zoom*.
+
+    MapLibre ``step`` semantics: ``out0`` below the first stop, then each
+    ``out_i`` for ``stop_i <= input < stop_(i+1)``. The returned value is
+    passed through unevaluated — it may itself be any other expression
+    this codec's normal per-property handling already covers (or rejects).
+    """
+    rest = step_expr[2:]
+    output = rest[0]
+    for i in range(1, len(rest), 2):
+        stop, out = rest[i], rest[i + 1]
+        if zoom < stop:
+            break
+        output = out
+    return output
+
+
+def _expand_step_zoom_layers(layer: dict[str, Any]) -> list[dict[str, Any]]:
+    """Explode a layer with one or more top-level ``step(["zoom"])`` values.
+
+    ``step`` is already a discrete, piecewise-constant function of zoom —
+    unlike ``interpolate`` (continuous, has no CartoSym representation at
+    all: CartoSym's only zoom/scale concept is ``viz.sd`` at the *rule*
+    level, a finite set of discrete ranges), a ``step`` function decomposes
+    losslessly into one CartoSym rule per zoom segment, each with that
+    segment's constant value and a ``minzoom``/``maxzoom`` narrowed to the
+    segment — reusing the exact ``minzoom``/``maxzoom`` -> ``viz.sd``
+    conversion :func:`layer_to_styling_rule` already applies via
+    ``merge_zoom_range`` (see ``._zoom`` for its own documented
+    Web-Mercator/equator-exactness caveats, unchanged and not made any
+    worse by this).
+
+    Several stepped properties in one layer may have different, unrelated
+    breakpoints (seen in the wild) — their breakpoints are merged into one
+    common zoom axis first, so every resulting segment is constant for
+    *all* of them at once. Returns ``[layer]`` unchanged (no explosion) if
+    the layer has no top-level ``step(["zoom"])`` value.
+    """
+    stepped = _find_step_zoom_properties(layer)
+    if not stepped:
+        return [layer]
+
+    orig_min = layer.get("minzoom")
+    orig_max = layer.get("maxzoom")
+    breakpoints = sorted(
+        {
+            stop
+            for expr in stepped.values()
+            for stop in expr[3::2]
+            if (orig_min is None or stop > orig_min)
+            and (orig_max is None or stop < orig_max)
+        }
+    )
+    edges = (
+        [orig_min if orig_min is not None else float("-inf")]
+        + breakpoints
+        + [orig_max if orig_max is not None else float("inf")]
+    )
+
+    segments = []
+    for lo, hi in zip(edges, edges[1:]):
+        new_layer = dict(layer)
+        for group in ("paint", "layout"):
+            if group in layer:
+                new_layer[group] = dict(layer[group])
+        for (group, key), expr in stepped.items():
+            new_layer[group][key] = _step_value_at(expr, lo)
+        if lo == float("-inf"):
+            new_layer.pop("minzoom", None)
+        else:
+            new_layer["minzoom"] = lo
+        if hi == float("inf"):
+            new_layer.pop("maxzoom", None)
+        else:
+            new_layer["maxzoom"] = hi
+        segments.append(new_layer)
+
+    for i, seg in enumerate(segments, start=1):
+        seg["id"] = f"{layer['id']}-{i}"
+    return segments
+
+
+def layer_to_styling_rules(layer: dict[str, Any]) -> list[dict[str, Any]]:
+    """Convert one MapLibre layer to one or more CartoSym ``stylingRule`` dicts.
+
+    More than one only when the layer has a top-level ``step(["zoom"])``
+    value — see :func:`_expand_step_zoom_layers`.
+    """
+    return [layer_to_styling_rule(seg) for seg in _expand_step_zoom_layers(layer)]
+
+
 def layer_to_styling_rule(layer: dict[str, Any]) -> dict[str, Any]:
     """Convert one MapLibre layer to a CartoSym ``stylingRule`` dict.
 
