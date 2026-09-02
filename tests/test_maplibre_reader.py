@@ -307,6 +307,9 @@ def test_blur_paint_is_dropped_silently(layer_type, prop):
         ("symbol", {"text-field": "hi"}, "text-padding", 12),
         ("symbol", {"text-field": "hi"}, "text-rotate", 45),
         ("symbol", {"icon-image": "dot"}, "icon-rotate", 15),
+        ("symbol", {"text-field": "hi"}, "symbol-z-order", "y-position"),
+        ("symbol", {"icon-image": "dot"}, "icon-optional", True),
+        ("symbol", {"icon-image": "dot"}, "text-optional", True),
     ],
 )
 def test_symbol_hint_paint_is_dropped_silently(layer_type, extra_layout, prop, value):
@@ -331,7 +334,12 @@ def test_symbol_hint_paint_is_dropped_silently(layer_type, extra_layout, prop, v
 
 @pytest.mark.parametrize(
     "prop, default",
-    [("icon-size", 1), ("text-justify", "center"), ("text-max-width", 10)],
+    [
+        ("icon-size", 1),
+        ("text-justify", "center"),
+        ("text-max-width", 10),
+        ("text-letter-spacing", 0),
+    ],
 )
 def test_symbol_layout_default_value_passes(prop, default):
     style = MaplibreReader().read(
@@ -346,6 +354,7 @@ def test_symbol_layout_default_value_passes(prop, default):
         ("icon-size", 1, 2),
         ("text-justify", "center", "left"),
         ("text-max-width", 10, 20),
+        ("text-letter-spacing", 0, 0.1),
     ],
 )
 def test_symbol_layout_non_default_value_raises(prop, default, other):
@@ -353,6 +362,49 @@ def test_symbol_layout_non_default_value_raises(prop, default, other):
         MaplibreReader().read(
             _symbol_layer({"text-field": "x", "icon-image": "dot", prop: other})
         )
+
+
+def test_icon_halo_color_default_transparent_passes():
+    style = MaplibreReader().read(
+        _symbol_layer(
+            {"icon-image": "dot"}, paint={"icon-halo-color": "rgba(0, 0, 0, 0)"}
+        )
+    )
+    assert isinstance(style, Style)
+
+
+def test_icon_halo_color_non_default_raises():
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            _symbol_layer(
+                {"icon-image": "dot"}, paint={"icon-halo-color": "rgba(255, 0, 0, 1)"}
+            )
+        )
+
+
+def test_icon_offset_maps_to_image_position():
+    style = MaplibreReader().read(
+        _symbol_layer({"icon-image": "dot", "icon-offset": [0, -1.3]})
+    )
+    element = style.to_dict()["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+    assert element["position"] == {"x": 0, "y": -1.3}
+
+
+@pytest.mark.parametrize(
+    "anchor, fx, fy",
+    [
+        ("bottom-left", 0, 0),
+        ("bottom", 50, 0),
+        ("center", 50, 50),
+        ("top-right", 100, 100),
+    ],
+)
+def test_icon_anchor_maps_to_hot_spot(anchor, fx, fy):
+    style = MaplibreReader().read(
+        _symbol_layer({"icon-image": "dot", "icon-anchor": anchor})
+    )
+    element = style.to_dict()["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+    assert element["hotSpot"] == [{"pc": fx}, {"pc": fy}]
 
 
 def test_line_offset_default_zero_passes():

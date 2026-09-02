@@ -49,6 +49,10 @@ from ._zoom import merge_zoom_range
 # `se:Graphic/se:Rotation` on the SLD/SE side (see `codecs/sld/_symbolizer.py`
 # — "pending a mapping decision"), so dropped the same way for consistency
 # across codecs rather than raised here alone.
+# `symbol-z-order`/`icon-optional`/`text-optional` are all about collision
+# *fallback* behaviour when several symbols overlap — none of them changes
+# a single, non-colliding symbol's own rendered appearance, same category
+# as `text-padding` above.
 _IGNORED_PAINT: frozenset[str] = frozenset(
     {
         "fill-antialias",
@@ -59,6 +63,9 @@ _IGNORED_PAINT: frozenset[str] = frozenset(
         "text-padding",
         "text-rotate",
         "icon-rotate",
+        "symbol-z-order",
+        "icon-optional",
+        "text-optional",
     }
 )
 
@@ -69,8 +76,17 @@ _LAYOUT_DEFAULTS: dict[str, Any] = {
     "icon-size": 1,
     "text-justify": "center",
     "text-max-width": 10,
+    "text-letter-spacing": 0,
 }
-_PAINT_DEFAULTS: dict[str, Any] = {"line-offset": 0}
+# `icon-halo-color`'s default is fully transparent (invisible, so a
+# portrayal no-op like the others here) — only this exact spec-documented
+# string is recognised as the default; any other spelling of "transparent"
+# (a different colour space, `transparent`, alpha-0 in another format, …)
+# raises rather than being guessed at.
+_PAINT_DEFAULTS: dict[str, Any] = {
+    "line-offset": 0,
+    "icon-halo-color": "rgba(0, 0, 0, 0)",
+}
 
 _FILL_PAINT: frozenset[str] = frozenset(
     {"fill-color", "fill-opacity", "fill-outline-color", "fill-pattern"}
@@ -96,6 +112,7 @@ _SYMBOL_PAINT: frozenset[str] = frozenset(
         "text-halo-width",
         "icon-opacity",
         "icon-color",
+        "icon-halo-color",
     }
 )
 _SYMBOL_LAYOUT: frozenset[str] = frozenset(
@@ -112,6 +129,9 @@ _SYMBOL_LAYOUT: frozenset[str] = frozenset(
         "icon-size",
         "text-justify",
         "text-max-width",
+        "text-letter-spacing",
+        "icon-anchor",
+        "icon-offset",
     }
 )
 _BACKGROUND_PAINT: frozenset[str] = frozenset(
@@ -129,6 +149,24 @@ _ANCHOR_TO_ALIGNMENT: dict[str, tuple[str, str]] = {
     "top-right": ("right", "top"),
     "bottom-left": ("left", "bottom"),
     "bottom-right": ("right", "bottom"),
+}
+
+# MapLibre icon-anchor token → (fx, fy) hotSpot fraction, (0,0)=lower-left/
+# (1,1)=upper-right — the ``se:AnchorPoint`` convention this codebase's SLD
+# reader already implements. writer.py inverts this same table (imported,
+# not duplicated) for the reverse direction (Image.hotSpot → icon-anchor,
+# PR #63) — see its own docstring for why fy=0/"lower" lines up unflipped
+# with icon-anchor "bottom".
+_ICON_ANCHOR_TO_FRACTION: dict[str, tuple[float, float]] = {
+    "bottom-left": (0.0, 0.0),
+    "bottom": (0.5, 0.0),
+    "bottom-right": (1.0, 0.0),
+    "left": (0.0, 0.5),
+    "center": (0.5, 0.5),
+    "right": (1.0, 0.5),
+    "top-left": (0.0, 1.0),
+    "top": (0.5, 1.0),
+    "top-right": (1.0, 1.0),
 }
 
 
@@ -421,9 +459,13 @@ def _symbol_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     layout = layer.get("layout", {})
     _reject_unknown(paint, _SYMBOL_PAINT, "symbol")
     _reject_unknown(layout, _SYMBOL_LAYOUT, "symbol layout")
-    for prop in ("icon-size", "text-justify", "text-max-width"):
+    for prop in ("icon-size", "text-justify", "text-max-width", "text-letter-spacing"):
         if prop in layout:
             _reject_if_non_default(layout[prop], prop, _LAYOUT_DEFAULTS)
+    if "icon-halo-color" in paint:
+        _reject_if_non_default(
+            paint["icon-halo-color"], "icon-halo-color", _PAINT_DEFAULTS
+        )
 
     placement = layout.get("symbol-placement", "point")
     if placement != "point":
@@ -472,6 +514,22 @@ def _symbol_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
             "image": {"id": _constant(layout["icon-image"], "icon-image")},
             "position": {"x": 0, "y": 0},
         }
+        if "icon-offset" in layout:
+            offset = _literal_offset(layout["icon-offset"], "icon-offset")
+            # Each component is multiplied by icon-size to get a pixel
+            # offset (MapLibre spec) — icon-size is already constrained to
+            # its spec default (1) above, so the raw offset is already in
+            # px; kept as a bare number, same convention as text-offset.
+            image_el["position"] = {"x": offset[0], "y": offset[1]}
+        if "icon-anchor" in layout:
+            anchor = _constant(layout["icon-anchor"], "icon-anchor")
+            if anchor not in _ICON_ANCHOR_TO_FRACTION:
+                raise NotImplementedError(f"unexpected icon-anchor {anchor!r}")
+            fx, fy = _ICON_ANCHOR_TO_FRACTION[anchor]
+            image_el["hotSpot"] = [
+                {"pc": round(fx * 100)},
+                {"pc": round(fy * 100)},
+            ]
         if "icon-opacity" in paint:
             image_el["opacity"] = _constant(paint["icon-opacity"], "icon-opacity")
         if "icon-color" in paint:
