@@ -64,6 +64,21 @@ from ._zoom import merge_zoom_range
 # collision fallback toggles, same category as `icon-optional`.
 # `symbol-avoid-edges` only affects whether symbols cross *tile* edges —
 # a tiling/collision concern, not the symbol's own appearance.
+# `icon-ignore-placement`/`text-ignore-placement` control whether *other*
+# symbols may still be drawn despite colliding with this one — collision
+# fallback again, never this symbol's own appearance, same category as
+# `icon-optional` above. `text-pitch-alignment` is about text orientation
+# under a tilted (3D-perspective) map view — CartoSym's conceptual model
+# has no notion of view pitch anywhere, so it's inert regardless of value,
+# not just at its default (`icon-pitch-alignment` is its exact icon
+# counterpart, same reasoning). `text-rotation-alignment`/
+# `icon-rotation-alignment` are the same category one level further: per
+# spec they only change anything "in combination with symbol-placement"
+# (map bearing/rotation vs. screen-upright) — a view-state concern this
+# codec's point-only, bearing-unaware model has no field for either.
+# `icon-keep-upright` is `text-keep-upright`'s exact icon counterpart,
+# same reasoning (only matters for line placement/rotation, both already
+# out of scope).
 _IGNORED_PAINT: frozenset[str] = frozenset(
     {
         "fill-antialias",
@@ -84,17 +99,31 @@ _IGNORED_PAINT: frozenset[str] = frozenset(
         "icon-allow-overlap",
         "text-allow-overlap",
         "symbol-avoid-edges",
+        "icon-ignore-placement",
+        "text-ignore-placement",
+        "text-pitch-alignment",
+        "icon-pitch-alignment",
+        "text-rotation-alignment",
+        "icon-rotation-alignment",
+        "icon-keep-upright",
     }
 )
 
 # Layout/paint properties whose spec default is a portrayal no-op (the
 # same as the property being absent) — anything else raises, since there
 # is no CartoSym field for the non-default effect. See `_reject_if_non_default`.
+# `icon-text-fit` dynamically resizes the icon to match the text box — a
+# real portrayal effect this codec has no field for (no "size relative to
+# text" concept anywhere in the model); only its no-op default passes.
+# `icon-text-fit-padding` only matters together with a non-default
+# `icon-text-fit`, so it gets the same treatment.
 _LAYOUT_DEFAULTS: dict[str, Any] = {
     "icon-size": 1,
     "text-justify": "center",
     "text-max-width": 10,
     "text-letter-spacing": 0,
+    "icon-text-fit": "none",
+    "icon-text-fit-padding": [0, 0, 0, 0],
 }
 _PAINT_DEFAULTS: dict[str, Any] = {"line-offset": 0}
 
@@ -143,6 +172,8 @@ _SYMBOL_LAYOUT: frozenset[str] = frozenset(
         "text-letter-spacing",
         "icon-anchor",
         "icon-offset",
+        "icon-text-fit",
+        "icon-text-fit-padding",
     }
 )
 _BACKGROUND_PAINT: frozenset[str] = frozenset(
@@ -491,7 +522,14 @@ def _symbol_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     layout = layer.get("layout", {})
     _reject_unknown(paint, _SYMBOL_PAINT, "symbol")
     _reject_unknown(layout, _SYMBOL_LAYOUT, "symbol layout")
-    for prop in ("icon-size", "text-justify", "text-max-width", "text-letter-spacing"):
+    for prop in (
+        "icon-size",
+        "text-justify",
+        "text-max-width",
+        "text-letter-spacing",
+        "icon-text-fit",
+        "icon-text-fit-padding",
+    ):
         if prop in layout:
             _reject_if_non_default(layout[prop], prop, _LAYOUT_DEFAULTS)
     if "icon-halo-width" in paint or "icon-halo-color" in paint:
