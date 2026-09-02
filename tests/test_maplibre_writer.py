@@ -1855,3 +1855,161 @@ def test_fill_layer_value_expression_round_trip(expr):
     assert_maplibre_valid(out)
     again = read.read(out)
     assert again.to_dict() == style.to_dict()
+
+
+class TestStepZoomRecombination:
+    """N ``base-1``/``base-2``/… rules → one ``step(["zoom"])`` layer.
+
+    Inverse of ``TestStepZoomExplosion`` in ``test_maplibre_reader.py``.
+    """
+
+    def test_single_property_recombines_into_one_step_layer(self):
+        style = {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "line",
+                    "type": "line",
+                    "source": "s",
+                    "paint": {
+                        "line-color": ["step", ["zoom"], "red", 12, "blue", 15, "green"]
+                    },
+                }
+            ],
+        }
+        read = MaplibreReader()
+        parsed = read.read(style)
+        assert len(parsed.styling_rules) == 3
+        out = MaplibreWriter().write(parsed)
+        assert_maplibre_valid(out)
+        assert len(out["layers"]) == 1
+        layer = out["layers"][0]
+        assert layer["id"] == "line"
+        assert layer["paint"]["line-color"] == [
+            "step",
+            ["zoom"],
+            "red",
+            12,
+            "blue",
+            15,
+            "green",
+        ]
+        assert "minzoom" not in layer
+        assert "maxzoom" not in layer
+        # Reading the recombined output back gives an equivalent Style
+        # (the same 3-way split the original input would have produced).
+        again = read.read(out)
+        assert [
+            r["symbolizer"]["stroke"]["color"] for r in again.to_dict()["stylingRules"]
+        ] == ["red", "blue", "green"]
+
+    def test_two_properties_with_different_breakpoints_recombine(self):
+        style = {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": "symbol",
+                    "source": "s",
+                    "minzoom": 10,
+                    "layout": {
+                        "text-field": "x",
+                        "icon-image": ["step", ["zoom"], "a", 15, "b", 16, "c"],
+                    },
+                    "paint": {
+                        "icon-opacity": ["step", ["zoom"], 0.2, 13, 0.5, 14, 1.0]
+                    },
+                }
+            ],
+        }
+        read = MaplibreReader()
+        parsed = read.read(style)
+        assert len(parsed.styling_rules) == 5
+        out = MaplibreWriter().write(parsed)
+        assert_maplibre_valid(out)
+        assert len(out["layers"]) == 1
+        layer = out["layers"][0]
+        assert layer["id"] == "l"
+        assert layer["minzoom"] == 10
+        assert "maxzoom" not in layer
+        # Model fixed point over the full recombination round-trip.
+        again = read.read(out)
+        assert again.to_dict() == parsed.to_dict()
+
+    def test_gap_in_index_sequence_is_not_combined(self):
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "name": "l-1",
+                        "selector": {
+                            "op": "<=",
+                            "args": [{"sysId": "viz.sd"}, 100000],
+                        },
+                        "symbolizer": {"fill": {"color": "red"}},
+                    },
+                    {
+                        "name": "l-3",
+                        "selector": {"op": ">", "args": [{"sysId": "viz.sd"}, 100000]},
+                        "symbolizer": {"fill": {"color": "blue"}},
+                    },
+                ]
+            }
+        )
+        out = MaplibreWriter().write(style)
+        assert [layer["id"] for layer in out["layers"]] == ["l-1", "l-3"]
+
+    def test_differing_extra_key_prevents_combination(self):
+        # l-2 has fill-opacity, l-1 doesn't -> not a pure step-of-one-value
+        # difference, so this codec doesn't guess a step reconstruction.
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "name": "l-1",
+                        "selector": {
+                            "op": "<=",
+                            "args": [{"sysId": "viz.sd"}, 100000],
+                        },
+                        "symbolizer": {"fill": {"color": "red"}},
+                    },
+                    {
+                        "name": "l-2",
+                        "selector": {"op": ">", "args": [{"sysId": "viz.sd"}, 100000]},
+                        "symbolizer": {"fill": {"color": "red", "opacity": 0.5}},
+                    },
+                ]
+            }
+        )
+        out = MaplibreWriter().write(style)
+        assert [layer["id"] for layer in out["layers"]] == ["l-1", "l-2"]
+
+    def test_non_contiguous_zoom_ranges_are_not_combined(self):
+        # A gap between segment 1's maxzoom and segment 2's minzoom - not
+        # a shape the reader's own explosion would ever produce.
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "name": "l-1",
+                        "selector": {
+                            "op": ">",
+                            "args": [{"sysId": "viz.sd"}, 200000],
+                        },
+                        "symbolizer": {"fill": {"color": "red"}},
+                    },
+                    {
+                        "name": "l-2",
+                        "selector": {
+                            "op": "<=",
+                            "args": [{"sysId": "viz.sd"}, 100000],
+                        },
+                        "symbolizer": {"fill": {"color": "blue"}},
+                    },
+                ]
+            }
+        )
+        out = MaplibreWriter().write(style)
+        assert [layer["id"] for layer in out["layers"]] == ["l-1", "l-2"]
