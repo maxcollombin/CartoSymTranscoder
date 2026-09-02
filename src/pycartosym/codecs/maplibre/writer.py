@@ -84,6 +84,7 @@ ramp).
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ...models.styles import Style, StylingRule
@@ -1030,6 +1031,130 @@ def _rule_to_layers(rule: Any) -> list[dict[str, Any]]:
     return layers
 
 
+# `name` pattern the reader's own step(["zoom"]) explosion produces (PR
+# #70, `_expand_step_zoom_layers`) — `{base}-{1-based index}`, sequential
+# starting at 1. Recombination below only ever targets this exact shape;
+# a hand-written CSCSS/CS-JSON rule set that happens to look similar but
+# isn't named this way is never recombined — see :func:`_combine_stepped_rules`.
+_STEP_NAME_RE = re.compile(r"^(.+)-(\d+)$")
+
+_MISSING = object()
+
+
+def _group_stepped_rules(rules: list[Any]) -> list[list[Any]]:
+    """Group consecutive rules named ``base-1``/``base-2``/… for step recombination.
+
+    A rule whose name doesn't fit the pattern, or that breaks the
+    1..N sequence (wrong index, a different base, a gap in the rule
+    list), starts its own singleton group instead.
+    """
+    groups: list[list[Any]] = []
+    current: list[Any] = []
+    current_base: str | None = None
+    expected_index = 1
+    for rule in rules:
+        match = _STEP_NAME_RE.match(rule.name or "")
+        if (
+            match
+            and match.group(1) == current_base
+            and int(match.group(2)) == (expected_index)
+        ):
+            current.append(rule)
+            expected_index += 1
+            continue
+        if current:
+            groups.append(current)
+            current = []
+        if match and int(match.group(2)) == 1:
+            current = [rule]
+            current_base = match.group(1)
+            expected_index = 2
+        else:
+            groups.append([rule])
+            current_base = None
+            expected_index = 1
+    if current:
+        groups.append(current)
+    return groups
+
+
+def _combine_stepped_rules(group: list[Any]) -> list[dict[str, Any]] | None:
+    """Recombine a ``base-1``/``base-2``/… rule run into one ``step(["zoom"])`` layer.
+
+    Inverse of the reader's :func:`._layers._expand_step_zoom_layers`
+    (PR #70) — reuses :func:`_rule_to_layers` to resolve each rule
+    independently first (so every existing per-property serialisation
+    rule still applies unchanged), then merges the results. Returns
+    ``None`` — meaning the caller falls back to writing each rule as its
+    own independent layer(s), never a guessed/approximated merge — unless
+    *every* one of these holds:
+
+    - each rule resolves to exactly one layer (a rule that itself splits
+      into several, e.g. combined fill+stroke, is never recombined);
+    - all layers share the same ``type``/``source``/``source-layer``/
+      ``filter`` — only ``minzoom``/``maxzoom`` and paint/layout *values*
+      may differ;
+    - the zoom ranges are contiguous with no gap (segment *i*'s
+      ``maxzoom`` equals segment *i+1*'s ``minzoom``) and only the very
+      first ``minzoom``/very last ``maxzoom`` may be absent (unbounded);
+    - every differing paint/layout key is present in *all* segments (a
+      key missing in only some has no ``step`` representation).
+    """
+    segment_layers = []
+    for rule in group:
+        if _is_empty_of_paint(rule):
+            return None
+        layers = _rule_to_layers(rule)
+        if len(layers) != 1:
+            return None
+        segment_layers.append(layers[0])
+
+    first = segment_layers[0]
+    for layer in segment_layers[1:]:
+        if any(
+            layer.get(key) != first.get(key)
+            for key in ("type", "source", "source-layer", "filter")
+        ):
+            return None
+
+    for a, b in zip(segment_layers, segment_layers[1:]):
+        if a.get("maxzoom") != b.get("minzoom"):
+            return None
+    if any("minzoom" not in layer for layer in segment_layers[1:]):
+        return None
+    if any("maxzoom" not in layer for layer in segment_layers[:-1]):
+        return None
+    zoom_stops = [layer["minzoom"] for layer in segment_layers[1:]]
+
+    combined: dict[str, Any] = dict(first)
+    combined["id"] = _STEP_NAME_RE.match(group[0].name).group(1)  # type: ignore[union-attr]
+    if "maxzoom" in segment_layers[-1]:
+        combined["maxzoom"] = segment_layers[-1]["maxzoom"]
+    else:
+        combined.pop("maxzoom", None)
+
+    for prop_kind in ("paint", "layout"):
+        per_segment = [layer.get(prop_kind, {}) for layer in segment_layers]
+        keys = {key for values in per_segment for key in values}
+        merged: dict[str, Any] = {}
+        for key in keys:
+            values = [v.get(key, _MISSING) for v in per_segment]
+            if any(v is _MISSING for v in values):
+                return None
+            if all(v == values[0] for v in values):
+                merged[key] = values[0]
+            else:
+                step_args: list[Any] = [values[0]]
+                for stop, value in zip(zoom_stops, values[1:]):
+                    step_args.extend([stop, value])
+                merged[key] = ["step", ["zoom"], *step_args]
+        if merged:
+            combined[prop_kind] = merged
+        else:
+            combined.pop(prop_kind, None)
+    return [combined]
+
+
 class MaplibreWriter(CodecWriter):
     """Serialise a :class:`Style` as a MapLibre GL style ``dict``."""
 
@@ -1041,12 +1166,15 @@ class MaplibreWriter(CodecWriter):
                 does not map yet (see the module docstring).
         """
         rules = _flatten_rules(style.styling_rules)
-        layers = [
-            layer
-            for rule in rules
-            if not _is_empty_of_paint(rule)
-            for layer in _rule_to_layers(rule)
-        ]
+        layers: list[dict[str, Any]] = []
+        for group in _group_stepped_rules(rules):
+            combined = _combine_stepped_rules(group) if len(group) > 1 else None
+            if combined is not None:
+                layers.extend(combined)
+                continue
+            for rule in group:
+                if not _is_empty_of_paint(rule):
+                    layers.extend(_rule_to_layers(rule))
         sources: dict[str, Any] = {}
         # A `background` layer has no `source` — only declare a synthetic
         # source when a layer actually references it.
