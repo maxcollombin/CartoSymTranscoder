@@ -416,6 +416,95 @@ class TestReadRaster:
         assert sym.hill_shading == {"factor": 56}
 
 
+class TestReadPropertyDrivenColor:
+    """``fill``/``stroke`` colour as ``ogc:PropertyName`` / ``se:Recode``."""
+
+    def _read_string(self, xml):
+        return SldReader().read(xml)
+
+    _RECODE_XML = """<?xml version='1.0' encoding='UTF-8'?>
+<StyledLayerDescriptor
+    xmlns="http://www.opengis.net/sld"
+    xmlns:se="http://www.opengis.net/se"
+    xmlns:ogc="http://www.opengis.net/ogc"
+    version="1.1.0">
+  <NamedLayer><UserStyle><se:FeatureTypeStyle><se:Rule>
+    <se:PolygonSymbolizer><se:Fill>
+      <se:SvgParameter name="fill">
+        <se:Recode fallbackValue="#000000">
+          <se:LookupValue><ogc:PropertyName>weight</ogc:PropertyName></se:LookupValue>
+          <se:MapItem><se:Data>15</se:Data><se:Value>#6495ED</se:Value></se:MapItem>
+          <se:MapItem><se:Data>10</se:Data><se:Value>#B0C4DE</se:Value></se:MapItem>
+        </se:Recode>
+      </se:SvgParameter>
+    </se:Fill></se:PolygonSymbolizer>
+  </se:Rule></se:FeatureTypeStyle></UserStyle></NamedLayer>
+</StyledLayerDescriptor>"""
+
+    def test_bare_property_name_fill_color(self):
+        xml = """<?xml version='1.0' encoding='UTF-8'?>
+<StyledLayerDescriptor
+    xmlns="http://www.opengis.net/sld"
+    xmlns:se="http://www.opengis.net/se"
+    xmlns:ogc="http://www.opengis.net/ogc"
+    version="1.1.0">
+  <NamedLayer><UserStyle><se:FeatureTypeStyle><se:Rule>
+    <se:PolygonSymbolizer><se:Fill>
+      <se:SvgParameter name="fill">
+        <ogc:PropertyName>COLOR_FIELD</ogc:PropertyName>
+      </se:SvgParameter>
+    </se:Fill></se:PolygonSymbolizer>
+  </se:Rule></se:FeatureTypeStyle></UserStyle></NamedLayer>
+</StyledLayerDescriptor>"""
+        sym = self._read_string(xml).styling_rules[0].symbolizer
+        assert sym.fill.color.to_dict() == {"property": "COLOR_FIELD"}
+
+    def test_bare_property_name_stroke_color(self):
+        xml = """<?xml version='1.0' encoding='UTF-8'?>
+<StyledLayerDescriptor
+    xmlns="http://www.opengis.net/sld"
+    xmlns:se="http://www.opengis.net/se"
+    xmlns:ogc="http://www.opengis.net/ogc"
+    version="1.1.0">
+  <NamedLayer><UserStyle><se:FeatureTypeStyle><se:Rule>
+    <se:LineSymbolizer><se:Stroke>
+      <se:SvgParameter name="stroke">
+        <ogc:PropertyName>COLOR_FIELD</ogc:PropertyName>
+      </se:SvgParameter>
+    </se:Stroke></se:LineSymbolizer>
+  </se:Rule></se:FeatureTypeStyle></UserStyle></NamedLayer>
+</StyledLayerDescriptor>"""
+        sym = self._read_string(xml).styling_rules[0].symbolizer
+        assert sym.stroke.color.to_dict() == {"property": "COLOR_FIELD"}
+
+    def test_recode_fill_color_maps_to_match_expression(self):
+        sym = self._read_string(self._RECODE_XML).styling_rules[0].symbolizer
+        assert sym.fill.color.to_dict() == {
+            "op": "match",
+            "args": [{"property": "weight"}, 15, "#6495ED", 10, "#B0C4DE", "#000000"],
+        }
+
+    def test_recode_without_fallback_value_raises(self):
+        xml = self._RECODE_XML.replace(' fallbackValue="#000000"', "")
+        with pytest.raises(NotImplementedError):
+            self._read_string(xml)
+
+    def test_recode_with_non_property_name_lookup_raises(self):
+        xml = self._RECODE_XML.replace(
+            "<ogc:PropertyName>weight</ogc:PropertyName>",
+            "<ogc:Literal>weight</ogc:Literal>",
+        )
+        with pytest.raises(NotImplementedError):
+            self._read_string(xml)
+
+    def test_recode_without_map_item_raises(self):
+        import re
+
+        xml = re.sub(r"<se:MapItem>.*?</se:MapItem>", "", self._RECODE_XML, flags=re.S)
+        with pytest.raises(NotImplementedError):
+            self._read_string(xml)
+
+
 class TestReadPathVsStringHeuristic:
     def test_path_and_raw_string_give_identical_results(self):
         path = FIXTURES / "1-polygon-fill-stroke.sld"

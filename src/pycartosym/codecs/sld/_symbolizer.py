@@ -31,6 +31,33 @@ is folded multiplicatively into every leaf opacity produced
 (``fill-opacity``, ``stroke-opacity``, ``se:Graphic/se:Opacity``,
 ``se:RasterSymbolizer/se:Opacity``) — round-trips cleanly only for raster.
 
+``se:Fill``/``se:Stroke``'s ``fill``/``stroke`` (colour) parameters may
+also be property-driven: a bare ``ogc:PropertyName`` maps to a CartoSym
+``PropertyRef``, and ``se:Recode`` (native SE 1.1.0 element,
+``se:LookupValue`` + one or more ``se:MapItem``/``se:Data``/``se:Value``,
+substitution group ``se:Function`` — see ``Symbolizer.xsd``, *not* the
+generic ``ogc:Function name="Recode"`` some Annex B examples show, which
+has no ``fallbackValue`` and isn't SE-namespaced) maps to a
+``MatchExpression`` (see :mod:`...models.value_expressions`) — the same
+CartoSym-side shape MapLibre's own ``match`` expression uses, chosen
+deliberately so a Recode read from SLD passes straight through the
+MapLibre codec unchanged. ``Recode``'s ``fallbackValue`` (required on the
+abstract ``se:FunctionType``) becomes ``match``'s trailing fallback arg;
+a lookup value other than a bare ``ogc:PropertyName`` (a nested function,
+say) is out of scope and raises. **``se:Data`` (a ``MapItem``'s label) is
+``xsd:double`` in the schema — numeric only** (unlike ``se:Categorize``'s
+``se:Value``, a free-text ``ParameterValueType``) — a non-numeric
+``match`` label has no ``se:Recode`` mapping and raises on write; this is
+presumably *why* the Annex B "Recoding Function" worked example (a
+string-keyed region-name lookup) uses the generic ``ogc:Function
+name="Recode"`` form instead of the native element it names — the
+native ``se:Recode`` cannot represent it. SE 1.1.0 only — SLD 1.0.0
+predates ``se:Recode`` and has no equivalent, so a match/Recode colour
+raises there (``SldDialect.recode_function``). ``fill-opacity``/
+``stroke-opacity`` read the same property-driven shapes, but the
+opacity-folding above means they never write back as an expression —
+only as a literal, or ``NotImplementedError``.
+
 ``Dot``, ``Circle``, ``Image``, and ``Text`` graphic elements (found in
 either ``Symbolizer.marker.elements`` or ``Symbolizer.label.elements`` —
 CartoSym allows Text under either) are in scope (the other ``2-shapes``
@@ -50,6 +77,7 @@ from typing import Any
 
 from lxml import etree
 
+from ...models.value_expressions import MatchExpression, PropertyRef
 from ._dialect import SldDialect
 from ._types import (
     format_color,
@@ -315,6 +343,68 @@ def _raise_if_fill_out_of_scope(fill: Any) -> None:
             )
 
 
+def _write_color_param(
+    d: SldDialect, parent: etree._Element, name: str, color: Any
+) -> None:
+    """Append *color* as a ``fill``/``stroke`` colour ``SvgParameter``.
+
+    A literal (``Color``/hex/named string) goes through
+    :func:`._types.format_color`. A ``PropertyRef``/``MatchExpression``
+    (see the module docstring) instead builds a bare ``ogc:PropertyName``
+    or an ``se:Recode``; any other :mod:`...models.value_expressions`
+    model (``CaseExpression``, ``StepExpression``, ``InterpolateExpression``,
+    ``CoalesceExpression``) has no SLD/SE mapping in this codec yet and
+    raises. SE 1.1.0 only — SLD 1.0.0 has no native ``Recode``/
+    ``LookupValue``/``MapItem`` (those are SE 1.1.0 additions), so this is
+    not called for that dialect (see the caller).
+    """
+    if isinstance(color, PropertyRef):
+        param = d.param_element(parent, name)
+        etree.SubElement(param, f"{OGC}PropertyName").text = color.property
+        return
+    if isinstance(color, MatchExpression):
+        if not d.recode_function:
+            raise NotImplementedError(
+                f"{name}: a match/Recode value has no SLD 1.0.0 mapping in "
+                "this codec (se:Recode/se:LookupValue/se:MapItem are SE "
+                "1.1.0 additions)"
+            )
+        lookup, *rest = color.args
+        *pairs, fallback = rest
+        if not isinstance(lookup, PropertyRef):
+            raise NotImplementedError(
+                f"{name}: match/Recode lookup value {lookup!r} is not "
+                "supported in this codec (only a property reference maps)"
+            )
+        if isinstance(fallback, (bool, int, float, str)):
+            fallback_text = str(fallback)
+        else:
+            raise NotImplementedError(
+                f"{name}: match/Recode fallback {fallback!r} must be a "
+                "literal — se:Recode's fallbackValue is an XML attribute, "
+                "which can't hold a nested expression"
+            )
+        labels, outs = pairs[0::2], pairs[1::2]
+        for label in labels:
+            if isinstance(label, bool) or not isinstance(label, (int, float)):
+                raise NotImplementedError(
+                    f"{name}: match/Recode label {label!r} must be numeric — "
+                    "se:Recode's se:Data is xsd:double per SE 1.1.0 "
+                    "(Symbolizer.xsd), unlike se:Categorize/se:Value"
+                )
+        param = d.param_element(parent, name)
+        recode = d.el("Recode", param)
+        recode.set("fallbackValue", fallback_text)
+        lookup_el = d.el("LookupValue", recode)
+        etree.SubElement(lookup_el, f"{OGC}PropertyName").text = lookup.property
+        for label, out in zip(labels, outs):
+            item = d.el("MapItem", recode)
+            d.el("Data", item, text=str(label))
+            d.el("Value", item, text=str(out))
+        return
+    d.param(parent, name, format_color(color))
+
+
 def _build_fill_element(
     d: SldDialect, fill: Any, base_opacity: float | None = None
 ) -> etree._Element:
@@ -322,7 +412,7 @@ def _build_fill_element(
     el = d.el("Fill")
     color = _g(fill, "color")
     if color is not None:
-        d.param(el, "fill", format_color(color))
+        _write_color_param(d, el, "fill", color)
     combined = _combine_opacity(base_opacity, _g(fill, "opacity"))
     if combined is not None:
         d.param(el, "fill-opacity", combined)
@@ -351,7 +441,7 @@ def _build_stroke_element(
     width = _g(stroke, "width")
     dash_pattern = _g(stroke, "dash_pattern")
     if color is not None:
-        d.param(el, "stroke", format_color(color))
+        _write_color_param(d, el, "stroke", color)
     if width is not None:
         d.param(el, "stroke-width", format_unit_value(width))
     combined = _combine_opacity(base_opacity, _g(stroke, "opacity"))
@@ -956,6 +1046,100 @@ def _reject_unknown_params(
             )
 
 
+def _coerce_recode_literal(text: str | None) -> Any:
+    """Coerce an ``ogc:Literal``/``fallbackValue`` string to bool/int/float/str.
+
+    Mirrors ``_filter.py``'s ``_coerce_literal`` (kept local rather than
+    imported — this module doesn't otherwise depend on ``_filter.py``).
+    """
+    if text is None:
+        return None
+    if text in ("true", "false"):
+        return text == "true"
+    try:
+        return int(text)
+    except ValueError:
+        pass
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    return text
+
+
+def _property_ref_from_container(elem: etree._Element) -> dict | None:
+    """Return ``{"property": ...}`` if *elem*'s single child is ``ogc:PropertyName``.
+
+    ``None`` otherwise — the container (an ``SvgParameter``, or an
+    ``se:LookupValue``, both ``se:ParameterValueType``-shaped mixed
+    content) holds something else instead: a plain literal, or an
+    unsupported shape for the caller to reject.
+    """
+    children = [c for c in elem if isinstance(c.tag, str)]
+    if len(children) == 1 and local_name(children[0]) == "PropertyName":
+        return {"property": children[0].text}
+    return None
+
+
+def _parse_recode(d: SldDialect, recode_el: etree._Element) -> dict:
+    """Parse an ``se:Recode`` element into a CartoSym ``match`` expression.
+
+    See the module docstring for the lookup-value scope and why
+    ``op: "match"`` (MapLibre's own vocabulary, see
+    :mod:`...models.value_expressions`) is reused rather than a
+    CartoSym-specific ``"recode"`` name. ``fallbackValue`` (required on
+    ``se:FunctionType``, SE 1.1.0) becomes ``match``'s trailing arg.
+    """
+    fallback = recode_el.get("fallbackValue")
+    if fallback is None:
+        raise NotImplementedError(
+            "se:Recode without a fallbackValue attribute (required on "
+            "se:FunctionType, SE 1.1.0) has no CartoSym mapping in this codec"
+        )
+    lookup_el = d.find(recode_el, "LookupValue")
+    lookup = _property_ref_from_container(lookup_el) if lookup_el is not None else None
+    if lookup is None:
+        raise NotImplementedError(
+            "se:Recode/se:LookupValue is missing, or is not a bare "
+            "ogc:PropertyName — not supported in this codec"
+        )
+    map_items = d.findall(recode_el, "MapItem")
+    if not map_items:
+        raise NotImplementedError("se:Recode without any se:MapItem")
+    args: list[Any] = [lookup]
+    for item in map_items:
+        data_el, value_el = d.find(item, "Data"), d.find(item, "Value")
+        if data_el is None or value_el is None:
+            raise NotImplementedError("se:MapItem without se:Data/se:Value")
+        args.append(_coerce_recode_literal(element_text(data_el)))
+        args.append(_coerce_recode_literal(element_text(value_el)))
+    args.append(_coerce_recode_literal(fallback))
+    return {"op": "match", "args": args}
+
+
+def _parse_flexible_param(d: SldDialect, elem: etree._Element, name: str) -> Any:
+    """Return an ``SvgParameter``'s value: text, an expression dict, or ``None``.
+
+    A bare ``ogc:PropertyName`` or an ``se:Recode`` child (SE 1.1.0 only)
+    is a property-driven expression (see the module docstring); anything
+    else falls back to :func:`._xml_helpers.element_text` (a plain
+    literal, or the ``None``/``NotImplementedError`` — via
+    ``parse_color``/``parse_opacity`` — an unsupported shape already
+    produces).
+    """
+    param = d.get_param_element(elem, name)
+    if param is None:
+        return None
+    ref = _property_ref_from_container(param)
+    if ref is not None:
+        return ref
+    if d.recode_function:
+        recode_el = d.find(param, "Recode")
+        if recode_el is not None:
+            return _parse_recode(d, recode_el)
+    return element_text(param)
+
+
 def _parse_fill_element(d: SldDialect, fill_el: etree._Element) -> dict:
     if d.find(fill_el, "GraphicFill") is not None:
         raise NotImplementedError(
@@ -964,12 +1148,14 @@ def _parse_fill_element(d: SldDialect, fill_el: etree._Element) -> dict:
         )
     _reject_unknown_params(d, fill_el, {"fill", "fill-opacity"}, "Fill")
     result: dict = {}
-    color = d.get_param(fill_el, "fill")
-    opacity = d.get_param(fill_el, "fill-opacity")
+    color = _parse_flexible_param(d, fill_el, "fill")
+    opacity = _parse_flexible_param(d, fill_el, "fill-opacity")
     if color is not None:
-        result["color"] = parse_color(color)
+        result["color"] = color if isinstance(color, dict) else parse_color(color)
     if opacity is not None:
-        result["opacity"] = parse_opacity(opacity)
+        result["opacity"] = (
+            opacity if isinstance(opacity, dict) else parse_opacity(opacity)
+        )
     return result
 
 
@@ -988,16 +1174,18 @@ def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
         "Stroke",
     )
     result: dict = {}
-    color = d.get_param(stroke_el, "stroke")
+    color = _parse_flexible_param(d, stroke_el, "stroke")
     width = d.get_param(stroke_el, "stroke-width")
-    opacity = d.get_param(stroke_el, "stroke-opacity")
+    opacity = _parse_flexible_param(d, stroke_el, "stroke-opacity")
     dasharray = d.get_param(stroke_el, "stroke-dasharray")
     if color is not None:
-        result["color"] = parse_color(color)
+        result["color"] = color if isinstance(color, dict) else parse_color(color)
     if width is not None:
         result["width"] = parse_unit_value(width)
     if opacity is not None:
-        result["opacity"] = parse_opacity(opacity)
+        result["opacity"] = (
+            opacity if isinstance(opacity, dict) else parse_opacity(opacity)
+        )
     if dasharray is not None:
         result["dashPattern"] = [int(float(p)) for p in dasharray.split()]
     return result

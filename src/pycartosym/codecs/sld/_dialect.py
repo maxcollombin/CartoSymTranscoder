@@ -77,6 +77,11 @@ class SldDialect:
             conceptual model's generic vendor-extension mechanism).
             ``False`` for the standard OGC dialects, which reject
             ``<VendorOption>`` as a non-standard extension.
+        recode_function: ``True`` if the dialect has the native
+            ``se:Recode``/``se:LookupValue``/``se:MapItem`` elements (SE
+            1.1.0 additions, substitution group ``se:Function`` — see
+            ``Symbolizer.xsd``); ``False`` for SLD 1.0.0, which predates
+            them.
         nsmap: Namespace map for the document root element.
     """
 
@@ -88,6 +93,7 @@ class SldDialect:
     coverage_style: bool
     graphic_placement: bool
     vendor_options: bool
+    recode_function: bool
     nsmap: dict[str | None, str]
 
     # -- element factories -------------------------------------------------
@@ -136,6 +142,17 @@ class SldDialect:
         el.set("name", name)
         return el
 
+    def param_element(self, parent: etree._Element, name: str) -> etree._Element:
+        """Append an empty ``<SvgParameter name=...>`` for the caller to fill in.
+
+        For a value with no plain-text form — a property-driven
+        expression, whose content is a child element (``ogc:PropertyName``/
+        ``ogc:Function``), not text — unlike :meth:`param`.
+        """
+        el = self.el(self.param_tag, parent)
+        el.set("name", name)
+        return el
+
     # -- readers ---------------------------------------------------------
 
     def find(self, elem: etree._Element, tag: str) -> etree._Element | None:
@@ -158,9 +175,21 @@ class SldDialect:
         Unwraps a ``<ogc:Literal>``-wrapped constant (a common GeoServer
         SLD 1.0.0 spelling).
         """
+        param = self.get_param_element(elem, name)
+        return element_text(param) if param is not None else None
+
+    def get_param_element(
+        self, elem: etree._Element, name: str
+    ) -> etree._Element | None:
+        """Return the raw ``<SvgParameter name=...>`` child element, if present.
+
+        Unlike :meth:`get_param`, does not read its text — for a caller
+        that needs to inspect its children instead (a property-driven
+        expression's ``ogc:PropertyName``/``ogc:Function``, not a literal).
+        """
         for param in self.findall(elem, self.param_tag):
             if param.get("name") == name:
-                return element_text(param)
+                return param
         return None
 
 
@@ -173,6 +202,7 @@ SE_1_1_0 = SldDialect(
     coverage_style=True,
     graphic_placement=True,
     vendor_options=False,
+    recode_function=True,
     nsmap=_SE_NSMAP,
 )
 
@@ -185,6 +215,7 @@ SLD_1_0_0 = SldDialect(
     coverage_style=False,
     graphic_placement=False,
     vendor_options=False,
+    recode_function=False,
     nsmap=_SLD10_NSMAP,
 )
 
@@ -200,6 +231,7 @@ SLD_1_0_0_GEOSERVER = SldDialect(
     coverage_style=False,
     graphic_placement=False,
     vendor_options=True,
+    recode_function=False,
     nsmap=_SLD10_NSMAP,
 )
 
