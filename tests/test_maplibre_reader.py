@@ -310,6 +310,13 @@ def test_blur_paint_is_dropped_silently(layer_type, prop):
         ("symbol", {"text-field": "hi"}, "symbol-z-order", "y-position"),
         ("symbol", {"icon-image": "dot"}, "icon-optional", True),
         ("symbol", {"icon-image": "dot"}, "text-optional", True),
+        ("symbol", {"text-field": "hi"}, "text-max-angle", 30),
+        ("symbol", {"text-field": "hi"}, "text-keep-upright", False),
+        ("symbol", {"text-field": "hi"}, "symbol-sort-key", 5),
+        ("symbol", {"icon-image": "dot"}, "icon-padding", 4),
+        ("symbol", {"icon-image": "dot"}, "icon-allow-overlap", True),
+        ("symbol", {"text-field": "hi"}, "text-allow-overlap", True),
+        ("symbol", {"text-field": "hi"}, "symbol-avoid-edges", True),
     ],
 )
 def test_symbol_hint_paint_is_dropped_silently(layer_type, extra_layout, prop, value):
@@ -373,12 +380,22 @@ def test_icon_halo_color_default_transparent_passes():
     assert isinstance(style, Style)
 
 
-def test_icon_halo_color_non_default_raises():
+def test_icon_halo_color_non_default_passes_when_width_zero():
+    # icon-halo-width absent (spec default 0) means the halo is invisible
+    # regardless of icon-halo-color's own value — a proven no-op, dropped
+    # rather than raised.
+    style = MaplibreReader().read(
+        _symbol_layer(
+            {"icon-image": "dot"}, paint={"icon-halo-color": "rgba(255, 0, 0, 1)"}
+        )
+    )
+    assert isinstance(style, Style)
+
+
+def test_icon_halo_width_non_default_raises():
     with pytest.raises(NotImplementedError):
         MaplibreReader().read(
-            _symbol_layer(
-                {"icon-image": "dot"}, paint={"icon-halo-color": "rgba(255, 0, 0, 1)"}
-            )
+            _symbol_layer({"icon-image": "dot"}, paint={"icon-halo-width": 2})
         )
 
 
@@ -720,9 +737,11 @@ def test_text_halo_maps_to_font_outline():
 
 
 def test_unsupported_symbol_layout_key_raises():
+    # text-line-height: no CartoSym field (Font has no leading/lineHeight),
+    # a confirmed permanent gap, not just an uncabled key.
     with pytest.raises(NotImplementedError):
         MaplibreReader().read(
-            _symbol_layer({"text-field": "x", "symbol-avoid-edges": True})
+            _symbol_layer({"text-field": "x", "text-line-height": 1.5})
         )
 
 
