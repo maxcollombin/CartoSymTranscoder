@@ -317,6 +317,13 @@ def test_blur_paint_is_dropped_silently(layer_type, prop):
         ("symbol", {"icon-image": "dot"}, "icon-allow-overlap", True),
         ("symbol", {"text-field": "hi"}, "text-allow-overlap", True),
         ("symbol", {"text-field": "hi"}, "symbol-avoid-edges", True),
+        ("symbol", {"icon-image": "dot"}, "icon-ignore-placement", True),
+        ("symbol", {"text-field": "hi"}, "text-ignore-placement", True),
+        ("symbol", {"text-field": "hi"}, "text-pitch-alignment", "viewport"),
+        ("symbol", {"icon-image": "dot"}, "icon-pitch-alignment", "viewport"),
+        ("symbol", {"text-field": "hi"}, "text-rotation-alignment", "map"),
+        ("symbol", {"icon-image": "dot"}, "icon-rotation-alignment", "map"),
+        ("symbol", {"icon-image": "dot"}, "icon-keep-upright", True),
     ],
 )
 def test_symbol_hint_paint_is_dropped_silently(layer_type, extra_layout, prop, value):
@@ -346,6 +353,8 @@ def test_symbol_hint_paint_is_dropped_silently(layer_type, extra_layout, prop, v
         ("text-justify", "center"),
         ("text-max-width", 10),
         ("text-letter-spacing", 0),
+        ("icon-text-fit", "none"),
+        ("icon-text-fit-padding", [0, 0, 0, 0]),
     ],
 )
 def test_symbol_layout_default_value_passes(prop, default):
@@ -362,6 +371,8 @@ def test_symbol_layout_default_value_passes(prop, default):
         ("text-justify", "center", "left"),
         ("text-max-width", 10, 20),
         ("text-letter-spacing", 0, 0.1),
+        ("icon-text-fit", "none", "both"),
+        ("icon-text-fit-padding", [0, 0, 0, 0], [2, 2, 2, 2]),
     ],
 )
 def test_symbol_layout_non_default_value_raises(prop, default, other):
