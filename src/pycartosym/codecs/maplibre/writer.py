@@ -93,7 +93,7 @@ from ..base import CodecWriter
 from . import _raster
 from ._expressions import value_to_maplibre_expr
 from ._filter import selector_to_filter, strip_datalayer_id
-from ._layers import _ANCHOR_TO_ALIGNMENT
+from ._layers import _ANCHOR_TO_ALIGNMENT, _ICON_ANCHOR_TO_FRACTION
 from ._zoom import extract_zoom_range
 
 _SOURCE = "cartosym"
@@ -532,21 +532,13 @@ def _text_layer_layout_paint(text_el: Any) -> tuple[dict[str, Any], dict[str, An
     return layout, paint
 
 
-# hotSpot fraction (fx, fy) -> MapLibre icon-anchor, keyed on the same
-# {0, 0.5, 1} grid as MapLibre's 9 anchor keywords. See
-# :func:`_hot_spot_to_icon_anchor` for the fraction's own (0,0)=lower-left/
-# (1,1)=upper-right convention and why it lines up with icon-anchor
-# unflipped.
+# hotSpot fraction (fx, fy) -> MapLibre icon-anchor: the reader's own
+# _ICON_ANCHOR_TO_FRACTION (._layers), inverted, so the two directions
+# can't drift apart. See :func:`_hot_spot_to_icon_anchor` for the
+# fraction's own (0,0)=lower-left/(1,1)=upper-right convention and why it
+# lines up with icon-anchor unflipped.
 _ANCHOR_BY_FRACTION: dict[tuple[float, float], str] = {
-    (0.0, 0.0): "bottom-left",
-    (0.5, 0.0): "bottom",
-    (1.0, 0.0): "bottom-right",
-    (0.0, 0.5): "left",
-    (0.5, 0.5): "center",
-    (1.0, 0.5): "right",
-    (0.0, 1.0): "top-left",
-    (0.5, 1.0): "top",
-    (1.0, 1.0): "top-right",
+    v: k for k, v in _ICON_ANCHOR_TO_FRACTION.items()
 }
 
 
