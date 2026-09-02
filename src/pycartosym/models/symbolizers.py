@@ -146,6 +146,11 @@ class Stroke(BaseCartoSymModel, AlterMixin):
         None, description="Stroke pattern graphic (temporary)"
     )
 
+    # Part 2 ("shapes") extension: line ends/corners — { butt, round,
+    # square } / { miter, round, bevel } respectively.
+    cap: str | None = Field(None, description="Stroke line cap")
+    join: str | None = Field(None, description="Stroke line join")
+
     @field_validator("width", mode="before")
     def validate_width(cls, v):
         """Coerce a ``{unit: value}`` dict on ``width`` before validation."""

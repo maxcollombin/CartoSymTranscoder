@@ -163,11 +163,27 @@
                      "casing": { "$ref": "#/$defs/strokeStyling" },
                      "centerLine": { "$ref": "#/$defs/strokeStyling" },
                      "dashPattern": { "$ref": "#/$defs/dashPattern" },
-                     "pattern": { "$ref": "#/$defs/graphic" }
+                     "pattern": { "$ref": "#/$defs/graphic" },
+                     "join": { "$ref": "#/$defs/strokeJoin" },
+                     "cap": { "$ref": "#/$defs/strokeCap" }
                   }
                }
             ]
          }
+       ]
+    },
+    "strokeJoin":
+    {
+       "oneOf": [
+         { "$ref": "#/$defs/idOrFnExpression" },
+         { "type": "string", "enum": [ "miter", "round", "bevel" ] }
+       ]
+    },
+    "strokeCap":
+    {
+       "oneOf": [
+         { "$ref": "#/$defs/idOrFnExpression" },
+         { "type": "string", "enum": [ "butt", "round", "square" ] }
        ]
     },
     "dashPattern":

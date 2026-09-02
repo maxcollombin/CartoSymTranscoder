@@ -167,6 +167,51 @@ def test_stroke_dash_pattern_indexed_override_fragment_is_rejected():
         MaplibreWriter().write(style)
 
 
+def test_stroke_cap_join_map_to_line_layout():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "roads",
+                    "symbolizer": {
+                        "stroke": {
+                            "width": {"px": 2.0},
+                            "cap": "round",
+                            "join": "bevel",
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    assert out["layers"][0]["layout"]["line-cap"] == "round"
+    assert out["layers"][0]["layout"]["line-join"] == "bevel"
+    assert_maplibre_valid(out)
+
+
+def test_stroke_cap_join_inlined_as_fill_outline_is_rejected():
+    """A plain-colour stroke (no width/opacity) with ``cap``/``join`` stays
+    inlined as ``fill-outline-color``, which has no line-cap/line-join
+    layout property — the combination has no MapLibre mapping.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "parcels",
+                    "symbolizer": {
+                        "fill": {"color": "#00ff00"},
+                        "stroke": {"color": "#000000", "cap": "round"},
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
 def test_stroke_dash_pattern_inlined_as_fill_outline_is_rejected():
     """A plain-colour stroke (no width/opacity) with a ``dashPattern``
     stays inlined as ``fill-outline-color``, which has no dasharray and
