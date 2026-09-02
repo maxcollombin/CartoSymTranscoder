@@ -5,6 +5,16 @@ and layer ``filter`` (see ``_layers`` / ``_filter``). Everything else
 raises :exc:`NotImplementedError` rather than being silently dropped, per
 this project's lossless-transcoding requirement. Symbol layers and
 MapLibre value expressions land in later passes.
+
+One MapLibre layer can produce more than one ``stylingRule`` — a
+top-level ``["step", ["zoom"], …]`` paint/layout value (a discrete,
+piecewise-constant function of zoom) explodes into one rule per zoom
+segment, each ``viz.sd``-scoped; see
+``._layers.layer_to_styling_rules``/``_expand_step_zoom_layers``. A
+continuous ``["interpolate", …, ["zoom"], …]`` or legacy
+``{"stops": …}`` zoom function has no such decomposition (CartoSym's only
+zoom/scale concept is the same finite, rule-level ``viz.sd``) and stays
+out of scope, raising as before.
 """
 
 from __future__ import annotations
@@ -15,7 +25,7 @@ from typing import Any, cast
 
 from ...models.styles import Style
 from ..base import CodecReader
-from ._layers import layer_to_styling_rule
+from ._layers import layer_to_styling_rules
 
 
 class MaplibreReader(CodecReader):
@@ -43,7 +53,11 @@ class MaplibreReader(CodecReader):
                 f"MapLibre style version {version!r} is not supported (expected 8)"
             )
 
-        rules = [layer_to_styling_rule(layer) for layer in style.get("layers", [])]
+        rules = [
+            rule
+            for layer in style.get("layers", [])
+            for rule in layer_to_styling_rules(layer)
+        ]
         return Style(styling_rules=rules)
 
     @staticmethod

@@ -746,3 +746,112 @@ def test_minzoom_zero_is_a_no_op():
     }
     rule = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"][0]
     assert "selector" not in rule
+
+
+class TestStepZoomExplosion:
+    """``["step", ["zoom"], …]`` → one rule per zoom segment, ``viz.sd``-scoped."""
+
+    def test_single_stepped_property_becomes_n_rules(self):
+        layer = {
+            "id": "line",
+            "type": "line",
+            "source": "s",
+            "paint": {"line-color": ["step", ["zoom"], "red", 12, "blue", 15, "green"]},
+        }
+        rules = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"]
+        assert [r["name"] for r in rules] == ["line-1", "line-2", "line-3"]
+        assert [r["symbolizer"]["stroke"]["color"] for r in rules] == [
+            "red",
+            "blue",
+            "green",
+        ]
+        # Segment boundaries: (-inf, 12), [12, 15), [15, +inf).
+        assert rules[0]["selector"] == {
+            "op": ">",
+            "args": [{"sysId": "viz.sd"}, scale_denominator_from_zoom(12)],
+        }
+        assert rules[1]["selector"] == {
+            "op": "and",
+            "args": [
+                {
+                    "op": "<=",
+                    "args": [{"sysId": "viz.sd"}, scale_denominator_from_zoom(12)],
+                },
+                {
+                    "op": ">",
+                    "args": [{"sysId": "viz.sd"}, scale_denominator_from_zoom(15)],
+                },
+            ],
+        }
+        assert rules[2]["selector"] == {
+            "op": "<=",
+            "args": [{"sysId": "viz.sd"}, scale_denominator_from_zoom(15)],
+        }
+
+    def test_two_stepped_properties_with_different_breakpoints_merge(self):
+        layer = {
+            "id": "l",
+            "type": "symbol",
+            "source": "s",
+            "minzoom": 10,
+            "layout": {
+                "text-field": "x",
+                "icon-image": ["step", ["zoom"], "a", 15, "b", 16, "c"],
+            },
+            "paint": {"icon-opacity": ["step", ["zoom"], 0.2, 13, 0.5, 14, 1.0]},
+        }
+        rules = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"]
+        images = [
+            r["symbolizer"]["marker"]["elements"][0]["image"]["id"] for r in rules
+        ]
+        opacities = [r["symbolizer"]["marker"]["elements"][0]["opacity"] for r in rules]
+        # Merged breakpoints 13/14/15/16 -> 5 segments, values resolved
+        # independently per property at each segment.
+        assert images == ["a", "a", "a", "b", "c"]
+        assert opacities == [0.2, 0.5, 1.0, 1.0, 1.0]
+
+    def test_breakpoint_outside_layer_zoom_range_is_ignored(self):
+        layer = {
+            "id": "line",
+            "type": "line",
+            "source": "s",
+            "minzoom": 14,
+            "paint": {"line-color": ["step", ["zoom"], "red", 10, "blue", 20, "green"]},
+        }
+        rules = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"]
+        # Only the 20 breakpoint is inside (14, +inf) - the 10 breakpoint
+        # is below the layer's own minzoom and produces no extra segment,
+        # but the value it selects ("blue", active at zoom 10-20) is still
+        # the correct one for the first segment (starting at zoom 14).
+        assert len(rules) == 2
+        assert [r["symbolizer"]["stroke"]["color"] for r in rules] == [
+            "blue",
+            "green",
+        ]
+
+    def test_ignored_paint_property_stepped_by_zoom_does_not_explode(self):
+        layer = {
+            "id": "l",
+            "type": "symbol",
+            "source": "s",
+            "layout": {
+                "text-field": "x",
+                "symbol-spacing": ["step", ["zoom"], 250, 14, 450],
+            },
+        }
+        rules = MaplibreReader().read(_fill_style(layer)).to_dict()["stylingRules"]
+        assert len(rules) == 1
+        assert rules[0]["name"] == "l"
+
+    def test_step_output_that_is_itself_unsupported_still_raises(self):
+        # A step segment's own value goes through the normal per-property
+        # path unchanged — an unsupported expression there still raises,
+        # not a new failure mode introduced by the explosion itself.
+        layer = {
+            "id": "line",
+            "type": "line",
+            "source": "s",
+            "paint": {"line-color": ["step", ["zoom"], "red", 12, ["silly-op"]]},
+        }
+        with pytest.raises(NotImplementedError):
+            MaplibreReader().read(_fill_style(layer))
