@@ -219,6 +219,28 @@ def _dash_array(stroke: Any, ctx: str) -> list[float] | None:
     return [p / width_px for p in pattern]
 
 
+def _fill_pattern_icon_id(pattern: Any, ctx: str) -> Any:
+    """Return the sprite id/URI/path a ``fill.pattern`` Image graphic names.
+
+    Only an ``Image`` graphic maps — MapLibre's ``fill-pattern`` is always
+    a sprite reference, so a ``fill.pattern`` of another graphic type
+    (``Shape``, ``Text``, …) has no equivalent.
+    """
+    graphic_type = _attr(pattern, "type")
+    if graphic_type != "Image":
+        raise NotImplementedError(
+            f"{ctx} of type {graphic_type!r} has no MapLibre fill-pattern "
+            "mapping in this codec (only an Image graphic maps)"
+        )
+    image = _attr(pattern, "image")
+    icon_id = _attr(image, "id") or _attr(image, "uri") or _attr(image, "path")
+    if icon_id is None:
+        raise NotImplementedError(
+            f"{ctx} Image without id/uri/path has no MapLibre fill-pattern mapping"
+        )
+    return icon_id
+
+
 def _fill_layer(layer_id: str, fill: Any, inline_stroke: Any) -> dict[str, Any]:
     """Build the ``fill`` layer.
 
@@ -226,13 +248,17 @@ def _fill_layer(layer_id: str, fill: Any, inline_stroke: Any) -> dict[str, Any]:
     its own line layer is filtered out by the caller
     (:func:`_rule_to_layers`) before reaching here.
     """
-    for attr in ("pattern", "hatch", "dotpattern", "stipple"):
+    for attr in ("hatch", "dotpattern", "stipple"):
         if getattr(fill, attr, None) is not None:
             raise NotImplementedError(
                 f"fill.{attr} has no MapLibre mapping in this codec"
             )
 
     paint: dict[str, Any] = {}
+    if fill.pattern is not None:
+        paint["fill-pattern"] = _literal(
+            _fill_pattern_icon_id(fill.pattern, "fill.pattern"), "fill.pattern"
+        )
     if fill.color is not None:
         paint["fill-color"] = _literal(fill.color, "fill.color")
     if fill.opacity is not None:
@@ -585,13 +611,7 @@ def _hot_spot_to_icon_anchor(hot_spot: Any, ctx: str) -> str:
 
 
 def _icon_layer_layout_paint(image_el: Any) -> tuple[dict[str, Any], dict[str, Any]]:
-    for attr in (
-        "tint",
-        "blackTint",
-        "black_tint",
-        "alphaThreshold",
-        "alpha_threshold",
-    ):
+    for attr in ("blackTint", "black_tint", "alphaThreshold", "alpha_threshold"):
         if _attr(image_el, attr) is not None:
             raise NotImplementedError(
                 f"Image.{attr} has no MapLibre mapping in this codec"
@@ -607,6 +627,13 @@ def _icon_layer_layout_paint(image_el: Any) -> tuple[dict[str, Any], dict[str, A
     opacity = _attr(image_el, "opacity")
     if opacity is not None:
         paint["icon-opacity"] = _literal(opacity, "Image.opacity")
+    # icon-color only recolours an SDF (signed-distance-field) sprite in
+    # MapLibre — a constraint this codec has no way to check (it only ever
+    # carries a sprite id/URI, never the actual image data) — but tint is
+    # otherwise the same "recolour the icon" concept, so it maps through.
+    tint = _attr(image_el, "tint")
+    if tint is not None:
+        paint["icon-color"] = _literal(tint, "Image.tint")
     hot_spot = _attr(image_el, "hotSpot")
     if hot_spot is None:
         hot_spot = _attr(image_el, "hot_spot")

@@ -1037,3 +1037,100 @@ class TestSymbolizerOpacity:
             )
         )
         assert_sld_valid(xml, label="symbolizer opacity")
+
+
+class TestWritePropertyDrivenColor:
+    """``fill``/``stroke`` colour as ``ogc:PropertyName`` / ``se:Recode``."""
+
+    def test_property_ref_color_writes_bare_property_name(self):
+        root = _write(_rule_style({"fill": {"color": {"property": "COLOR_FIELD"}}}))
+        prop = root.find(".//se:Fill/se:SvgParameter/ogc:PropertyName", NS)
+        assert prop is not None and prop.text == "COLOR_FIELD"
+
+    def test_match_expression_color_writes_recode(self):
+        from ._xsd import assert_sld_valid
+
+        style_dict = _rule_style(
+            {
+                "fill": {
+                    "color": {
+                        "op": "match",
+                        "args": [
+                            {"property": "weight"},
+                            15,
+                            "#6495ED",
+                            10,
+                            "#B0C4DE",
+                            "#000000",
+                        ],
+                    }
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="match/Recode fill color")
+        root = etree.fromstring(xml.encode("utf-8"))
+        recode = root.find(".//se:Fill/se:SvgParameter/se:Recode", NS)
+        assert recode.get("fallbackValue") == "#000000"
+        lookup = recode.find("se:LookupValue/ogc:PropertyName", NS)
+        assert lookup.text == "weight"
+        items = recode.findall("se:MapItem", NS)
+        assert [i.find("se:Data", NS).text for i in items] == ["15", "10"]
+        assert [i.find("se:Value", NS).text for i in items] == ["#6495ED", "#B0C4DE"]
+
+        from pycartosym.codecs.sld.reader import SldReader
+
+        back = SldReader().read(xml)
+        assert (
+            back.styling_rules[0].symbolizer.fill.color.to_dict()
+            == style_dict["stylingRules"][0]["symbolizer"]["fill"]["color"]
+        )
+
+    def test_match_non_property_lookup_raises(self):
+        style_dict = _rule_style(
+            {
+                "fill": {
+                    "color": {
+                        "op": "match",
+                        "args": ["literal-not-a-property", "a", "#fff", "#000"],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_match_non_numeric_label_raises(self):
+        style_dict = _rule_style(
+            {
+                "fill": {
+                    "color": {
+                        "op": "match",
+                        "args": [
+                            {"property": "class"},
+                            "residential",
+                            "#fff",
+                            "#000",
+                        ],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_match_color_raises_for_sld_1_0_0(self):
+        from pycartosym.codecs.sld._dialect import SLD_1_0_0
+
+        style_dict = _rule_style(
+            {
+                "fill": {
+                    "color": {
+                        "op": "match",
+                        "args": [{"property": "weight"}, 15, "#fff", "#000"],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter(SLD_1_0_0).write(Style.from_dict(style_dict))

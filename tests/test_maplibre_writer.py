@@ -1074,6 +1074,100 @@ def test_icon_marker_hot_spot_non_percent_unit_is_rejected():
         MaplibreWriter().write(style)
 
 
+def test_icon_marker_tint_maps_to_icon_color():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "poi",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"id": "dot.sdf"},
+                                    "tint": "#000000",
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["paint"] == {"icon-color": "#000000"}
+    assert_maplibre_valid(out)
+
+
+def test_icon_marker_black_tint_is_still_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "poi",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Image",
+                                    "image": {"id": "dot.sdf"},
+                                    "blackTint": "#000000",
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
+def test_fill_pattern_image_maps_to_fill_pattern_paint():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "landcover",
+                    "symbolizer": {
+                        "fill": {"pattern": {"type": "Image", "image": {"id": "grass"}}}
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["type"] == "fill"
+    assert layer["paint"] == {"fill-pattern": "grass"}
+    assert_maplibre_valid(out)
+
+
+def test_fill_pattern_non_image_graphic_is_rejected():
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "landcover",
+                    "symbolizer": {
+                        "fill": {
+                            "pattern": {
+                                "type": "Shape",
+                                "outline": {"color": "black"},
+                            }
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
 def test_label_and_icon_marker_share_one_symbol_layer():
     style = Style.from_dict(
         {
