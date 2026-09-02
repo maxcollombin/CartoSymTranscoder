@@ -529,6 +529,69 @@ def test_line_dasharray_legacy_stops_raises():
         )
 
 
+@pytest.mark.parametrize(
+    "mb_prop, cs_prop, value",
+    [
+        ("line-cap", "cap", "round"),
+        ("line-cap", "cap", "square"),
+        ("line-join", "join", "bevel"),
+        ("line-join", "join", "miter"),
+    ],
+)
+def test_line_cap_join_maps_to_stroke(mb_prop, cs_prop, value):
+    style = MaplibreReader().read(
+        {
+            "version": 8,
+            "sources": {},
+            "layers": [
+                {
+                    "id": "l",
+                    "type": "line",
+                    "source": "s",
+                    "layout": {mb_prop: value},
+                }
+            ],
+        }
+    )
+    stroke = style.to_dict()["stylingRules"][0]["symbolizer"]["stroke"]
+    assert stroke[cs_prop] == value
+
+
+def test_line_round_limit_raises():
+    # miter-limit ratio — no CartoSym Stroke field, unlike cap/join.
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            {
+                "version": 8,
+                "sources": {},
+                "layers": [
+                    {
+                        "id": "l",
+                        "type": "line",
+                        "source": "s",
+                        "layout": {"line-round-limit": 2},
+                    }
+                ],
+            }
+        )
+
+
+@pytest.mark.parametrize("prop, value", [("line-cap", "flat"), ("line-join", "mitre")])
+def test_line_cap_join_unrecognised_value_raises(prop, value):
+    # "mitre" (British) is not this codec's spelling ("miter") — same
+    # rigour as the SLD/SE codec, no guessing at a normalisation.
+    with pytest.raises(NotImplementedError):
+        MaplibreReader().read(
+            {
+                "version": 8,
+                "sources": {},
+                "layers": [
+                    {"id": "l", "type": "line", "source": "s", "layout": {prop: value}}
+                ],
+            }
+        )
+
+
 def test_unsupported_filter_key_raises():
     with pytest.raises(NotImplementedError):
         MaplibreReader().read(

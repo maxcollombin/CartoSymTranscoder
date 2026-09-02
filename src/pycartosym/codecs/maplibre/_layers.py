@@ -298,6 +298,28 @@ def _reject_icon_halo(paint: dict[str, Any]) -> None:
         )
 
 
+_LINE_CAP_VALUES = frozenset({"butt", "round", "square"})
+_LINE_JOIN_VALUES = frozenset({"miter", "round", "bevel"})
+
+
+def _line_cap_or_join(value: Any, prop: str, allowed: frozenset[str]) -> Any:
+    """Resolve *value* and check it against the enum this codec maps.
+
+    ``line-cap``/``line-join`` only ever take one of a handful of literal
+    values per spec — same rigour as ``_visibility``/``symbol-placement``
+    elsewhere in this module. A spelling this codec doesn't recognise
+    (only ``miter``, never the British ``mitre``, matching CartoSym Part
+    2's ``strokeJoin`` enum and the underlying SVG stroke-linejoin spec)
+    raises rather than being passed through unchecked.
+    """
+    resolved = _constant(value, prop)
+    if resolved not in allowed:
+        raise NotImplementedError(
+            f"{prop} {resolved!r} is not one of {sorted(allowed)} in this codec"
+        )
+    return resolved
+
+
 def _visibility(layer: dict[str, Any]) -> bool | None:
     vis = layer.get("layout", {}).get("visibility")
     if vis in (None, "visible"):
@@ -373,12 +395,14 @@ def _dash_pattern_from_array(dasharray: Any, width: Any, ctx: str) -> list[int]:
 
 def _line_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
     paint = layer.get("paint", {})
+    layout = layer.get("layout", {})
     _reject_unknown(paint, _LINE_PAINT, "line")
-    # line-cap / line-join / line-round-limit change rendered geometry with
-    # no CartoSym Stroke field — reject rather than drop.
-    _reject_unknown(layer.get("layout", {}), frozenset({"visibility"}), "line layout")
-    if "line-offset" in paint:
-        _reject_if_non_default(paint["line-offset"], "line-offset", _PAINT_DEFAULTS)
+    # line-round-limit (miter-limit ratio) has no CartoSym Stroke field —
+    # reject rather than drop. line-cap/line-join map to the Part 2
+    # ("shapes") Stroke.cap/Stroke.join extension below.
+    _reject_unknown(
+        layout, frozenset({"visibility", "line-cap", "line-join"}), "line layout"
+    )
 
     stroke: dict[str, Any] = {}
     if "line-color" in paint:
@@ -391,6 +415,16 @@ def _line_symbolizer(layer: dict[str, Any]) -> dict[str, Any]:
         stroke["dashPattern"] = _dash_pattern_from_array(
             paint["line-dasharray"], stroke.get("width"), "line-dasharray"
         )
+    if "line-cap" in layout:
+        stroke["cap"] = _line_cap_or_join(
+            layout["line-cap"], "line-cap", _LINE_CAP_VALUES
+        )
+    if "line-join" in layout:
+        stroke["join"] = _line_cap_or_join(
+            layout["line-join"], "line-join", _LINE_JOIN_VALUES
+        )
+    if "line-offset" in paint:
+        _reject_if_non_default(paint["line-offset"], "line-offset", _PAINT_DEFAULTS)
     return {"stroke": stroke}
 
 

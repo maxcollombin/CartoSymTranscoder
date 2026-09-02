@@ -90,6 +90,17 @@ class TestWriteBasicSymbolizers:
         }
         assert stroke_params["stroke-width"] == "8"
 
+    def test_stroke_cap_join_write_linecap_linejoin(self):
+        root = _write(
+            _rule_style({"stroke": {"color": "red", "cap": "round", "join": "bevel"}})
+        )
+        line = root.find(".//se:LineSymbolizer", NS)
+        stroke_params = {
+            p.get("name"): p.text for p in line.findall("se:Stroke/se:SvgParameter", NS)
+        }
+        assert stroke_params["stroke-linecap"] == "round"
+        assert stroke_params["stroke-linejoin"] == "bevel"
+
     def test_marker_dot_produces_point_symbolizer(self):
         root = _write(
             _rule_style(

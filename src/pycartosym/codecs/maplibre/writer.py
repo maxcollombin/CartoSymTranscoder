@@ -275,6 +275,13 @@ def _fill_layer(layer_id: str, fill: Any, inline_stroke: Any) -> dict[str, Any]:
                 "property (give the stroke a width so it gets its own line "
                 "layer instead)"
             )
+        if inline_stroke.cap is not None or inline_stroke.join is not None:
+            raise NotImplementedError(
+                "fill symbolizer: stroke.cap/stroke.join have no MapLibre "
+                "mapping when the stroke stays inlined as fill-outline-color "
+                "— fill has no line-cap/line-join layout property (give the "
+                "stroke a width so it gets its own line layer instead)"
+            )
         if inline_stroke.color is not None:
             paint["fill-outline-color"] = _literal(inline_stroke.color, "stroke.color")
 
@@ -346,7 +353,20 @@ def _line_layer(layer_id: str, stroke: Any) -> dict[str, Any]:
     dash_array = _dash_array(stroke, "line symbolizer")
     if dash_array is not None:
         paint["line-dasharray"] = dash_array
-    return {"id": layer_id, "type": "line", "source": _SOURCE, "paint": paint}
+    layer: dict[str, Any] = {
+        "id": layer_id,
+        "type": "line",
+        "source": _SOURCE,
+        "paint": paint,
+    }
+    layout: dict[str, Any] = {}
+    if stroke.cap is not None:
+        layout["line-cap"] = _literal(stroke.cap, "stroke.cap")
+    if stroke.join is not None:
+        layout["line-join"] = _literal(stroke.join, "stroke.join")
+    if layout:
+        layer["layout"] = layout
+    return layer
 
 
 def _attr(obj: Any, key: str) -> Any:

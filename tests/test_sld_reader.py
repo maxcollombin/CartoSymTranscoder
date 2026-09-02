@@ -86,6 +86,73 @@ class TestReadBasicSymbolizers:
         with pytest.raises(NotImplementedError):
             SldReader().read(xml)
 
+    def test_line_stroke_cap_join(self):
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se">'
+            "<NamedLayer><se:Name>x</se:Name><UserStyle>"
+            "<se:FeatureTypeStyle><se:Rule><se:LineSymbolizer><se:Stroke>"
+            '<se:SvgParameter name="stroke">#000000</se:SvgParameter>'
+            '<se:SvgParameter name="stroke-linecap">round</se:SvgParameter>'
+            '<se:SvgParameter name="stroke-linejoin">bevel</se:SvgParameter>'
+            "</se:Stroke></se:LineSymbolizer></se:Rule>"
+            "</se:FeatureTypeStyle></UserStyle></NamedLayer>"
+            "</StyledLayerDescriptor>"
+        )
+        sym = SldReader().read(xml).styling_rules[0].symbolizer
+        assert sym.stroke.cap == "round"
+        assert sym.stroke.join == "bevel"
+
+    def test_line_stroke_linejoin_non_standard_spelling_is_rejected(self):
+        # "mitre" (British) is not the SVG/SE spec spelling ("miter") —
+        # a real vendored-corpus fixture uses it; must raise, not guess.
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se">'
+            "<NamedLayer><se:Name>x</se:Name><UserStyle>"
+            "<se:FeatureTypeStyle><se:Rule><se:LineSymbolizer><se:Stroke>"
+            '<se:SvgParameter name="stroke-linejoin">mitre</se:SvgParameter>'
+            "</se:Stroke></se:LineSymbolizer></se:Rule>"
+            "</se:FeatureTypeStyle></UserStyle></NamedLayer>"
+            "</StyledLayerDescriptor>"
+        )
+        with pytest.raises(NotImplementedError):
+            SldReader().read(xml)
+
+    def test_line_perpendicular_offset_zero_passes(self):
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se">'
+            "<NamedLayer><se:Name>x</se:Name><UserStyle>"
+            "<se:FeatureTypeStyle><se:Rule><se:LineSymbolizer>"
+            '<se:Stroke><se:SvgParameter name="stroke">#000000</se:SvgParameter>'
+            "</se:Stroke><se:PerpendicularOffset>0</se:PerpendicularOffset>"
+            "</se:LineSymbolizer></se:Rule>"
+            "</se:FeatureTypeStyle></UserStyle></NamedLayer>"
+            "</StyledLayerDescriptor>"
+        )
+        sym = SldReader().read(xml).styling_rules[0].symbolizer
+        assert sym.stroke.color == [0, 0, 0]
+
+    def test_line_perpendicular_offset_non_zero_is_rejected(self):
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se">'
+            "<NamedLayer><se:Name>x</se:Name><UserStyle>"
+            "<se:FeatureTypeStyle><se:Rule><se:LineSymbolizer>"
+            '<se:Stroke><se:SvgParameter name="stroke">#000000</se:SvgParameter>'
+            "</se:Stroke><se:PerpendicularOffset>3</se:PerpendicularOffset>"
+            "</se:LineSymbolizer></se:Rule>"
+            "</se:FeatureTypeStyle></UserStyle></NamedLayer>"
+            "</StyledLayerDescriptor>"
+        )
+        with pytest.raises(NotImplementedError):
+            SldReader().read(xml)
+
     def test_text_label(self):
         style = _read("4-text-label.sld")
         sym = style.styling_rules[0].symbolizer

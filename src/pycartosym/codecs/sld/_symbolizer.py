@@ -10,8 +10,13 @@ Scope: vector symbolizers plus basic Part-1 raster/coverage styling
 raise :exc:`NotImplementedError` naming the field — per this project's
 lossless-transcoding requirement, out-of-scope content must fail loudly
 rather than silently drop data. On read, an unmapped
-``SvgParameter``/``CssParameter`` (``stroke-linecap`` / ``-linejoin`` /
-``-dashoffset`` / ...) likewise raises.
+``SvgParameter``/``CssParameter`` (``stroke-dashoffset`` / ...) likewise
+raises. ``stroke-linecap``/``stroke-linejoin`` map to the Part 2
+("shapes") ``Stroke.cap``/``Stroke.join`` extension, both ways, on the
+``LineSymbolizer``/``PolygonSymbolizer`` outline ``Stroke`` only — a
+point ``se:Mark``'s outline has no CartoSym ``cap``/``join`` field
+(``ShapeOutline`` is thickness/opacity/color only) and still raises on
+either parameter there.
 
 ``se:Halo`` maps to ``font.outline`` (``{size, opacity, color}``); a
 point ``se:Graphic``'s ``se:Opacity`` and ``se:Displacement`` map to the
@@ -456,6 +461,12 @@ def _build_stroke_element(
             )
         if dash_pattern:
             d.param(el, "stroke-dasharray", " ".join(str(int(p)) for p in dash_pattern))
+    join = _g(stroke, "join")
+    if join is not None:
+        d.param(el, "stroke-linejoin", join)
+    cap = _g(stroke, "cap")
+    if cap is not None:
+        d.param(el, "stroke-linecap", cap)
     return el
 
 
@@ -1005,6 +1016,15 @@ def elements_to_symbolizer(d: SldDialect, sym_elements: list[etree._Element]) ->
             if stroke_el is not None:
                 result["stroke"] = _parse_stroke_element(d, stroke_el)
         elif tag == "LineSymbolizer":
+            offset_el = d.find(el, "PerpendicularOffset")
+            if offset_el is not None and float(offset_el.text or 0) != 0:
+                # A zero offset is a portrayal no-op (same as the element
+                # being absent) and passes silently; any other value has
+                # no CartoSym Stroke field to hold it.
+                raise NotImplementedError(
+                    "se:LineSymbolizer/se:PerpendicularOffset has no CartoSym "
+                    "mapping in this codec"
+                )
             stroke_el = d.find(el, "Stroke")
             if stroke_el is None:
                 raise NotImplementedError(
@@ -1032,10 +1052,9 @@ def _reject_unknown_params(
 ) -> None:
     """Fail loudly on a styling parameter this codec has no mapping for.
 
-    Silently dropping e.g. ``stroke-linecap`` / ``stroke-linejoin`` /
-    ``stroke-dashoffset`` would break the lossless-transcoding guarantee,
-    so an unrecognised ``CssParameter`` / ``SvgParameter`` name makes the
-    whole document out of scope.
+    Silently dropping e.g. ``stroke-dashoffset`` would break the
+    lossless-transcoding guarantee, so an unrecognised ``CssParameter`` /
+    ``SvgParameter`` name makes the whole document out of scope.
     """
     for param in d.findall(el, d.param_tag):
         name = param.get("name")
@@ -1044,6 +1063,23 @@ def _reject_unknown_params(
                 f"{ctx} style parameter {name!r} has no CartoSym mapping in "
                 "this codec's scope"
             )
+
+
+def _validated_enum(value: str, name: str, allowed: set[str]) -> str:
+    """Check a parameter value against the enum this codec maps.
+
+    Used for ``stroke-linejoin``/``stroke-linecap``, whose CartoSym Part
+    2 (``strokeJoin``/``strokeCap``) target is a closed enum matching the
+    underlying SVG stroke-linejoin/-linecap spec — always ``miter``,
+    never the British ``mitre`` some tools emit. A value this codec
+    doesn't recognise raises rather than being passed through unchecked
+    or silently normalised (that would be guessing at a mapping).
+    """
+    if value not in allowed:
+        raise NotImplementedError(
+            f"{name} {value!r} is not one of {sorted(allowed)} in this codec"
+        )
+    return value
 
 
 def _coerce_recode_literal(text: str | None) -> Any:
@@ -1170,7 +1206,14 @@ def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
     _reject_unknown_params(
         d,
         stroke_el,
-        {"stroke", "stroke-width", "stroke-opacity", "stroke-dasharray"},
+        {
+            "stroke",
+            "stroke-width",
+            "stroke-opacity",
+            "stroke-dasharray",
+            "stroke-linejoin",
+            "stroke-linecap",
+        },
         "Stroke",
     )
     result: dict = {}
@@ -1178,6 +1221,8 @@ def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
     width = d.get_param(stroke_el, "stroke-width")
     opacity = _parse_flexible_param(d, stroke_el, "stroke-opacity")
     dasharray = d.get_param(stroke_el, "stroke-dasharray")
+    linejoin = d.get_param(stroke_el, "stroke-linejoin")
+    linecap = d.get_param(stroke_el, "stroke-linecap")
     if color is not None:
         result["color"] = color if isinstance(color, dict) else parse_color(color)
     if width is not None:
@@ -1188,6 +1233,14 @@ def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
         )
     if dasharray is not None:
         result["dashPattern"] = [int(float(p)) for p in dasharray.split()]
+    if linejoin is not None:
+        result["join"] = _validated_enum(
+            linejoin, "stroke-linejoin", {"miter", "round", "bevel"}
+        )
+    if linecap is not None:
+        result["cap"] = _validated_enum(
+            linecap, "stroke-linecap", {"butt", "round", "square"}
+        )
     return result
 
 
