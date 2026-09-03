@@ -20,6 +20,7 @@ from .types import (
     UnitType,
     UnitValue,
 )
+from .value_expressions import PropertyRef
 
 # A vendor-extension property on a symbolizer, per the conceptual model's
 # generic vendor-extension mechanism: a symbolizer property named
@@ -56,6 +57,29 @@ def _coerce_numeric_str(v: str):
             return float(v)
         except ValueError:
             return v
+
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
+
+
+def _coerce_axis_value(v: str):
+    """Coerce one ``UnitPoint`` coordinate token: a number or a property ref.
+
+    A bare property-name identifier (e.g. ``sd`` in ``position: sd 3``)
+    becomes a ``PropertyRef`` dict — arithmetic/system-identifier
+    coordinates are out of scope here (see
+    ``models/value_expressions.py``'s ``PropertyRef``): the CSCSS grammar
+    treats a ``UnitPoint``'s two coordinates as one opaque two-token text
+    blob rather than two independent expression trees, so there is no
+    per-axis ANTLR context to parse a full sub-expression from, unlike a
+    scalar property like ``stroke.width``.
+    """
+    numeric = _coerce_numeric_str(v)
+    if not isinstance(numeric, str):
+        return numeric
+    if _IDENTIFIER_RE.match(v):
+        return {"property": v}
+    return v
 
 
 class Fill(BaseCartoSymModel, AlterMixin):
@@ -240,8 +264,8 @@ class Label(BaseCartoSymModel):
 class UnitPoint(BaseCartoSymModel):
     """Point with unit values: [x, y], {x: value, y: value}, or "x y"."""
 
-    x: UnitValue | str | float
-    y: UnitValue | str | float
+    x: UnitValue | str | float | PropertyRef
+    y: UnitValue | str | float | PropertyRef
 
     @model_validator(mode="before")
     @classmethod
@@ -254,8 +278,8 @@ class UnitPoint(BaseCartoSymModel):
             parts = v.strip().split()
             if len(parts) == 2:
                 return {
-                    "x": _coerce_numeric_str(parts[0]),
-                    "y": _coerce_numeric_str(parts[1]),
+                    "x": _coerce_axis_value(parts[0]),
+                    "y": _coerce_axis_value(parts[1]),
                 }
         elif isinstance(v, (list, tuple)) and len(v) == 2:
             return {"x": v[0], "y": v[1]}

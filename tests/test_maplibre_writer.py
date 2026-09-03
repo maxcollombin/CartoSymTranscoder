@@ -348,6 +348,40 @@ def test_circle_outline_thickness_system_identifier_raises():
         MaplibreWriter().write(style)
 
 
+def test_text_position_property_reference_raises():
+    """``Text.position`` as a property-driven ``UnitPoint`` axis (OGC issue
+    #115's "Symbolizer Parameter Value Expressions", scoped to a bare
+    property reference for ``UnitPoint`` — see ``models/symbolizers.py``)
+    has no MapLibre mapping: ``text-offset`` only accepts a unit-less
+    literal number per axis in this codec (``_position_axis_number``).
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "labels",
+                    "symbolizer": {
+                        "label": {
+                            "elements": [
+                                {
+                                    "type": "Text",
+                                    "text": "'x'",
+                                    "position": {
+                                        "x": {"property": "dx"},
+                                        "y": 0,
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
 def test_rgb_literal_color_becomes_hex():
     """CartoSym's ``Color`` accepts a ``[r, g, b]`` 0-255 literal (what a
     CSCSS ``#rrggbb`` hex literal actually parses into) — MapLibre needs

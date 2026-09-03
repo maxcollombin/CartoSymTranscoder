@@ -523,9 +523,15 @@ class Converter:
         pos = _get(el, "position")
         if pos is not None:
             if hasattr(pos, "x") and hasattr(pos, "y"):
-                prop_lines.append(f"position: {pos.x} {pos.y}")
+                prop_lines.append(
+                    f"position: {self._format_axis_value(pos.x)} "
+                    f"{self._format_axis_value(pos.y)}"
+                )
             elif isinstance(pos, dict) and "x" in pos and "y" in pos:
-                prop_lines.append(f"position: {pos['x']} {pos['y']}")
+                prop_lines.append(
+                    f"position: {self._format_axis_value(pos['x'])} "
+                    f"{self._format_axis_value(pos['y'])}"
+                )
 
         # size (e.g. Dot.size)
         size = _get(el, "size")
@@ -587,9 +593,15 @@ class Converter:
         center = _get(el, "center")
         if center is not None:
             if hasattr(center, "x") and hasattr(center, "y"):
-                prop_lines.append(f"center: {center.x} {center.y}")
+                prop_lines.append(
+                    f"center: {self._format_axis_value(center.x)} "
+                    f"{self._format_axis_value(center.y)}"
+                )
             elif isinstance(center, dict) and "x" in center and "y" in center:
-                prop_lines.append(f"center: {center['x']} {center['y']}")
+                prop_lines.append(
+                    f"center: {self._format_axis_value(center['x'])} "
+                    f"{self._format_axis_value(center['y'])}"
+                )
 
         # text — property ref → bare identifier; plain string → quoted
         text = _get(el, "text")
@@ -755,6 +767,21 @@ class Converter:
             parts = [self._format_numeric_expression(a) or str(a) for a in args]
             return f"{parts[0]} {op} {parts[1]}"
         return None
+
+    def _format_axis_value(self, v) -> str:
+        """Format one ``UnitPoint`` coordinate: a number, or a bare property.
+
+        A property reference (``{"property": "sd"}`` / ``PropertyRef``)
+        formats as its identifier, unquoted — mirrors
+        ``models/symbolizers.py::UnitPoint``'s own coordinate parsing (see
+        that module for why arithmetic/system-identifier coordinates are
+        out of scope here).
+        """
+        if isinstance(v, dict) and "property" in v:
+            return str(v["property"])
+        if hasattr(v, "property"):
+            return str(v.property)
+        return str(v)
 
     def _format_unit_value(self, uv) -> str:
         """Format a UnitValue as CSCSS syntax, e.g. '2.0 px'.

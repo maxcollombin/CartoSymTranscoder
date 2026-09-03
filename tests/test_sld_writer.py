@@ -1296,3 +1296,57 @@ class TestWritePropertyDrivenShapeOutlineThickness:
         style_dict = self._circle_style({"sysId": "viz.sd"})
         with pytest.raises(NotImplementedError):
             SldWriter().write(Style.from_dict(style_dict))
+
+
+class TestWritePropertyDrivenPosition:
+    """``UnitPoint.x``/``.y`` (``Circle.position``) as a bare property
+    reference — ``se:DisplacementX``/``Y`` are direct XML children (no
+    ``SvgParameter`` wrapper, unlike ``stroke-width``/``thickness``), so
+    a ``PropertyRef`` becomes a bare ``ogc:PropertyName`` as the element's
+    sole child instead of its text (:func:`_write_numeric_element`).
+    """
+
+    def test_property_ref_x_writes_bare_property_name(self):
+        style_dict = _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Circle",
+                            "position": {"x": {"property": "dx"}, "y": 3},
+                            "radius": {"px": 5},
+                        }
+                    ]
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        root = etree.fromstring(xml.encode("utf-8"))
+        disp_x = root.find(".//se:Graphic/se:Displacement/se:DisplacementX", NS)
+        disp_y = root.find(".//se:Graphic/se:Displacement/se:DisplacementY", NS)
+        prop = disp_x.find("ogc:PropertyName", NS)
+        assert prop is not None and prop.text == "dx"
+        assert disp_y.text == "3"
+
+        from pycartosym.codecs.sld.reader import SldReader
+
+        back = SldReader().read(xml)
+        el = back.styling_rules[0].symbolizer.marker.elements[0]
+        assert el["position"] == {"x": {"property": "dx"}, "y": 3.0}
+
+    def test_system_identifier_position_raises(self):
+        style_dict = _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Circle",
+                            "position": {"x": {"sysId": "viz.sd"}, "y": 3},
+                            "radius": {"px": 5},
+                        }
+                    ]
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
