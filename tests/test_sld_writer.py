@@ -1145,3 +1145,103 @@ class TestWritePropertyDrivenColor:
         )
         with pytest.raises(NotImplementedError):
             SldWriter(SLD_1_0_0).write(Style.from_dict(style_dict))
+
+
+class TestWritePropertyDrivenWidth:
+    """``stroke-width`` as ``ogc:PropertyName`` / ``ogc:Function`` arithmetic.
+
+    OGC issue #115 confirmed a numeric symbolizer parameter may be a
+    "Symbolizer Parameter Value Expressions" arithmetic expression; here
+    it's over a ``PropertyRef`` (a feature attribute), which SLD/SE's own
+    ``ogc:Function`` mechanism (OGC Filter Encoding) can express — unlike
+    ``viz.sd`` (see :class:`TestWriteSystemIdentifierWidthRaises`).
+    """
+
+    def test_property_ref_width_writes_bare_property_name(self):
+        root = _write(_rule_style({"stroke": {"width": {"property": "LINE_WIDTH"}}}))
+        prop = root.find(".//se:Stroke/se:SvgParameter/ogc:PropertyName", NS)
+        assert prop is not None and prop.text == "LINE_WIDTH"
+
+    def test_arithmetic_width_writes_ogc_function(self):
+        from ._xsd import assert_sld_valid
+
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "/",
+                        "args": [{"property": "population"}, 1000],
+                    }
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="arithmetic stroke-width")
+        root = etree.fromstring(xml.encode("utf-8"))
+        fn = root.find(".//se:Stroke/se:SvgParameter/ogc:Function", NS)
+        assert fn is not None and fn.get("name") == "Div"
+        prop = fn.find("ogc:PropertyName", NS)
+        lit = fn.find("ogc:Literal", NS)
+        assert prop is not None and prop.text == "population"
+        assert lit is not None and lit.text == "1000"
+
+        from pycartosym.codecs.sld.reader import SldReader
+
+        back = SldReader().read(xml)
+        assert (
+            back.styling_rules[0].symbolizer.stroke.width.to_dict()
+            == style_dict["stylingRules"][0]["symbolizer"]["stroke"]["width"]
+        )
+
+    def test_nested_arithmetic_width_round_trips(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "+",
+                        "args": [
+                            {"op": "/", "args": [{"property": "population"}, 1000]},
+                            2,
+                        ],
+                    }
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+
+        from pycartosym.codecs.sld.reader import SldReader
+
+        back = SldReader().read(xml)
+        assert (
+            back.styling_rules[0].symbolizer.stroke.width.to_dict()
+            == style_dict["stylingRules"][0]["symbolizer"]["stroke"]["width"]
+        )
+
+    def test_unsupported_arithmetic_operator_raises(self):
+        style_dict = _rule_style(
+            {"stroke": {"width": {"op": "^", "args": [{"property": "x"}, 2]}}}
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+
+class TestWriteSystemIdentifierWidthRaises:
+    """``viz.sd`` (current scale denominator) has no SLD/SE value mapping.
+
+    SLD/SE only exposes scale as a rule-level ``MinScaleDenominator``/
+    ``MaxScaleDenominator`` gate — never as a value usable inside a
+    parameter/filter expression — so this is a confirmed permanent wall,
+    not a missing-wiring gap (unlike MapLibre, which has ``["zoom"]``).
+    """
+
+    def test_bare_system_identifier_width_raises(self):
+        style_dict = _rule_style({"stroke": {"width": {"sysId": "viz.sd"}}})
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_system_identifier_in_arithmetic_width_raises(self):
+        style_dict = _rule_style(
+            {"stroke": {"width": {"op": "/", "args": [{"sysId": "viz.sd"}, 1000]}}}
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))

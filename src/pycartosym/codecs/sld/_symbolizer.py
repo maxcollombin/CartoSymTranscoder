@@ -63,6 +63,18 @@ raises there (``SldDialect.recode_function``). ``fill-opacity``/
 opacity-folding above means they never write back as an expression —
 only as a literal, or ``NotImplementedError``.
 
+``stroke-width`` may likewise be property-driven: a bare
+``ogc:PropertyName`` maps to ``PropertyRef``, and an ``ogc:Function
+name="Add|Sub|Mul|Div"`` (OGC Filter Encoding's arithmetic functions,
+unprefixed ``ogc:`` in both dialects — unlike ``se:Recode``, this isn't
+an SE 1.1.0 addition) maps to an ``ArithmeticExpression`` — the CS-JSON
+schema's own ``arithmeticExpression``/``systemIdentifier`` (see OGC issue
+#115). A ``SystemIdentifier`` (e.g. ``viz.sd``, the current scale
+denominator) has no mapping and raises: SLD/SE has no construct exposing
+scale as a filter/expression *value*, only rule-level
+``MinScaleDenominator``/``MaxScaleDenominator`` gating — a confirmed
+permanent wall for this one system identifier, not a missing-wiring gap.
+
 ``Dot``, ``Circle``, ``Image``, and ``Text`` graphic elements (found in
 either ``Symbolizer.marker.elements`` or ``Symbolizer.label.elements`` —
 CartoSym allows Text under either) are in scope (the other ``2-shapes``
@@ -82,7 +94,12 @@ from typing import Any
 
 from lxml import etree
 
-from ...models.value_expressions import MatchExpression, PropertyRef
+from ...models.value_expressions import (
+    ArithmeticExpression,
+    MatchExpression,
+    PropertyRef,
+    SystemIdentifier,
+)
 from ._dialect import SldDialect
 from ._types import (
     format_color,
@@ -410,6 +427,90 @@ def _write_color_param(
     d.param(parent, name, format_color(color))
 
 
+# Arithmetic ↔ ogc:Function name mapping (OGC Filter Encoding's own
+# well-known arithmetic function names, shared unprefixed ``ogc:`` by both
+# SLD 1.0.0 and SE 1.1.0 — unlike se:Recode/se:MapItem, these aren't
+# dialect-dependent). Only the CartoSym-JSON schema's own
+# arithmeticExpression op set (``+``/``-``/``*``/``/`` — no ``^``, which
+# has no standard ogc:Function name and so has no mapping here either).
+_ARITHMETIC_FUNCTION_NAMES = {"+": "Add", "-": "Sub", "*": "Mul", "/": "Div"}
+_ARITHMETIC_FUNCTION_OPS = {v: k for k, v in _ARITHMETIC_FUNCTION_NAMES.items()}
+
+
+def _write_numeric_param(
+    d: SldDialect, parent: etree._Element, name: str, value: Any
+) -> None:
+    """Append *value* as a numeric (e.g. ``stroke-width``) ``SvgParameter``.
+
+    A literal goes through :func:`._types.format_unit_value`. A
+    ``PropertyRef`` builds a bare ``ogc:PropertyName``, mirroring
+    :func:`_write_color_param`. An ``ArithmeticExpression`` builds an
+    ``ogc:Function`` (``Add``/``Sub``/``Mul``/``Div``) over
+    ``PropertyRef``/number operands. A ``SystemIdentifier`` (e.g.
+    ``viz.sd``, the current scale denominator, per OGC issue #115) has no
+    SLD/SE mapping in this codec and raises — SLD/SE has no construct
+    exposing the current rendering scale as a filter/expression *value*,
+    only ``MinScaleDenominator``/``MaxScaleDenominator`` rule-level gating
+    (a coarse binary applicability test, not a continuous input).
+    """
+    if isinstance(value, PropertyRef):
+        param = d.param_element(parent, name)
+        etree.SubElement(param, f"{OGC}PropertyName").text = value.property
+        return
+    if isinstance(value, ArithmeticExpression):
+        param = d.param_element(parent, name)
+        _write_arithmetic_function(param, value)
+        return
+    if isinstance(value, SystemIdentifier):
+        raise NotImplementedError(
+            f"{name}: system identifier {value.sysId!r} has no SLD/SE "
+            "mapping in this codec — SLD/SE has no construct exposing the "
+            "current rendering scale as a filter/expression value (only "
+            "MinScaleDenominator/MaxScaleDenominator rule-level gating)"
+        )
+    d.param(parent, name, format_unit_value(value))
+
+
+def _write_arithmetic_function(
+    parent: etree._Element, expr: ArithmeticExpression
+) -> None:
+    """Append *expr* as an ``ogc:Function name="Add|Sub|Mul|Div"`` under *parent*."""
+    fn_name = _ARITHMETIC_FUNCTION_NAMES.get(expr.op)
+    if fn_name is None:
+        raise NotImplementedError(
+            f"arithmetic operator {expr.op!r} has no ogc:Function mapping "
+            "in this codec"
+        )
+    fn = etree.SubElement(parent, f"{OGC}Function")
+    fn.set("name", fn_name)
+    for arg in expr.args:
+        _write_arithmetic_arg(fn, arg)
+
+
+def _write_arithmetic_arg(parent: etree._Element, arg: Any) -> None:
+    """Append one ``ArithmeticExpression`` operand under *parent*."""
+    if isinstance(arg, PropertyRef):
+        etree.SubElement(parent, f"{OGC}PropertyName").text = arg.property
+        return
+    if isinstance(arg, ArithmeticExpression):
+        _write_arithmetic_function(parent, arg)
+        return
+    if isinstance(arg, SystemIdentifier):
+        raise NotImplementedError(
+            f"system identifier {arg.sysId!r} has no SLD/SE mapping in "
+            "this codec (see _write_numeric_param)"
+        )
+    if isinstance(arg, (int, float)) and not isinstance(arg, bool):
+        etree.SubElement(parent, f"{OGC}Literal").text = _format_arithmetic_literal(arg)
+        return
+    raise NotImplementedError(f"arithmetic operand {arg!r} has no SLD/SE mapping")
+
+
+def _format_arithmetic_literal(value: int | float) -> str:
+    """Format a numeric literal operand — an int stays bare, matching format_number."""
+    return str(int(value)) if float(value).is_integer() else str(value)
+
+
 def _build_fill_element(
     d: SldDialect, fill: Any, base_opacity: float | None = None
 ) -> etree._Element:
@@ -448,7 +549,7 @@ def _build_stroke_element(
     if color is not None:
         _write_color_param(d, el, "stroke", color)
     if width is not None:
-        d.param(el, "stroke-width", format_unit_value(width))
+        _write_numeric_param(d, el, "stroke-width", width)
     combined = _combine_opacity(base_opacity, _g(stroke, "opacity"))
     if combined is not None:
         d.param(el, "stroke-opacity", combined)
@@ -1176,6 +1277,56 @@ def _parse_flexible_param(d: SldDialect, elem: etree._Element, name: str) -> Any
     return element_text(param)
 
 
+def _parse_arithmetic_function(fn_el: etree._Element) -> dict:
+    """Parse an ``ogc:Function`` (``Add``/``Sub``/``Mul``/``Div``) into an expression.
+
+    Inverse of :func:`_write_arithmetic_function`.
+    """
+    fn_name = fn_el.get("name")
+    op = _ARITHMETIC_FUNCTION_OPS.get(fn_name) if fn_name else None
+    if op is None:
+        raise NotImplementedError(
+            f"ogc:Function name={fn_name!r} has no arithmeticExpression "
+            "mapping in this codec"
+        )
+    children = [c for c in fn_el if isinstance(c.tag, str)]
+    return {"op": op, "args": [_parse_arithmetic_arg(c) for c in children]}
+
+
+def _parse_arithmetic_arg(el: etree._Element) -> Any:
+    """Parse one ``ogc:PropertyName``/``ogc:Literal``/``ogc:Function`` operand."""
+    tag = local_name(el)
+    if tag == "PropertyName":
+        return {"property": el.text}
+    if tag == "Literal":
+        return parse_number(element_text(el))
+    if tag == "Function":
+        return _parse_arithmetic_function(el)
+    raise NotImplementedError(f"ogc:{tag} has no arithmetic-operand mapping")
+
+
+def _parse_flexible_numeric_param(
+    d: SldDialect, elem: etree._Element, name: str
+) -> Any:
+    """Return a numeric ``SvgParameter``'s value: text, a property-driven dict, or None.
+
+    A bare ``ogc:PropertyName`` is a property reference; an ``ogc:Function``
+    (``Add``/``Sub``/``Mul``/``Div``) is an arithmetic expression over such
+    references/literals (see :func:`_write_numeric_param`); anything else
+    falls back to :func:`._xml_helpers.element_text` (a plain literal).
+    """
+    param = d.get_param_element(elem, name)
+    if param is None:
+        return None
+    ref = _property_ref_from_container(param)
+    if ref is not None:
+        return ref
+    children = [c for c in param if isinstance(c.tag, str)]
+    if len(children) == 1 and local_name(children[0]) == "Function":
+        return _parse_arithmetic_function(children[0])
+    return element_text(param)
+
+
 def _parse_fill_element(d: SldDialect, fill_el: etree._Element) -> dict:
     if d.find(fill_el, "GraphicFill") is not None:
         raise NotImplementedError(
@@ -1218,7 +1369,7 @@ def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
     )
     result: dict = {}
     color = _parse_flexible_param(d, stroke_el, "stroke")
-    width = d.get_param(stroke_el, "stroke-width")
+    width = _parse_flexible_numeric_param(d, stroke_el, "stroke-width")
     opacity = _parse_flexible_param(d, stroke_el, "stroke-opacity")
     dasharray = d.get_param(stroke_el, "stroke-dasharray")
     linejoin = d.get_param(stroke_el, "stroke-linejoin")
@@ -1226,7 +1377,7 @@ def _parse_stroke_element(d: SldDialect, stroke_el: etree._Element) -> dict:
     if color is not None:
         result["color"] = color if isinstance(color, dict) else parse_color(color)
     if width is not None:
-        result["width"] = parse_unit_value(width)
+        result["width"] = width if isinstance(width, dict) else parse_unit_value(width)
     if opacity is not None:
         result["opacity"] = (
             opacity if isinstance(opacity, dict) else parse_opacity(opacity)
