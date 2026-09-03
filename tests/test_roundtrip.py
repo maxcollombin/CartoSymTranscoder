@@ -745,6 +745,59 @@ class TestUnitPointPropertyReference:
         assert json1 == json2
 
 
+class TestLabelPlacementSpacing:
+    """``label: { placement: { minSpacing; maxSpacing } }`` — previously
+    unwired in CSCSS at all (``ast.py``'s dead ``hasattr(ast_label,
+    "placement")`` check in ``ast_converter.py`` had nothing to read),
+    not merely narrowly typed. Also accepts a numeric expression, unlike
+    ``UnitPoint`` — ``placement``'s properties each keep their own ANTLR
+    expression context, the same way a shape element's do.
+    """
+
+    def setup_method(self):
+        self.converter = Converter()
+
+    def test_min_max_spacing_coerced_to_unit_values(self):
+        css = (
+            "Amenities {\n"
+            "  label: { elements: [ Text{ text: NAME } ];\n"
+            "    placement: { minSpacing: 5 px; maxSpacing: 20 px } };\n"
+            "}\n"
+        )
+        result = self.converter.cscss_to_csjson(css)
+        placement = result["stylingRules"][0]["symbolizer"]["label"]["placement"]
+        assert placement == {"minSpacing": {"px": 5}, "maxSpacing": {"px": 20}}
+
+    def test_placement_alone_without_elements_is_preserved(self):
+        """Regression: the writer used to drop the whole ``label`` block
+        when it had no ``elements`` (checked emptiness before placement
+        existed).
+        """
+        css = "Amenities {\n  label: { placement: { minSpacing: 5 px } };\n}\n"
+        json1 = self.converter.cscss_to_csjson(css)
+        placement = json1["stylingRules"][0]["symbolizer"]["label"]["placement"]
+        assert placement == {"minSpacing": {"px": 5}}
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+    def test_min_spacing_accepts_numeric_expression(self):
+        css = "Amenities {\n  label: { placement: { minSpacing: viz.sd / 1000 } };\n}\n"
+        result = self.converter.cscss_to_csjson(css)
+        placement = result["stylingRules"][0]["symbolizer"]["label"]["placement"]
+        assert placement["minSpacing"] == {
+            "op": "/",
+            "args": [{"sysId": "viz.sd"}, 1000],
+        }
+
+    def test_min_spacing_expression_round_trips_through_csjson(self):
+        css = "Amenities {\n  label: { placement: { minSpacing: viz.sd / 1000 } };\n}\n"
+        json1 = self.converter.cscss_to_csjson(css)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+
 class TestResourceSprite:
     """``resource.sprite`` (icon atlas id) round-trips alongside uri/path/etc."""
 

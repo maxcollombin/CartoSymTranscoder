@@ -336,12 +336,17 @@ class LabelPlacement(BaseCartoSymModel):
     )
     # Additional placement properties would go here
     priority: NumericExpression | None = Field(None, description="Label priority")
-    min_spacing: UnitValue | str | float | None = Field(
+    min_spacing: FlexibleSize | None = Field(
         None, alias="minSpacing", description="Minimum spacing"
     )
-    max_spacing: UnitValue | str | float | None = Field(
+    max_spacing: FlexibleSize | None = Field(
         None, alias="maxSpacing", description="Maximum spacing"
     )
+
+    @field_validator("min_spacing", "max_spacing", mode="before")
+    def validate_spacing_fields(cls, v):
+        """Coerce ``{unit: value}`` dicts on min/maxSpacing before validation."""
+        return parse_flexible_unit_value(v)
 
 
 # Abstract base for graphics

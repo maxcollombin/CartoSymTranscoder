@@ -1350,3 +1350,24 @@ class TestWritePropertyDrivenPosition:
         )
         with pytest.raises(NotImplementedError):
             SldWriter().write(Style.from_dict(style_dict))
+
+
+class TestLabelPlacementSpacingRaises:
+    """``Label.placement.minSpacing``/``.maxSpacing`` — now reachable via
+    CSCSS (previously only via direct CS-JSON authoring) — confirms the
+    already-existing wall: SLD/SE's ``se:LabelPlacement`` has no
+    line-placement/priority/spacing equivalent at all, so any
+    ``Label.placement`` raises regardless of which of its fields is set.
+    """
+
+    def test_min_spacing_raises(self):
+        style_dict = _rule_style(
+            {
+                "label": {
+                    "elements": [{"type": "Text", "text": {"property": "NAME"}}],
+                    "placement": {"minSpacing": {"px": 5}},
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
