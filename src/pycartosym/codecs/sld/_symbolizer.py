@@ -74,6 +74,9 @@ denominator) has no mapping and raises: SLD/SE has no construct exposing
 scale as a filter/expression *value*, only rule-level
 ``MinScaleDenominator``/``MaxScaleDenominator`` gating — a confirmed
 permanent wall for this one system identifier, not a missing-wiring gap.
+A ``2-shapes`` shape's outline ``thickness`` (``se:Mark/se:Stroke``'s own
+``stroke-width``) is wired the same way, via the same
+:func:`_write_numeric_param`/:func:`_parse_flexible_numeric_param`.
 
 ``Dot``, ``Circle``, ``Image``, and ``Text`` graphic elements (found in
 either ``Symbolizer.marker.elements`` or ``Symbolizer.label.elements`` —
@@ -437,6 +440,31 @@ _ARITHMETIC_FUNCTION_NAMES = {"+": "Add", "-": "Sub", "*": "Mul", "/": "Div"}
 _ARITHMETIC_FUNCTION_OPS = {v: k for k, v in _ARITHMETIC_FUNCTION_NAMES.items()}
 
 
+def _coerce_numeric_expr(value: Any) -> Any:
+    """Best-effort coercion of a plain expression-shaped dict to its typed class.
+
+    A value nested inside a graphic element (``Marker.elements`` is typed
+    ``Any`` — see ``models/symbolizers.py`` — so Pydantic never validates
+    anything under it, unlike a direct ``Symbolizer`` field like
+    ``Stroke.width``) stays a raw dict rather than a real
+    ``PropertyRef``/``ArithmeticExpression``/``SystemIdentifier`` instance.
+    The ``isinstance`` checks below need the typed class either way, so
+    recognize the dict shape here first. An already-typed value, or
+    anything that matches no expression shape (a literal), passes through
+    unchanged.
+    """
+    if isinstance(value, (PropertyRef, ArithmeticExpression, SystemIdentifier)):
+        return value
+    if isinstance(value, dict):
+        if "property" in value:
+            return PropertyRef.model_validate(value)
+        if "sysId" in value:
+            return SystemIdentifier.model_validate(value)
+        if "op" in value and "args" in value:
+            return ArithmeticExpression.model_validate(value)
+    return value
+
+
 def _write_numeric_param(
     d: SldDialect, parent: etree._Element, name: str, value: Any
 ) -> None:
@@ -453,6 +481,7 @@ def _write_numeric_param(
     only ``MinScaleDenominator``/``MaxScaleDenominator`` rule-level gating
     (a coarse binary applicability test, not a continuous input).
     """
+    value = _coerce_numeric_expr(value)
     if isinstance(value, PropertyRef):
         param = d.param_element(parent, name)
         etree.SubElement(param, f"{OGC}PropertyName").text = value.property
@@ -489,6 +518,7 @@ def _write_arithmetic_function(
 
 def _write_arithmetic_arg(parent: etree._Element, arg: Any) -> None:
     """Append one ``ArithmeticExpression`` operand under *parent*."""
+    arg = _coerce_numeric_expr(arg)
     if isinstance(arg, PropertyRef):
         etree.SubElement(parent, f"{OGC}PropertyName").text = arg.property
         return
@@ -817,7 +847,7 @@ def _build_shape_outline_element(
         d.param(el, "stroke", format_color(color))
     thickness = _g(outline, "thickness")
     if thickness is not None:
-        d.param(el, "stroke-width", format_unit_value(thickness))
+        _write_numeric_param(d, el, "stroke-width", thickness)
     combined = _combine_opacity(base_opacity, _g(outline, "opacity"))
     if combined is not None:
         d.param(el, "stroke-opacity", combined)
@@ -1610,9 +1640,13 @@ def _parse_mark(
         stroke_color = d.get_param(stroke_el, "stroke")
         if stroke_color is not None:
             outline["color"] = parse_color(stroke_color)
-        stroke_width = d.get_param(stroke_el, "stroke-width")
+        stroke_width = _parse_flexible_numeric_param(d, stroke_el, "stroke-width")
         if stroke_width is not None:
-            outline["thickness"] = parse_unit_value(stroke_width)
+            outline["thickness"] = (
+                stroke_width
+                if isinstance(stroke_width, dict)
+                else parse_unit_value(stroke_width)
+            )
         stroke_opacity = d.get_param(stroke_el, "stroke-opacity")
         if stroke_opacity is not None:
             outline["opacity"] = parse_opacity(stroke_opacity)
