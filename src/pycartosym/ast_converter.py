@@ -11,6 +11,7 @@ from .ast import StyleSheet as AstStyleSheet
 from .ast import StylingRule as AstStylingRule
 from .cql2.to_json import (
     convert_literal_value,
+    convert_numeric_expression_value,
     expression_to_json,
     post_process_selector,
 )
@@ -157,9 +158,11 @@ def _parse_color_value(v: str):
 def _coerce_font_dict(font: dict) -> None:
     """Coerce font dict string values to proper Python types in-place.
 
-    Handles size → int/float, bold/italic/underline → bool,
-    opacity → float, color → parsed color, outline → parsed sub-dict.
+    Handles size → int/float (or a numeric expression), bold/italic/
+    underline → bool, opacity → float, color → parsed color, outline →
+    parsed sub-dict.
     """
+    ctx_map = font.pop("_expr_ctx", {})
     for k in list(font.keys()):
         v = font[k]
         if not isinstance(v, str):
@@ -169,13 +172,7 @@ def _coerce_font_dict(font: dict) -> None:
             continue
         v = v.strip().strip("'\"")
         if k == "size":
-            try:
-                font[k] = int(v)
-            except ValueError:
-                try:
-                    font[k] = float(v)
-                except ValueError:
-                    font[k] = v
+            font[k] = _coerce_unit_scalar(v, ctx_map.get(k))
         elif k in ("bold", "italic", "underline"):
             font[k] = v.lower() == "true"
         elif k == "opacity":
@@ -198,6 +195,7 @@ def _coerce_font_dict(font: dict) -> None:
 
 def _coerce_outline_dict(outline: dict) -> None:
     """Coerce outline dict string values to proper Python types in-place."""
+    outline.pop("_expr_ctx", None)
     for k in list(outline.keys()):
         v = outline[k]
         if not isinstance(v, str):
@@ -222,11 +220,19 @@ def _coerce_outline_dict(outline: dict) -> None:
             outline[k] = v
 
 
-def _coerce_unit_scalar(v: str):
+def _coerce_unit_scalar(v: str, expr_ctx: Any = None):
     """Coerce a CSCSS scalar such as ``"5"``, ``"5 px"`` or ``"2.5 mm"``.
 
     Returns a bare number for a unit-less value, a ``{unit: value}`` dict
     when a unit suffix is present, or the original string if unparseable.
+
+    When *expr_ctx* (the leaf's ANTLR expression context, threaded through
+    by :meth:`parser.CartoSymStyleSheetListener._extract_element_from_instance`)
+    is given and plain literal/unit parsing doesn't consume the whole
+    value (e.g. ``"viz.sd / 1000"``), falls back to
+    :func:`convert_numeric_expression_value` instead of leaving an opaque
+    string — the same numeric-expression parsing already used for
+    ``stroke.width`` (OGC issue #115).
     """
     if not isinstance(v, str):
         return v
@@ -238,14 +244,17 @@ def _coerce_unit_scalar(v: str):
             try:
                 return float(parts[0])
             except ValueError:
-                return v
-    if len(parts) == 2:
+                pass
+    elif len(parts) == 2:
         try:
             num = float(parts[0])
         except ValueError:
-            return v
-        num = int(num) if num.is_integer() else num
-        return {parts[1]: num}
+            pass
+        else:
+            num = int(num) if num.is_integer() else num
+            return {parts[1]: num}
+    if expr_ctx is not None:
+        return convert_numeric_expression_value(v, expr_ctx)
     return v
 
 
@@ -275,8 +284,10 @@ def _coerce_shape_style_dict(d: dict) -> None:
     """Coerce a ``2-shapes`` ``Circle``'s ``fill`` / ``outline`` sub-dict in-place.
 
     ``color`` → ``[r, g, b]`` / name, ``opacity`` → float,
-    ``thickness`` / ``radius`` → unit scalar, ``alter`` → bool.
+    ``thickness`` / ``radius`` → unit scalar (or numeric expression),
+    ``alter`` → bool.
     """
+    ctx_map = d.pop("_expr_ctx", {})
     for k in list(d.keys()):
         v = d[k]
         if not isinstance(v, str):
@@ -290,7 +301,7 @@ def _coerce_shape_style_dict(d: dict) -> None:
             except ValueError:
                 d[k] = v
         elif k in ("thickness", "radius"):
-            d[k] = _coerce_unit_scalar(v)
+            d[k] = _coerce_unit_scalar(v, ctx_map.get(k))
         elif k == "alter":
             d[k] = v.lower() == "true"
         else:
@@ -308,6 +319,8 @@ def _normalize_graphic_element(el: dict) -> None:
     if not isinstance(el, dict):
         return
 
+    ctx_map = el.pop("_expr_ctx", {})
+
     # Convert opacity string to float for any element type
     if "opacity" in el and isinstance(el["opacity"], str):
         try:
@@ -320,7 +333,7 @@ def _normalize_graphic_element(el: dict) -> None:
     # `radius` below, for any element type (shapes don't get the
     # font/outline-specific coercion below).
     if "size" in el and isinstance(el["size"], str):
-        el["size"] = _coerce_unit_scalar(el["size"])
+        el["size"] = _coerce_unit_scalar(el["size"], ctx_map.get("size"))
 
     # position2D / position_2d (CSCSS syntax) → the schema's `position`
     # field (a UnitPoint): "{ 10, -4 }" → {x: 10, y: -4}
@@ -417,10 +430,17 @@ def _normalize_graphic_element(el: dict) -> None:
     if isinstance(el.get("outline"), dict):
         _coerce_shape_style_dict(el["outline"])
     if isinstance(el.get("radius"), str):
-        el["radius"] = _coerce_unit_scalar(el["radius"])
+        el["radius"] = _coerce_unit_scalar(el["radius"], ctx_map.get("radius"))
     for angle_key in ("startAngle", "deltaAngle"):
         if isinstance(el.get(angle_key), str):
-            el[angle_key] = _coerce_unit_scalar(el[angle_key])
+            el[angle_key] = _coerce_unit_scalar(el[angle_key], ctx_map.get(angle_key))
+    # RectangleGraphic (Part 2 abstractShape): width/height, unit-bearing
+    # scalars like radius above — previously left as an uncoerced raw
+    # string ("5 px"), never valid against the schema's numericExpression/
+    # unitValue shape.
+    for size_key in ("width", "height"):
+        if isinstance(el.get(size_key), str):
+            el[size_key] = _coerce_unit_scalar(el[size_key], ctx_map.get(size_key))
     if isinstance(el.get("center"), str):
         pt = _parse_xy(el["center"])
         if pt is not None:
@@ -430,6 +450,15 @@ def _normalize_graphic_element(el: dict) -> None:
     # brace-enclosed comma-separated values it cannot fully parse)
     if isinstance(el.get("alignment"), dict) and len(el["alignment"]) == 0:
         del el["alignment"]
+
+    # Defensive cleanup: any nested-object sub-dict not otherwise consumed
+    # above (e.g. `image`) still carries its own "_expr_ctx" companion map
+    # from `_extract_element_from_instance` — strip it so it never leaks
+    # into the final CS-JSON output. `font`/`fill`/`outline` already pop
+    # their own above; re-popping here is a harmless no-op for those.
+    for v in el.values():
+        if isinstance(v, dict):
+            v.pop("_expr_ctx", None)
 
 
 class AstToPydanticConverter:

@@ -444,6 +444,12 @@ class TestFontNormalization:
         assert outline["opacity"] == 0.75
         assert outline["color"] == "white"
 
+    def test_size_with_unit_suffix_becomes_unit_dict(self):
+        """``size: 12 px`` — previously left as an uncoerced raw string."""
+        font = {"size": "12 px"}
+        self.coerce(font)
+        assert font["size"] == {"px": 12}
+
     def test_already_coerced_values_untouched(self):
         """Values that are already the right type should not be altered."""
         font = {"size": 14, "bold": True, "opacity": 1.0}
@@ -451,6 +457,38 @@ class TestFontNormalization:
         assert font["size"] == 14
         assert font["bold"] is True
         assert font["opacity"] == 1.0
+
+
+class TestFontSizeExpression:
+    """``Font.size`` accepts a numeric expression through the full CSCSS pipeline."""
+
+    def setup_method(self):
+        self.converter = Converter()
+
+    def test_font_size_accepts_numeric_expression(self):
+        css = (
+            "Amenities {\n"
+            "  label: { elements: [\n"
+            "    Text { text: NAME; font: { size: viz.sd / 1000 } }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        result = self.converter.cscss_to_csjson(css)
+        el = result["stylingRules"][0]["symbolizer"]["label"]["elements"][0]
+        assert el["font"]["size"] == {"op": "/", "args": [{"sysId": "viz.sd"}, 1000]}
+
+    def test_font_size_expression_round_trips_through_csjson(self):
+        css = (
+            "Amenities {\n"
+            "  label: { elements: [\n"
+            "    Text { text: NAME; font: { size: viz.sd / 1000 } }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        json1 = self.converter.cscss_to_csjson(css)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
 
 
 class TestGraphicElementNormalization:
@@ -513,6 +551,13 @@ class TestGraphicElementNormalization:
         self.normalize(el)
         assert el["radius"] == 4
 
+    def test_rectangle_width_height_coerced(self):
+        """Previously left as uncoerced raw strings ("5 px"), a schema-invalid shape."""
+        el = {"type": "Rectangle", "width": "5 px", "height": "3"}
+        self.normalize(el)
+        assert el["width"] == {"px": 5}
+        assert el["height"] == 3
+
 
 class TestCircleGraphic:
     """CartoSym-CSS ``Circle { fill; outline; radius }`` (2-shapes shape graphic)."""
@@ -557,6 +602,83 @@ class TestCircleGraphic:
         el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
         assert el["type"] == "Dot"
         assert "fill" not in el and "outline" not in el and "radius" not in el
+
+    def test_radius_and_outline_thickness_accept_numeric_expression(self):
+        """``viz.sd / 1000`` — OGC issue #115, generalized beyond stroke.width."""
+        css = (
+            "Amenities {\n"
+            "  marker: { elements: [\n"
+            "    Circle {\n"
+            "      outline: { thickness: viz.sd / 2000 };\n"
+            "      radius: viz.sd / 1000;\n"
+            "    }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        result = self.converter.cscss_to_csjson(css)
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["radius"] == {
+            "op": "/",
+            "args": [{"sysId": "viz.sd"}, 1000],
+        }
+        assert el["outline"]["thickness"] == {
+            "op": "/",
+            "args": [{"sysId": "viz.sd"}, 2000],
+        }
+
+    def test_radius_expression_round_trips_through_csjson(self):
+        css = (
+            "Amenities {\n"
+            "  marker: { elements: [\n"
+            "    Circle { radius: viz.sd / 1000 }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        json1 = self.converter.cscss_to_csjson(css)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+
+class TestRectangleGraphic:
+    """CartoSym-CSS ``Rectangle { width; height }`` (2-shapes shape graphic)."""
+
+    def setup_method(self):
+        self.converter = Converter()
+
+    _CSCSS = (
+        "Amenities {\n"
+        "  marker: { elements: [\n"
+        "    Rectangle { width: 5 px; height: 3 px }\n"
+        "  ]};\n"
+        "}\n"
+    )
+
+    def test_cscss_rectangle_width_height_coerced(self):
+        """Regression: previously left as uncoerced raw strings ("5 px")."""
+        result = self.converter.cscss_to_csjson(self._CSCSS)
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["type"] == "Rectangle"
+        assert el["width"] == {"px": 5}
+        assert el["height"] == {"px": 3}
+
+    def test_cscss_rectangle_round_trips_through_csjson(self):
+        json1 = self.converter.cscss_to_csjson(self._CSCSS)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+    def test_rectangle_width_accepts_numeric_expression(self):
+        css = (
+            "Amenities {\n"
+            "  marker: { elements: [\n"
+            "    Rectangle { width: viz.sd / 1000; height: 3 px }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        result = self.converter.cscss_to_csjson(css)
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["width"] == {"op": "/", "args": [{"sysId": "viz.sd"}, 1000]}
 
 
 class TestResourceSprite:

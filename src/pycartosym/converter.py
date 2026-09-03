@@ -527,14 +527,10 @@ class Converter:
             elif isinstance(pos, dict) and "x" in pos and "y" in pos:
                 prop_lines.append(f"position: {pos['x']} {pos['y']}")
 
-        # size
+        # size (e.g. Dot.size)
         size = _get(el, "size")
         if size is not None:
-            if isinstance(size, dict) and len(size) == 1:
-                unit, val = next(iter(size.items()))
-                prop_lines.append(f"size: {val} {unit}")
-            else:
-                prop_lines.append(f"size: {size}")
+            prop_lines.append(f"size: {self._format_unit_value(size)}")
 
         # color
         color = _get(el, "color")
@@ -549,6 +545,13 @@ class Converter:
                 for k, v in sv.items():
                     if k == "color":
                         vf = self._format_color(v)
+                    elif k == "thickness":
+                        # unit value, or a numeric expression (e.g.
+                        # viz.sd / 1000, OGC issue #115) — never a bare
+                        # single-key-dict guess, which would misread an
+                        # expression dict like {"sysId": "viz.sd"} as a
+                        # {unit: value} shortcut.
+                        vf = self._format_unit_value(v)
                     elif isinstance(v, dict) and len(v) == 1:
                         unit, val = next(iter(v.items()))
                         vf = f"{val} {unit}"
@@ -562,11 +565,13 @@ class Converter:
         # radius (2-shapes Circle, Arc/SectorArc/ChordArc)
         radius = _get(el, "radius")
         if radius is not None:
-            if isinstance(radius, dict) and len(radius) == 1:
-                unit, val = next(iter(radius.items()))
-                prop_lines.append(f"radius: {val} {unit}")
-            else:
-                prop_lines.append(f"radius: {radius}")
+            prop_lines.append(f"radius: {self._format_unit_value(radius)}")
+
+        # width / height (2-shapes RectangleGraphic)
+        for size_key in ("width", "height"):
+            size_val = _get(el, size_key)
+            if size_val is not None:
+                prop_lines.append(f"{size_key}: {self._format_unit_value(size_val)}")
 
         # startAngle / deltaAngle (2-shapes Arc/SectorArc/ChordArc)
         for angle_key in ("startAngle", "deltaAngle"):
@@ -626,6 +631,10 @@ class Converter:
                         fv = f"'{v}'"
                     elif k == "color":
                         fv = self._format_color(v)
+                    elif k == "size":
+                        # unit value, bare number, or a numeric expression
+                        # (e.g. viz.sd / 1000, OGC issue #115).
+                        fv = self._format_unit_value(v)
                     elif k == "outline" and isinstance(v, dict):
                         # Serialize outline as CSCSS inline object: {key: val; ...}
                         out_parts = []
