@@ -1,10 +1,12 @@
 """MapLibre value-expression arrays ↔ CartoSym value expressions.
 
 Scope: the six operators ``codecs.maplibre._expressions`` targets — ``get``
-/ ``case`` / ``match`` / ``interpolate`` / ``step`` / ``coalesce``. Every
-other MapLibre expression operator (comparisons, ``all``/``any``/``!``,
-arithmetic, ``zoom``, ``let``/``var``, other interpolation colour spaces,
-…) is a deliberate out-of-scope gap — asserted here, not silently dropped.
+/ ``case`` / ``match`` / ``interpolate`` / ``step`` / ``coalesce`` — plus
+the 5 binary arithmetic operators (``+``/``-``/``*``/``/``/``^``) and the
+``viz.sd`` system identifier (OGC issue #115). Every other MapLibre
+expression operator (comparisons, ``all``/``any``/``!``, ``%``, a bare
+``zoom``, ``let``/``var``, other interpolation colour spaces, …) is a
+deliberate out-of-scope gap — asserted here, not silently dropped.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from pycartosym.codecs.maplibre._expressions import (
     maplibre_expr_to_value,
     value_to_maplibre_expr,
 )
+from pycartosym.codecs.maplibre._zoom import scale_denominator_zoom_expr
 
 # Round-trip cases: (MapLibre expression array, CartoSym value dict).
 # Fed through maplibre_expr_to_value / value_to_maplibre_expr directly, and
@@ -99,6 +102,21 @@ ROUND_TRIP = [
             ],
         },
     ),
+    # Binary arithmetic (OGC issue #115's stroke.width: viz.sd / 1000 shape).
+    (
+        ["/", ["get", "a"], 1000],
+        {"op": "/", "args": [{"property": "a"}, 1000]},
+    ),
+    (
+        ["^", 2, ["get", "a"]],
+        {"op": "^", "args": [2, {"property": "a"}]},
+    ),
+    # viz.sd system identifier, substituted for the zoom-driven scale
+    # denominator formula.
+    (
+        scale_denominator_zoom_expr(),
+        {"sysId": "viz.sd"},
+    ),
 ]
 
 
@@ -125,7 +143,7 @@ def test_literal_operator_unwraps_its_payload():
     [
         ["==", ["get", "a"], 1],
         ["all", ["==", "a", 1], [">", "b", 2]],
-        ["+", ["get", "a"], 1],
+        ["%", ["get", "a"], 2],
         ["zoom"],
         ["to-string", ["get", "a"]],
         ["let", "x", 1, ["var", "x"]],
@@ -148,11 +166,33 @@ def test_out_of_scope_operator_raises(mb_expr):
         ["interpolate", ["unknown-type"], ["get", "a"], 0, 1],
         # non-literal label:
         ["match", ["get", "a"], [1, ["get", "b"]], "out", "fallback"],
+        ["+", 1, 2, 3],  # only 2-argument arithmetic maps in this codec
     ],
 )
 def test_malformed_expression_raises(mb_expr):
     with pytest.raises(NotImplementedError):
         maplibre_expr_to_value(mb_expr, "prop")
+
+
+def test_unsupported_system_identifier_raises():
+    """Only ``viz.sd`` (OGC issue #115) has a MapLibre expression mapping —
+    any other system identifier is an honest, undecomposable gap.
+    """
+    from pycartosym.models.value_expressions import SystemIdentifier
+
+    with pytest.raises(NotImplementedError):
+        value_to_maplibre_expr(SystemIdentifier(sysId="viz.other"), "prop")
+
+
+def test_near_miss_zoom_expression_raises():
+    """A ``["/", ..., ["*", ..., ["^", 2, ["zoom"]]]]`` shape that isn't
+    exactly the canonical scale-denominator formula is an honest,
+    undecomposable gap — a bare ``["zoom"]`` has no mapping of its own
+    outside that exact shape (deliberate exact-shape matching, see
+    :func:`pycartosym.codecs.maplibre._zoom.is_scale_denominator_zoom_expr`).
+    """
+    with pytest.raises(NotImplementedError):
+        maplibre_expr_to_value(["/", 999, ["*", 100, ["^", 2, ["zoom"]]]], "prop")
 
 
 @pytest.mark.parametrize("mb_expr, _value", ROUND_TRIP)

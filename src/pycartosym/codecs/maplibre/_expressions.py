@@ -1,12 +1,19 @@
 """MapLibre value-expression arrays <-> CartoSym value expressions.
 
-Scope: the six MapLibre operators this pass targets — ``get``, ``case``,
-``match``, ``interpolate``, ``step``, ``coalesce`` — mapped onto the typed
-models in :mod:`pycartosym.models.value_expressions`. Every other
-MapLibre expression operator (comparisons, ``all``/``any``/``!``, ``zoom``,
-the arithmetic/string operators, ``interpolate-hcl``/``-lab``, ``let``/
-``var``, ...) raises :exc:`NotImplementedError` naming the operator — a
-deliberate scope boundary, not an oversight.
+Scope: the six MapLibre operators this pass originally targeted — ``get``,
+``case``, ``match``, ``interpolate``, ``step``, ``coalesce`` — mapped onto
+the typed models in :mod:`pycartosym.models.value_expressions`, plus the
+5 binary arithmetic operators (``+``/``-``/``*``/``/``/``^``, the
+CartoSym-JSON schema's own ``arithmeticExpression`` op set — see
+:mod:`pycartosym.models.value_expressions`'s ``ArithmeticExpression``),
+which MapLibre spells identically. A ``SystemIdentifier`` operand (OGC
+issue #115's ``viz.sd`` — CartoSym has no other value-context system
+identifier with a MapLibre equivalent) substitutes the ``["zoom"]``-driven
+scale-denominator expression from :mod:`.codecs.maplibre._zoom`. Every
+other MapLibre expression operator (comparisons, ``all``/``any``/``!``,
+a bare ``zoom``, the string operators, ``interpolate-hcl``/``-lab``,
+``let``/``var``, ...) still raises :exc:`NotImplementedError` naming the
+operator — a deliberate scope boundary, not an oversight.
 
 Legacy MapLibre "zoom functions" (``{"stops": [...]}``) are a separate,
 unrelated value shape and stay out of scope here too (rejected in
@@ -18,18 +25,23 @@ from __future__ import annotations
 from typing import Any
 
 from ...models.value_expressions import (
+    ArithmeticExpression,
     CaseExpression,
     CoalesceExpression,
     InterpolateExpression,
     MatchExpression,
     PropertyRef,
     StepExpression,
+    SystemIdentifier,
 )
+from ._zoom import is_scale_denominator_zoom_expr, scale_denominator_zoom_expr
 
 # A MapLibre value that is already a plain JSON scalar, not an expression.
 _SCALAR = (str, int, float, bool, type(None))
 
 _INTERPOLATION_TYPES = frozenset({"linear", "exponential", "cubic-bezier"})
+
+_ARITHMETIC_OPS = frozenset({"+", "-", "*", "/", "^"})
 
 
 def maplibre_expr_to_value(value: Any, prop: str) -> Any:
@@ -47,6 +59,8 @@ def maplibre_expr_to_value(value: Any, prop: str) -> Any:
     """
     if isinstance(value, _SCALAR):
         return value
+    if is_scale_denominator_zoom_expr(value):
+        return {"sysId": "viz.sd"}
     if not isinstance(value, list) or not value:
         raise NotImplementedError(
             f"{prop}: {value!r} is not a supported MapLibre value or expression"
@@ -54,6 +68,16 @@ def maplibre_expr_to_value(value: Any, prop: str) -> Any:
 
     op, args = value[0], value[1:]
 
+    if op in _ARITHMETIC_OPS:
+        if len(args) != 2:
+            raise NotImplementedError(
+                f"{prop}: only 2-argument [{op!r}, a, b] arithmetic maps in "
+                "this codec"
+            )
+        return {
+            "op": op,
+            "args": [maplibre_expr_to_value(a, prop) for a in args],
+        }
     if op == "literal":
         if len(args) != 1:
             raise NotImplementedError(f"{prop}: malformed ['literal', ...] expression")
@@ -170,6 +194,15 @@ def value_to_maplibre_expr(value: Any, prop: str) -> Any:
     """
     if isinstance(value, PropertyRef):
         return ["get", value.property]
+    if isinstance(value, ArithmeticExpression):
+        return [value.op, *(value_to_maplibre_expr(a, prop) for a in value.args)]
+    if isinstance(value, SystemIdentifier):
+        if value.sysId == "viz.sd":
+            return scale_denominator_zoom_expr()
+        raise NotImplementedError(
+            f"{prop}: system identifier {value.sysId!r} has no MapLibre "
+            "expression mapping in this codec"
+        )
     if isinstance(value, CaseExpression):
         return ["case", *(value_to_maplibre_expr(a, prop) for a in value.args)]
     if isinstance(value, MatchExpression):

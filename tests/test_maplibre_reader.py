@@ -650,8 +650,9 @@ def test_legacy_zoom_function_raises():
 
 
 def test_out_of_scope_expression_operator_raises():
-    """A comparison/arithmetic expression is real MapLibre syntax, but not
-    one of the six operators this codec's value-expression pass covers.
+    """A comparison expression is real MapLibre syntax, but not one of the
+    six operators this codec's value-expression pass covers (nor the
+    arithmetic/``viz.sd`` extension added on top of them).
     """
     with pytest.raises(NotImplementedError):
         MaplibreReader().read(
@@ -663,7 +664,7 @@ def test_out_of_scope_expression_operator_raises():
                         "id": "l",
                         "type": "fill",
                         "source": "s",
-                        "paint": {"fill-opacity": ["+", ["get", "a"], 1]},
+                        "paint": {"fill-opacity": ["==", ["get", "a"], 1]},
                     }
                 ],
             }
