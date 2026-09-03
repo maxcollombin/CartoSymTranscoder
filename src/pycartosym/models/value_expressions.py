@@ -21,6 +21,21 @@ Deliberately **not** placed in :mod:`pycartosym.cql2.model`: that
 module is scoped to CQL2 (OGC 21-065r2), a standalone standard, and
 ``case``/``match``/``step``/``interpolate``/``coalesce`` are MapLibre Style
 Spec vocabulary, not CQL2 vocabulary.
+
+``SystemIdentifier`` and ``ArithmeticExpression`` (added for symbolizer
+*value* expressions such as ``stroke.width: viz.sd / 1000``, OGC issue
+#115) map 1:1 onto the schema's own ``systemIdentifier``/
+``arithmeticExpression``, and so — like ``PropertyRef`` — arguably *are*
+CQL2 vocabulary already covered by same-named classes in
+:mod:`pycartosym.cql2.model`. They are re-declared here anyway, following
+``PropertyRef``'s own precedent: the ``cql2.model`` versions extend the
+heavier ``Expression`` ABC (plain ``pydantic.BaseModel``, a required
+``type`` discriminant), which doesn't match this module's/``symbolizers.py``'s
+``BaseCartoSymModel`` conventions (alias-based serialisation, no
+discriminant). This module's ``ArithmeticExpression.op`` is also
+schema-exact (``+``/``-``/``*``/``/``/``^``) — the ``cql2.model`` version
+additionally allows ``%``/``**``, which the schema's ``arithmeticExpression``
+does not.
 """
 
 from __future__ import annotations
@@ -39,6 +54,28 @@ class PropertyRef(BaseCartoSymModel):
     """
 
     property: str
+
+
+class SystemIdentifier(BaseCartoSymModel):
+    """System identifier reference: ``{"sysId": "identifier"}``.
+
+    Maps 1:1 onto the CartoSym-JSON schema's ``systemIdentifier``
+    definition, e.g. ``{"sysId": "viz.sd"}`` (current scale denominator).
+    """
+
+    sysId: str
+
+
+class ArithmeticExpression(BaseCartoSymModel):
+    """Arithmetic expression: ``{"op": "+|-|*|/|^", "args": [a, b]}``.
+
+    Maps 1:1 onto the CartoSym-JSON schema's ``arithmeticExpression``
+    (schema ``op`` enum only — CartoSym-CSS's ``%``/``div`` operators have
+    no ``arithmeticExpression`` mapping).
+    """
+
+    op: Literal["+", "-", "*", "/", "^"]
+    args: list[ValueExpressionArg] = Field(min_length=2, max_length=2)
 
 
 class CaseExpression(BaseCartoSymModel):
@@ -138,6 +175,8 @@ class CoalesceExpression(BaseCartoSymModel):
 
 ValueExpression = (
     PropertyRef
+    | SystemIdentifier
+    | ArithmeticExpression
     | CaseExpression
     | MatchExpression
     | StepExpression
@@ -150,6 +189,7 @@ ValueExpressionArg = ValueExpression | bool | int | float | str | None
 """An expression argument: a nested expression, or a JSON literal."""
 
 for _cls in (
+    ArithmeticExpression,
     CaseExpression,
     MatchExpression,
     StepExpression,

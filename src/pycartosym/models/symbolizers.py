@@ -17,6 +17,7 @@ from .types import (
     FlexibleColor,
     FlexibleOpacity,
     FlexibleSize,
+    UnitType,
     UnitValue,
 )
 
@@ -28,12 +29,21 @@ from .types import (
 _VENDOR_KEY_RE = re.compile(r"^vendor\.[A-Za-z0-9_-]+\.[A-Za-z0-9_.-]+$")
 
 
+_UNIT_NAMES = {u.value for u in UnitType}
+
+
 def parse_flexible_unit_value(v):
-    """Coerce a ``{unit: value}`` dict into a :class:`UnitValue`."""
-    # Accept dicts like {"px": 2.0}
+    """Coerce a ``{unit: value}`` dict into a :class:`UnitValue`.
+
+    Only for an actual unit key (``{"px": 2.0}``) — a one-key expression
+    dict like ``{"sysId": "viz.sd"}`` or ``{"property": "x"}`` has the same
+    shape and must be left alone, not misread as value=``"viz.sd"``,
+    unit=``"sysId"``.
+    """
     if isinstance(v, dict) and len(v) == 1:
         unit, value = next(iter(v.items()))
-        return UnitValue(value=value, unit=unit)
+        if unit in _UNIT_NAMES:
+            return UnitValue(value=value, unit=unit)
     return v
 
 
@@ -127,7 +137,11 @@ class Stroke(BaseCartoSymModel, AlterMixin):
     opacity: FlexibleOpacity | None = Field(
         None, description="Stroke opacity (0.0-1.0)"
     )
-    width: UnitValue | str | float | None = Field(None, description="Stroke width")
+    # FlexibleSize (not the plain UnitValue | str | float of StrokeStyling's
+    # own width) so a numeric expression — e.g. {"op": "/", "args":
+    # [{"sysId": "viz.sd"}, 1000]} for stroke.width: viz.sd / 1000 — can
+    # round-trip through CS-JSON's numericExpression, per OGC issue #115.
+    width: FlexibleSize | None = Field(None, description="Stroke width")
 
     # Extended stroke properties
     casing: StrokeStyling | None = Field(None, description="Stroke casing")
