@@ -602,6 +602,46 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 return elements
         return []
 
+    @classmethod
+    def _extract_top_level_dict_value(cls, expr_ctx, key: str) -> dict | None:
+        """Find ``key: {...}`` at the top level of an anonymous ``{...}`` block.
+
+        E.g. ``label: { elements: [...]; placement: {...} }`` — returns
+        ``placement``'s properties as a flat dict (each leaf value paired
+        with its ANTLR expression context under ``"_expr_ctx"``, same
+        convention as :meth:`_extract_element_from_instance`), or ``None``
+        if *key* is absent or isn't an anonymous-object value.
+        """
+        ei = cls._find_exp_instance(expr_ctx)
+        if ei is None:
+            return None
+        pai_list = ei.propertyAssignmentInferredList()
+        if pai_list is None:
+            return None
+        for pai in cls._collect_inferred_assignments(pai_list):
+            pa = pai.propertyAssignment()
+            if pa is None or pa.lhValue().getText() != key:
+                continue
+            value_expr = pa.expression()
+            nested_ei = cls._find_exp_instance(value_expr) if value_expr else None
+            if nested_ei is None or nested_ei.IDENTIFIER() is not None:
+                return None
+            inner: dict = {}
+            inner_ctx_map: dict = {}
+            inner_list = nested_ei.propertyAssignmentInferredList()
+            if inner_list is not None:
+                for inner_pai in cls._collect_inferred_assignments(inner_list):
+                    inner_pa = inner_pai.propertyAssignment()
+                    if inner_pa:
+                        inner_key = inner_pa.lhValue().getText()
+                        inner_expr = inner_pa.expression()
+                        inner[inner_key] = cls._expression_source_text(inner_expr)
+                        inner_ctx_map[inner_key] = inner_expr
+            if inner_ctx_map:
+                inner["_expr_ctx"] = inner_ctx_map
+            return inner
+        return None
+
     def enterStyleSheet(self, ctx):
         """Handle entering a stylesheet rule."""
         self.stylesheet = StyleSheet()
@@ -939,10 +979,21 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
 
         if prop_name == "label":
             elements = []
+            placement = None
             if expr_ctx is not None:
                 elements = self._extract_elements_from_antlr(expr_ctx)
+                placement = self._extract_top_level_dict_value(expr_ctx, "placement")
+            if placement is not None:
+                ctx_map = placement.pop("_expr_ctx", {})
+                for spacing_key in ("minSpacing", "maxSpacing"):
+                    if spacing_key in placement:
+                        placement[spacing_key] = convert_numeric_expression_value(
+                            placement[spacing_key], ctx_map.get(spacing_key)
+                        )
             # Use the Pydantic Label model so it passes Symbolizer validation.
-            symbolizer.label = ModelLabel(elements=elements if elements else None)
+            symbolizer.label = ModelLabel(
+                elements=elements if elements else None, placement=placement
+            )
             return
 
         # Handle marker.elements[N]: ... assignments

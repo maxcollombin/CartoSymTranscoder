@@ -494,18 +494,48 @@ class Converter:
         """Convert Label model to CSS lines."""
         lines: list[str] = []
         elements = getattr(label, "elements", None)
-        if not elements:
+        placement = getattr(label, "placement", None)
+        parts = []
+        if elements:
+            element_strs = [
+                self._graphic_element_to_css_block(el, indent=15)
+                for el in (elements if isinstance(elements, list) else [elements])
+            ]
+            elements_block = (
+                "[\n                "
+                + ",\n                ".join(element_strs)
+                + "\n             ]"
+            )
+            parts.append(f"elements: {elements_block}")
+        if placement is not None:
+            placement_block = self._placement_to_css_block(placement)
+            if placement_block is not None:
+                parts.append(f"placement: {placement_block}")
+        if not parts:
             return lines
-        element_strs = []
-        for el in (elements if isinstance(elements, list) else [elements]):
-            element_strs.append(self._graphic_element_to_css_block(el, indent=15))
-        elements_block = (
-            "[\n                "
-            + ",\n                ".join(element_strs)
-            + "\n             ]"
-        )
-        lines.append(f"  label: {{elements: {elements_block}}};")
+        lines.append(f"  label: {{{'; '.join(parts)}}};")
         return lines
+
+    def _placement_to_css_block(self, placement) -> str | None:
+        """Render a ``LabelPlacement``'s ``minSpacing``/``maxSpacing`` as CSS."""
+
+        def _get(o, *keys):
+            for k in keys:
+                v = o.get(k) if isinstance(o, dict) else getattr(o, k, None)
+                if v is not None:
+                    return v
+            return None
+
+        parts = []
+        min_spacing = _get(placement, "min_spacing", "minSpacing")
+        if min_spacing is not None:
+            parts.append(f"minSpacing: {self._format_unit_value(min_spacing)}")
+        max_spacing = _get(placement, "max_spacing", "maxSpacing")
+        if max_spacing is not None:
+            parts.append(f"maxSpacing: {self._format_unit_value(max_spacing)}")
+        if not parts:
+            return None
+        return "{" + "; ".join(parts) + "}"
 
     def _graphic_element_to_css_block(self, el, indent: int = 0) -> str:
         """Render a single graphic element as a CSS block, e.g. ``Dot { ... }``."""
