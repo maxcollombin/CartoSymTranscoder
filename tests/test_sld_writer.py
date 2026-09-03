@@ -1245,3 +1245,54 @@ class TestWriteSystemIdentifierWidthRaises:
         )
         with pytest.raises(NotImplementedError):
             SldWriter().write(Style.from_dict(style_dict))
+
+
+class TestWritePropertyDrivenShapeOutlineThickness:
+    """A ``2-shapes`` Circle's ``outline.thickness`` gets the same treatment
+    as ``stroke-width`` (:class:`TestWritePropertyDrivenWidth`) — same
+    ``se:Mark/se:Stroke`` ``stroke-width`` SvgParameter, same writer/reader
+    helpers.
+    """
+
+    def _circle_style(self, thickness):
+        return _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Circle",
+                            "outline": {"thickness": thickness},
+                            "radius": {"px": 5},
+                        }
+                    ]
+                }
+            }
+        )
+
+    def test_arithmetic_thickness_writes_ogc_function(self):
+        from ._xsd import assert_sld_valid
+
+        style_dict = self._circle_style(
+            {"op": "/", "args": [{"property": "population"}, 1000]}
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="arithmetic shape-outline thickness")
+        root = etree.fromstring(xml.encode("utf-8"))
+        fn = root.find(".//se:Mark/se:Stroke/se:SvgParameter/ogc:Function", NS)
+        assert fn is not None and fn.get("name") == "Div"
+
+        from pycartosym.codecs.sld.reader import SldReader
+
+        back = SldReader().read(xml)
+        el = back.styling_rules[0].symbolizer.marker.elements[0]
+        assert (
+            el["outline"]["thickness"]
+            == style_dict["stylingRules"][0]["symbolizer"]["marker"]["elements"][0][
+                "outline"
+            ]["thickness"]
+        )
+
+    def test_system_identifier_thickness_raises(self):
+        style_dict = self._circle_style({"sysId": "viz.sd"})
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
