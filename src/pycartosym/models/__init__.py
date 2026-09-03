@@ -39,12 +39,14 @@ from .types import (  # Color types; Unit types; Angle types; Range types
     ZeroToOne,
 )
 from .value_expressions import (
+    ArithmeticExpression,
     CaseExpression,
     CoalesceExpression,
     InterpolateExpression,
     MatchExpression,
     PropertyRef,
     StepExpression,
+    SystemIdentifier,
     ValueExpression,
 )
 
@@ -78,6 +80,8 @@ __all__ = [
     # Value expressions (data-driven property values)
     "ValueExpression",
     "PropertyRef",
+    "SystemIdentifier",
+    "ArithmeticExpression",
     "CaseExpression",
     "MatchExpression",
     "StepExpression",

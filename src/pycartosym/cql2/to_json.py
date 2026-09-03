@@ -16,6 +16,7 @@ __all__ = [
     "expression_to_json",
     "convert_identifier",
     "convert_literal_value",
+    "convert_numeric_expression_value",
 ]
 
 
@@ -395,7 +396,13 @@ def convert_antlr_expression(expr_ctx: Any, rule_name: str) -> Any:
 
                     op_rule = CartoSymCSSGrammar.ruleNames[op_child.getRuleIndex()]
 
-                    if op_rule in ["relationalOperator", "binaryLogicalOperator"]:
+                    if op_rule in [
+                        "relationalOperator",
+                        "binaryLogicalOperator",
+                        "arithmeticOperatorAdd",
+                        "arithmeticOperatorMul",
+                        "arithmeticOperatorExp",
+                    ]:
                         # This is a binary operation
                         left_arg = convert_antlr_expression(left_child, "expression")
                         operator = op_child.getText()
@@ -634,3 +641,43 @@ def convert_literal_value(value: str | int | float) -> Any:
 
     # Keep known identifiers as strings
     return value
+
+
+_ARITHMETIC_OPS = {"+", "-", "*", "/", "^"}
+
+
+def _is_supported_numeric_expr(value: Any) -> bool:
+    """Whether ``value`` is a JSON shape this codec's numeric expressions can carry.
+
+    A plain number, a ``sysId``/``property`` reference, or a schema-valid
+    (``+``/``-``/``*``/``/``/``^``) arithmetic combination of those.
+    """
+    if isinstance(value, (int, float)):
+        return True
+    if isinstance(value, dict):
+        if "sysId" in value or "property" in value:
+            return True
+        if "op" in value and "args" in value:
+            return value["op"] in _ARITHMETIC_OPS and all(
+                _is_supported_numeric_expr(arg) for arg in value["args"]
+            )
+    return False
+
+
+def convert_numeric_expression_value(prop_value: str, expr_ctx: Any = None) -> Any:
+    """Convert a numeric symbolizer property value.
+
+    Falls back to :func:`convert_literal_value` for a plain number/unit
+    value — unchanged behavior for every case it already handled. When
+    that only produces an unresolved opaque string *and* a parsed ANTLR
+    expression tree is available, parses it as a numeric expression
+    instead — e.g. ``viz.sd / 1000`` becomes ``{"op": "/", "args":
+    [{"sysId": "viz.sd"}, 1000]}`` rather than round-tripping as the
+    literal text ``"viz.sd / 1000"`` (OGC issue #115).
+    """
+    literal = convert_literal_value(prop_value)
+    if isinstance(literal, str) and expr_ctx is not None:
+        parsed = convert_antlr_expression(expr_ctx, "expression")
+        if _is_supported_numeric_expr(parsed):
+            return parsed
+    return literal

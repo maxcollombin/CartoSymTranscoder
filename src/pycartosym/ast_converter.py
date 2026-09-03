@@ -15,14 +15,18 @@ from .cql2.to_json import (
     post_process_selector,
 )
 from .models import (
+    ArithmeticExpression,
     Fill,
     Label,
     Marker,
     Metadata,
+    PropertyRef,
     Stroke,
     Style,
     StylingRule,
     Symbolizer,
+    SystemIdentifier,
+    UnitValue,
 )
 
 
@@ -820,9 +824,25 @@ class AstToPydanticConverter:
                 stroke_data["color"] = convert_literal_value(str(ast_stroke.color))
 
             if hasattr(ast_stroke, "width") and ast_stroke.width is not None:
-                # Use _convert_literal_value for proper unit conversion
-                width_value = str(ast_stroke.width)
-                stroke_data["width"] = convert_literal_value(width_value)
+                width = ast_stroke.width
+                if isinstance(
+                    width,
+                    (UnitValue, ArithmeticExpression, SystemIdentifier, PropertyRef),
+                ):
+                    # Already a typed value (e.g. built directly by the
+                    # parser's dot-notation handler, which — unlike this
+                    # generic AST-shaped fallback — can see the ANTLR
+                    # expression tree and resolve a numeric expression like
+                    # ``viz.sd / 1000``). Stringifying and reparsing it via
+                    # convert_literal_value would only be lossy here: a
+                    # UnitValue's ``__str__`` happens to round-trip, but
+                    # ArithmeticExpression/SystemIdentifier's Pydantic repr
+                    # does not.
+                    stroke_data["width"] = width
+                else:
+                    # Use _convert_literal_value for proper unit conversion
+                    width_value = str(width)
+                    stroke_data["width"] = convert_literal_value(width_value)
 
             if hasattr(ast_stroke, "opacity") and ast_stroke.opacity is not None:
                 stroke_data["opacity"] = float(ast_stroke.opacity)

@@ -216,6 +216,46 @@ class TestPropertyParsing:
         fill = result["stylingRules"][0]["symbolizer"]["fill"]
         assert fill["color"] == [255, 0, 0]
 
+    def test_stroke_width_system_identifier_expression(self):
+        """stroke.width: viz.sd / 1000 becomes a structured arithmeticExpression.
+
+        Not a literal string — OGC issue #115 confirmed this is spec-valid
+        (RC "Symbolizer Parameter Value Expressions").
+        """
+        result = self.converter.cscss_to_csjson(
+            "[Base]\n{ stroke.width: viz.sd / 1000; }"
+        )
+        stroke = result["stylingRules"][0]["symbolizer"]["stroke"]
+        assert stroke["width"] == {
+            "op": "/",
+            "args": [{"sysId": "viz.sd"}, 1000],
+        }
+        jsonschema_validate(instance=result, schema=_SCHEMA)
+
+    def test_stroke_width_nested_arithmetic_expression(self):
+        result = self.converter.cscss_to_csjson(
+            "[Base]\n{ stroke.width: viz.sd / 1000 + 2; }"
+        )
+        stroke = result["stylingRules"][0]["symbolizer"]["stroke"]
+        assert stroke["width"] == {
+            "op": "+",
+            "args": [
+                {"op": "/", "args": [{"sysId": "viz.sd"}, 1000]},
+                2,
+            ],
+        }
+        jsonschema_validate(instance=result, schema=_SCHEMA)
+
+    def test_stroke_width_expression_round_trip(self):
+        """CSCSS -> JSON -> CSCSS -> JSON must be identical for an expression width."""
+        json1 = self.converter.cscss_to_csjson(
+            "[Base]\n{ stroke.width: viz.sd / 1000; }"
+        )
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        assert "viz.sd / 1000" in cscss_wb
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
     def test_nested_rules(self):
         """Nested selector blocks should produce nestedRules."""
         cscss = """\

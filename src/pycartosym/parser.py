@@ -33,7 +33,7 @@ from .cql2.model import (
     Selector,
     StringExpression,
 )
-from .cql2.to_json import convert_literal_value
+from .cql2.to_json import convert_numeric_expression_value
 from .grammar.generated import (
     CartoSymCSSGrammar,
     CartoSymCSSGrammarListener,
@@ -972,7 +972,13 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                         # let a non-px value like "8.0 m" validate as the
                         # Stroke.width union's plain-``str`` member instead
                         # of a proper UnitValue, silently wrong downstream.
-                        symbolizer.stroke.width = convert_literal_value(prop_value)
+                        # Also recognizes a numeric expression over a system
+                        # identifier (e.g. "viz.sd / 1000") when the ANTLR
+                        # tree is available, instead of round-tripping it as
+                        # opaque text (OGC issue #115).
+                        symbolizer.stroke.width = convert_numeric_expression_value(
+                            prop_value, expr_ctx
+                        )
                     elif attr_name.lower() == "opacity":
                         try:
                             symbolizer.stroke.opacity = float(prop_value)

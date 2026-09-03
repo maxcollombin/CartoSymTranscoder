@@ -724,8 +724,38 @@ class Converter:
                 pass
         return str(color)
 
+    def _format_numeric_expression(self, value) -> str | None:
+        """Render a system identifier / arithmetic expression as CartoSym-CSS text.
+
+        E.g. ``viz.sd / 1000``. Returns ``None`` if ``value`` isn't one of
+        these (a plain unit value/number instead).
+        """
+
+        def _get(o, k):
+            return o.get(k) if isinstance(o, dict) else getattr(o, k, None)
+
+        sys_id = _get(value, "sysId")
+        if sys_id is not None:
+            return str(sys_id)
+        prop = _get(value, "property")
+        if prop is not None:
+            return str(prop)
+        op = _get(value, "op")
+        args = _get(value, "args")
+        if op is not None and args is not None:
+            parts = [self._format_numeric_expression(a) or str(a) for a in args]
+            return f"{parts[0]} {op} {parts[1]}"
+        return None
+
     def _format_unit_value(self, uv) -> str:
-        """Format a UnitValue (or {unit: val} dict) as CSCSS syntax, e.g. '2.0 px'."""
+        """Format a UnitValue as CSCSS syntax, e.g. '2.0 px'.
+
+        Also accepts a ``{unit: val}`` dict, or a numeric expression (e.g.
+        ``viz.sd / 1000``).
+        """
+        expr = self._format_numeric_expression(uv)
+        if expr is not None:
+            return expr
         if hasattr(uv, "value") and hasattr(uv, "unit"):
             unit_str = uv.unit.value if hasattr(uv.unit, "value") else str(uv.unit)
             return f"{uv.value} {unit_str}"
