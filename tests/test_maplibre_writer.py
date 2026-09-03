@@ -270,6 +270,84 @@ def test_circle_element_px_dict_fields_are_unwrapped():
     assert_maplibre_valid(out)
 
 
+def test_circle_outline_thickness_accepts_numeric_expression():
+    """``circle-stroke-width`` as a numeric expression over a feature
+    property (OGC issue #115's "Symbolizer Parameter Value Expressions").
+
+    Same untyped-dict situation as ``test_circle_element_px_dict_fields_are_
+    unwrapped`` — an ``ArithmeticExpression`` nested inside
+    ``Marker.elements`` also stays a raw dict, which
+    ``value_to_maplibre_expr`` must coerce before its ``isinstance`` checks.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Circle",
+                                    "outline": {
+                                        "thickness": {
+                                            "op": "/",
+                                            "args": [{"property": "sd"}, 1000],
+                                        },
+                                    },
+                                    "radius": {"px": 6},
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    paint = out["layers"][0]["paint"]
+    assert paint["circle-stroke-width"] == ["/", ["get", "sd"], 1000]
+    assert_maplibre_valid(out)
+
+    from pycartosym.codecs.maplibre.reader import MaplibreReader
+
+    style_back = MaplibreReader().read(out)
+    el = style_back.styling_rules[0].symbolizer.marker.elements[0]
+    assert el["outline"]["thickness"] == {
+        "op": "/",
+        "args": [{"property": "sd"}, 1000],
+    }
+
+
+def test_circle_outline_thickness_system_identifier_raises():
+    """``viz.sd`` inside ``circle-stroke-width`` is a confirmed permanent
+    wall — MapLibre only allows ``["zoom"]`` as the sole, top-level input
+    of ``step``/``interpolate``, never nested inside arithmetic.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Circle",
+                                    "outline": {"thickness": {"sysId": "viz.sd"}},
+                                    "radius": {"px": 6},
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
 def test_rgb_literal_color_becomes_hex():
     """CartoSym's ``Color`` accepts a ``[r, g, b]`` 0-255 literal (what a
     CSCSS ``#rrggbb`` hex literal actually parses into) — MapLibre needs

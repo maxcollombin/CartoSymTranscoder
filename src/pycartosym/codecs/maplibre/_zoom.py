@@ -1,13 +1,5 @@
 """MapLibre zoom-range visibility <-> CartoSym scale-denominator selectors.
 
-Also exports the same sd<->zoom formula as a ``["zoom"]``-driven MapLibre
-*value* expression (:func:`scale_denominator_zoom_expr` /
-:func:`is_scale_denominator_zoom_expr`), for a ``viz.sd`` operand inside a
-numeric symbolizer-property expression — a different use of ``viz.sd``
-than the selector/filter conversion below, reusing the same constants
-rather than duplicating them (see
-:mod:`.codecs.maplibre._expressions`).
-
 CartoSym has no zoom-level concept — the OGC conceptual model's selector
 vocabulary only knows a scale denominator (``viz.sd``, the same sysId the
 SLD/SE codec's ``se:Min/MaxScaleDenominator`` mapping uses, see
@@ -83,48 +75,6 @@ _FLIP_OP = {"<": ">", "<=": ">=", ">": "<", ">=": "<=", "=": "=", "!=": "!="}
 def scale_denominator_from_zoom(zoom: float) -> float:
     """Return the Web Mercator scale denominator for MapLibre zoom level *zoom*."""
     return _EARTH_CIRCUMFERENCE_M / (_TILE_PIXELS * _PIXEL_SIZE_M * 2**zoom)
-
-
-def scale_denominator_zoom_expr() -> list[Any]:
-    """MapLibre expression computing the scale denominator at the current zoom.
-
-    The inverse of :func:`scale_denominator_from_zoom`, expressed as an
-    ``["zoom"]``-driven expression tree — substituted for a ``viz.sd``
-    operand inside a numeric *value* expression (e.g. ``stroke.width:
-    viz.sd / 1000``, OGC issue #115; see
-    :mod:`.codecs.maplibre._expressions`), which is a different use of
-    ``viz.sd`` than the selector/filter conversion the rest of this module
-    handles.
-    """
-    return [
-        "/",
-        _EARTH_CIRCUMFERENCE_M,
-        ["*", _TILE_PIXELS * _PIXEL_SIZE_M, ["^", 2, ["zoom"]]],
-    ]
-
-
-def is_scale_denominator_zoom_expr(expr: Any) -> bool:
-    """Whether *expr* is the canonical shape :func:`scale_denominator_zoom_expr` builds.
-
-    Deliberately exact-shape matching — this codec's usual conservative
-    approach (cf. the ``step(zoom)`` decomposition) rather than general
-    symbolic simplification: any other expression involving ``["zoom"]``
-    inside an arithmetic value expression is an honest, undecomposable gap
-    (see :func:`.codecs.maplibre._expressions.maplibre_expr_to_value`).
-    """
-    if not (isinstance(expr, list) and len(expr) == 3 and expr[0] == "/"):
-        return False
-    numerator, denominator = expr[1], expr[2]
-    if not _is_number(numerator) or not math.isclose(numerator, _EARTH_CIRCUMFERENCE_M):
-        return False
-    if not (isinstance(denominator, list) and len(denominator) == 3):
-        return False
-    if denominator[0] != "*":
-        return False
-    factor, power_expr = denominator[1], denominator[2]
-    if not _is_number(factor) or not math.isclose(factor, _TILE_PIXELS * _PIXEL_SIZE_M):
-        return False
-    return bool(power_expr == ["^", 2, ["zoom"]])
 
 
 def zoom_from_scale_denominator(sd: float) -> int | float:
