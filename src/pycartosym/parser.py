@@ -491,12 +491,25 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
         """Extract a single element dict from an ``ExpInstanceContext``.
 
         For example ``Dot { size: 10 px; color: white }``.
+
+        Each leaf key's raw source text is stored as usual, but its ANTLR
+        expression context is *also* kept, under a private ``"_expr_ctx"``
+        key (one level per nesting, e.g. ``outline: {...}``'s own
+        ``"_expr_ctx"``) — otherwise lost once only the text survives. This
+        lets downstream numeric coercion
+        (``ast_converter.py::_coerce_unit_scalar``/``_coerce_shape_style_dict``)
+        fall back to parsing a numeric expression (e.g. ``viz.sd / 1000``,
+        OGC issue #115) instead of leaving an opaque string, the same way
+        the single dotted-override ``stroke.width: <expr>;`` already does.
+        ``ast_converter.py`` pops ``"_expr_ctx"`` back out before the dict
+        reaches the final Pydantic model — it must never leak into output.
         """
         ident = exp_instance_ctx.IDENTIFIER()
         result = {"type": ident.getText()} if ident else {}
         pai_list = exp_instance_ctx.propertyAssignmentInferredList()
         if pai_list is None:
             return result
+        ctx_map: dict = {}
         for pai in cls._collect_inferred_assignments(pai_list):
             pa = pai.propertyAssignment()
             if pa is None:
@@ -508,15 +521,19 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
             if nested_ei is not None and nested_ei.IDENTIFIER() is None:
                 # Anonymous nested object → recurse into its properties
                 inner = {}
+                inner_ctx_map: dict = {}
                 inner_list = nested_ei.propertyAssignmentInferredList()
                 if inner_list is not None:
                     for inner_pai in cls._collect_inferred_assignments(inner_list):
                         inner_pa = inner_pai.propertyAssignment()
                         if inner_pa:
-                            inner[inner_pa.lhValue().getText()] = (
-                                cls._expression_source_text(inner_pa.expression())
-                            )
+                            inner_key = inner_pa.lhValue().getText()
+                            inner_expr = inner_pa.expression()
+                            inner[inner_key] = cls._expression_source_text(inner_expr)
+                            inner_ctx_map[inner_key] = inner_expr
                 if inner:
+                    if inner_ctx_map:
+                        inner["_expr_ctx"] = inner_ctx_map
                     result[key] = inner
                 else:
                     # Braced but with no `key: value` pairs at all — e.g. a
@@ -532,6 +549,9 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 result[key] = cls._extract_element_from_instance(nested_ei)
             else:
                 result[key] = cls._expression_source_text(expr)
+                ctx_map[key] = expr
+        if ctx_map:
+            result["_expr_ctx"] = ctx_map
         return result
 
     @classmethod

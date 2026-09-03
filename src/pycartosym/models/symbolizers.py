@@ -78,9 +78,12 @@ class Fill(BaseCartoSymModel, AlterMixin):
 class Hatch(BaseCartoSymModel, AlterMixin):
     """Hatch pattern for fills."""
 
-    width: UnitValue | str | float | None = Field(None, description="Hatch line width")
+    # FlexibleSize (not plain UnitValue | str | float) so a numeric
+    # expression can round-trip through CS-JSON's numericExpression, per
+    # OGC issue #115 — same rationale as Stroke.width.
+    width: FlexibleSize | None = Field(None, description="Hatch line width")
     angle: FlexibleAngle | None = Field(None, description="Hatch angle")
-    distance: UnitValue | str | float | None = Field(
+    distance: FlexibleSize | None = Field(
         None, description="Distance between hatch lines"
     )
 
@@ -93,9 +96,7 @@ class Hatch(BaseCartoSymModel, AlterMixin):
 class DotPattern(BaseCartoSymModel, AlterMixin):
     """Dot pattern for fills."""
 
-    distance: UnitValue | str | float | None = Field(
-        None, description="Distance between dots"
-    )
+    distance: FlexibleSize | None = Field(None, description="Distance between dots")
 
     @field_validator("distance", mode="before")
     def validate_distance(cls, v):
@@ -379,9 +380,7 @@ class ShapeOutline(BaseCartoSymModel, AlterMixin):
     dash pattern or pattern graphic.
     """
 
-    thickness: UnitValue | str | float | None = Field(
-        None, description="Outline thickness"
-    )
+    thickness: FlexibleSize | None = Field(None, description="Outline thickness")
     opacity: FlexibleOpacity | None = Field(
         None, description="Outline opacity (0.0-1.0)"
     )
@@ -423,8 +422,13 @@ class CircleGraphic(ClosedShape):
 class RectangleGraphic(ClosedShape):
     """Rectangle shape graphic."""
 
-    width: UnitValue | str | float = Field(..., description="Rectangle width")
-    height: UnitValue | str | float = Field(..., description="Rectangle height")
+    width: FlexibleSize = Field(..., description="Rectangle width")
+    height: FlexibleSize = Field(..., description="Rectangle height")
+
+    @field_validator("width", "height", mode="before")
+    def validate_size_fields(cls, v):
+        """Coerce ``{unit: value}`` dicts on width/height before validation."""
+        return parse_flexible_unit_value(v)
 
 
 class ArcGraphic(ShapeGraphic):
