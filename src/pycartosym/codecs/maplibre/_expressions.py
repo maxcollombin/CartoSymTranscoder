@@ -6,14 +6,30 @@ the typed models in :mod:`pycartosym.models.value_expressions`, plus the
 5 binary arithmetic operators (``+``/``-``/``*``/``/``/``^``, the
 CartoSym-JSON schema's own ``arithmeticExpression`` op set — see
 :mod:`pycartosym.models.value_expressions`'s ``ArithmeticExpression``),
-which MapLibre spells identically. A ``SystemIdentifier`` operand (OGC
-issue #115's ``viz.sd`` — CartoSym has no other value-context system
-identifier with a MapLibre equivalent) substitutes the ``["zoom"]``-driven
-scale-denominator expression from :mod:`.codecs.maplibre._zoom`. Every
-other MapLibre expression operator (comparisons, ``all``/``any``/``!``,
-a bare ``zoom``, the string operators, ``interpolate-hcl``/``-lab``,
-``let``/``var``, ...) still raises :exc:`NotImplementedError` naming the
-operator — a deliberate scope boundary, not an oversight.
+which MapLibre spells identically. Every other MapLibre expression
+operator (comparisons, ``all``/``any``/``!``, a bare ``zoom``, the string
+operators, ``interpolate-hcl``/``-lab``, ``let``/``var``, ...) still
+raises :exc:`NotImplementedError` naming the operator — a deliberate
+scope boundary, not an oversight.
+
+A ``SystemIdentifier`` (OGC issue #115's ``viz.sd``, the current scale
+denominator) is a **confirmed permanent wall in this codec**, not a
+missing-wiring gap — same conclusion as the SLD/SE codec, for a different
+reason: the real MapLibre style spec restricts a ``["zoom"]`` expression
+to being the *sole, top-level* input of a ``step``/``interpolate`` call —
+it cannot be nested inside arithmetic (confirmed against the real
+``gl-style-validate`` CLI, not just this codec's own JSON-shape checks).
+An earlier version of this module built a ``["zoom"]``-driven arithmetic
+formula for ``viz.sd`` that validated as the right JSON *shape* but was
+never actually valid MapLibre syntax — caught only once a round-trip test
+was run through the real validator instead of comparing JSON shapes.
+Folding an enclosing arithmetic expression's constant scaling into
+``interpolate`` stops instead (making the ``interpolate`` the top-level
+value) is possible for the special case of ``viz.sd`` combined only with
+numeric literals, but breaks this project's lossless round-trip
+requirement (the discrete stops can't be inverted back to the original
+symbolic formula on read) and was rejected for that reason — a
+``SystemIdentifier`` here raises unconditionally instead.
 
 Legacy MapLibre "zoom functions" (``{"stops": [...]}``) are a separate,
 unrelated value shape and stay out of scope here too (rejected in
@@ -34,7 +50,6 @@ from ...models.value_expressions import (
     StepExpression,
     SystemIdentifier,
 )
-from ._zoom import is_scale_denominator_zoom_expr, scale_denominator_zoom_expr
 
 # A MapLibre value that is already a plain JSON scalar, not an expression.
 _SCALAR = (str, int, float, bool, type(None))
@@ -42,6 +57,32 @@ _SCALAR = (str, int, float, bool, type(None))
 _INTERPOLATION_TYPES = frozenset({"linear", "exponential", "cubic-bezier"})
 
 _ARITHMETIC_OPS = frozenset({"+", "-", "*", "/", "^"})
+
+
+def _coerce_numeric_expr(value: Any) -> Any:
+    """Best-effort coercion of a plain expression-shaped dict to its typed class.
+
+    A value nested inside a graphic element (``Marker.elements`` is typed
+    ``Any`` — see ``models/symbolizers.py`` — so Pydantic never validates
+    anything under it, unlike a direct ``Symbolizer`` field like
+    ``Stroke.width``) stays a raw dict rather than a real
+    ``PropertyRef``/``ArithmeticExpression``/``SystemIdentifier`` instance,
+    which :func:`value_to_maplibre_expr`'s ``isinstance`` checks need.
+    Passes through unchanged if already typed or not one of these three
+    shapes (e.g. a plain literal, or one of the other
+    :mod:`.models.value_expressions` classes reachable only from a
+    directly-typed field today).
+    """
+    if isinstance(value, (PropertyRef, ArithmeticExpression, SystemIdentifier)):
+        return value
+    if isinstance(value, dict):
+        if "property" in value:
+            return PropertyRef.model_validate(value)
+        if "sysId" in value:
+            return SystemIdentifier.model_validate(value)
+        if "op" in value and value.get("op") in _ARITHMETIC_OPS and "args" in value:
+            return ArithmeticExpression.model_validate(value)
+    return value
 
 
 def maplibre_expr_to_value(value: Any, prop: str) -> Any:
@@ -59,8 +100,6 @@ def maplibre_expr_to_value(value: Any, prop: str) -> Any:
     """
     if isinstance(value, _SCALAR):
         return value
-    if is_scale_denominator_zoom_expr(value):
-        return {"sysId": "viz.sd"}
     if not isinstance(value, list) or not value:
         raise NotImplementedError(
             f"{prop}: {value!r} is not a supported MapLibre value or expression"
@@ -192,13 +231,17 @@ def value_to_maplibre_expr(value: Any, prop: str) -> Any:
         NotImplementedError: *value* is not a literal or one of the
             typed :mod:`.value_expressions` models this codec maps.
     """
+    value = _coerce_numeric_expr(value)
     if isinstance(value, PropertyRef):
         return ["get", value.property]
     if isinstance(value, ArithmeticExpression):
         return [value.op, *(value_to_maplibre_expr(a, prop) for a in value.args)]
     if isinstance(value, SystemIdentifier):
-        if value.sysId == "viz.sd":
-            return scale_denominator_zoom_expr()
+        # Confirmed permanent wall (see module docstring) — the real
+        # MapLibre style spec only allows a ["zoom"] input as the sole,
+        # top-level argument of step/interpolate, never nested inside
+        # arithmetic, so there is no faithful, round-trippable mapping for
+        # any SystemIdentifier here, viz.sd included.
         raise NotImplementedError(
             f"{prop}: system identifier {value.sysId!r} has no MapLibre "
             "expression mapping in this codec"

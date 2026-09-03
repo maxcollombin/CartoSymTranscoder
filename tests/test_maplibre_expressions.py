@@ -2,10 +2,13 @@
 
 Scope: the six operators ``codecs.maplibre._expressions`` targets — ``get``
 / ``case`` / ``match`` / ``interpolate`` / ``step`` / ``coalesce`` — plus
-the 5 binary arithmetic operators (``+``/``-``/``*``/``/``/``^``) and the
-``viz.sd`` system identifier (OGC issue #115). Every other MapLibre
-expression operator (comparisons, ``all``/``any``/``!``, ``%``, a bare
-``zoom``, ``let``/``var``, other interpolation colour spaces, …) is a
+the 5 binary arithmetic operators (``+``/``-``/``*``/``/``/``^``). A
+``SystemIdentifier`` (e.g. ``viz.sd``, OGC issue #115) is a confirmed
+permanent wall, not mapped by this codec: the real MapLibre style spec
+only allows ``["zoom"]`` as the sole, top-level input to
+``step``/``interpolate``, never nested inside arithmetic. Every other
+MapLibre expression operator (comparisons, ``all``/``any``/``!``, ``%``, a
+bare ``zoom``, ``let``/``var``, other interpolation colour spaces, …) is a
 deliberate out-of-scope gap — asserted here, not silently dropped.
 """
 
@@ -17,7 +20,6 @@ from pycartosym.codecs.maplibre._expressions import (
     maplibre_expr_to_value,
     value_to_maplibre_expr,
 )
-from pycartosym.codecs.maplibre._zoom import scale_denominator_zoom_expr
 
 # Round-trip cases: (MapLibre expression array, CartoSym value dict).
 # Fed through maplibre_expr_to_value / value_to_maplibre_expr directly, and
@@ -102,7 +104,10 @@ ROUND_TRIP = [
             ],
         },
     ),
-    # Binary arithmetic (OGC issue #115's stroke.width: viz.sd / 1000 shape).
+    # Binary arithmetic (OGC issue #115's stroke.width: <property> / 1000
+    # shape — arithmetic over a PropertyRef, which this codec does map;
+    # viz.sd itself is a confirmed permanent wall, see
+    # test_system_identifier_raises below).
     (
         ["/", ["get", "a"], 1000],
         {"op": "/", "args": [{"property": "a"}, 1000]},
@@ -110,12 +115,6 @@ ROUND_TRIP = [
     (
         ["^", 2, ["get", "a"]],
         {"op": "^", "args": [2, {"property": "a"}]},
-    ),
-    # viz.sd system identifier, substituted for the zoom-driven scale
-    # denominator formula.
-    (
-        scale_denominator_zoom_expr(),
-        {"sysId": "viz.sd"},
     ),
 ]
 
@@ -174,22 +173,26 @@ def test_malformed_expression_raises(mb_expr):
         maplibre_expr_to_value(mb_expr, "prop")
 
 
-def test_unsupported_system_identifier_raises():
-    """Only ``viz.sd`` (OGC issue #115) has a MapLibre expression mapping —
-    any other system identifier is an honest, undecomposable gap.
+@pytest.mark.parametrize("sys_id", ["viz.sd", "viz.other"])
+def test_system_identifier_raises(sys_id):
+    """No ``SystemIdentifier`` has a MapLibre expression mapping in this
+    codec — ``viz.sd`` (OGC issue #115) included: the real MapLibre style
+    spec only allows a ``["zoom"]`` input as the sole, top-level argument
+    of ``step``/``interpolate``, never nested inside arithmetic, so there
+    is no faithful, round-trippable encoding for it here (confirmed
+    permanent wall, not a missing-wiring gap — same conclusion as SLD/SE).
     """
     from pycartosym.models.value_expressions import SystemIdentifier
 
     with pytest.raises(NotImplementedError):
-        value_to_maplibre_expr(SystemIdentifier(sysId="viz.other"), "prop")
+        value_to_maplibre_expr(SystemIdentifier(sysId=sys_id), "prop")
 
 
-def test_near_miss_zoom_expression_raises():
-    """A ``["/", ..., ["*", ..., ["^", 2, ["zoom"]]]]`` shape that isn't
-    exactly the canonical scale-denominator formula is an honest,
-    undecomposable gap — a bare ``["zoom"]`` has no mapping of its own
-    outside that exact shape (deliberate exact-shape matching, see
-    :func:`pycartosym.codecs.maplibre._zoom.is_scale_denominator_zoom_expr`).
+def test_zoom_nested_in_arithmetic_raises():
+    """A bare ``["zoom"]`` has no mapping of its own outside a top-level
+    ``step``/``interpolate`` input — nested inside arithmetic (however it
+    got there) it's an honest, undecomposable gap, not just unsupported
+    when it happens to spell out the scale-denominator formula.
     """
     with pytest.raises(NotImplementedError):
         maplibre_expr_to_value(["/", 999, ["*", 100, ["^", 2, ["zoom"]]]], "prop")
