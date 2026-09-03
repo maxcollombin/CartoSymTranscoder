@@ -681,6 +681,70 @@ class TestRectangleGraphic:
         assert el["width"] == {"op": "/", "args": [{"sysId": "viz.sd"}, 1000]}
 
 
+class TestUnitPointPropertyReference:
+    """``UnitPoint.x``/``.y`` (``position``/``center``) accept a bare
+    property-name identifier as one coordinate — e.g. ``position: sd 3``.
+
+    No arithmetic/system-identifier support here: the CSCSS grammar treats
+    a ``UnitPoint``'s two coordinates as one opaque two-token text blob,
+    not two independent expression trees (see
+    ``models/symbolizers.py::_coerce_axis_value``).
+    """
+
+    def setup_method(self):
+        self.converter = Converter()
+
+    def test_image_position_x_as_property_reference(self):
+        css = (
+            "Amenities {\n"
+            "  marker: { elements: [\n"
+            "    Image { position: sd 3 }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        result = self.converter.cscss_to_csjson(css)
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["position"] == {"x": {"property": "sd"}, "y": 3.0}
+
+    def test_image_position_round_trips_through_csjson(self):
+        css = (
+            "Amenities {\n"
+            "  marker: { elements: [\n"
+            "    Image { position: sd 3 }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        json1 = self.converter.cscss_to_csjson(css)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+    def test_circle_center_y_as_property_reference(self):
+        css = (
+            "Amenities {\n"
+            "  marker: { elements: [\n"
+            "    Circle { center: 5 sd; radius: 2 px }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        result = self.converter.cscss_to_csjson(css)
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["center"] == {"x": 5, "y": {"property": "sd"}}
+
+    def test_circle_center_round_trips_through_csjson(self):
+        css = (
+            "Amenities {\n"
+            "  marker: { elements: [\n"
+            "    Circle { center: 5 sd; radius: 2 px }\n"
+            "  ]};\n"
+            "}\n"
+        )
+        json1 = self.converter.cscss_to_csjson(css)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+
 class TestResourceSprite:
     """``resource.sprite`` (icon atlas id) round-trips alongside uri/path/etc."""
 

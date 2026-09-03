@@ -5,6 +5,7 @@ This module converts ANTLR-generated AST nodes to Pydantic models.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .ast import StyleSheet as AstStyleSheet
@@ -258,6 +259,29 @@ def _coerce_unit_scalar(v: str, expr_ctx: Any = None):
     return v
 
 
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
+
+
+def _coerce_axis_value(p: str):
+    """One coordinate token: a number, or a bare property-name identifier.
+
+    E.g. ``sd`` in ``center: sd 3``, as a ``PropertyRef`` dict — see
+    ``models/symbolizers.py``'s identically-named helper for why
+    arithmetic/system-identifier coordinates are out of scope here.
+    """
+    try:
+        return int(p)
+    except ValueError:
+        pass
+    try:
+        return float(p)
+    except ValueError:
+        pass
+    if _IDENTIFIER_RE.match(p):
+        return {"property": p}
+    return None
+
+
 def _parse_xy(v: str):
     """``"10 -4"`` / ``"{ 10, -4 }"`` → ``{"x": 10, "y": -4}``; ``None`` otherwise."""
     if not isinstance(v, str):
@@ -270,13 +294,10 @@ def _parse_xy(v: str):
         return None
     coords: list = []
     for p in parts:
-        try:
-            coords.append(int(p))
-        except ValueError:
-            try:
-                coords.append(float(p))
-            except ValueError:
-                return None
+        coord = _coerce_axis_value(p)
+        if coord is None:
+            return None
+        coords.append(coord)
     return {"x": coords[0], "y": coords[1]}
 
 

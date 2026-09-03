@@ -146,8 +146,22 @@ def _number_of(value: Any) -> float | None:
         return None
 
 
+def _axis_value_of(value: Any) -> Any:
+    """A plain float for a literal coordinate, or the typed value itself.
+
+    Unlike :func:`_number_of` (used by e.g. ``Circle.radius``, which has
+    no property-driven SLD/SE mapping and must stay float-only), a
+    ``UnitPoint`` coordinate feeding :func:`_write_numeric_element` needs
+    the typed value preserved rather than coerced to ``None``.
+    """
+    coerced = _coerce_numeric_expr(value)
+    if isinstance(coerced, (PropertyRef, ArithmeticExpression, SystemIdentifier)):
+        return coerced
+    return _number_of(value)
+
+
 def _unit_point_xy(position: Any):
-    return _number_of(_g(position, "x")), _number_of(_g(position, "y"))
+    return _axis_value_of(_g(position, "x")), _axis_value_of(_g(position, "y"))
 
 
 # ---------------------------------------------------------------------------
@@ -541,6 +555,41 @@ def _format_arithmetic_literal(value: int | float) -> str:
     return str(int(value)) if float(value).is_integer() else str(value)
 
 
+def _write_numeric_element(
+    d: SldDialect, parent: etree._Element, tag: str, value: Any
+) -> etree._Element:
+    """Create ``<tag>`` under *parent* for a ``UnitPoint`` coordinate.
+
+    Unlike ``stroke-width``/``thickness`` (an ``SvgParameter``, see
+    :func:`_write_numeric_param`), ``se:DisplacementX/Y`` and
+    ``se:AnchorPointX/Y`` are direct XML element children with no
+    wrapping parameter container — a ``PropertyRef`` becomes a bare
+    ``ogc:PropertyName`` as the element's sole child instead of its
+    ``.text``. A ``SystemIdentifier`` still raises (no SLD/SE construct
+    exposes it as a value, same reasoning as ``stroke-width``); CartoSym-CSS
+    itself cannot author one here (``UnitPoint.x``/``.y`` only accepts a
+    bare property-name identifier per coordinate, not a full expression —
+    see ``models/symbolizers.py::_coerce_axis_value``), but a directly
+    hand-authored CS-JSON file could still reach this via
+    ``Marker.elements``'s untyped ``Any`` (:func:`_coerce_numeric_expr`).
+    """
+    value = _coerce_numeric_expr(value)
+    el = d.el(tag, parent=parent)
+    if isinstance(value, PropertyRef):
+        etree.SubElement(el, f"{OGC}PropertyName").text = value.property
+        return el
+    if isinstance(value, ArithmeticExpression):
+        _write_arithmetic_function(el, value)
+        return el
+    if isinstance(value, SystemIdentifier):
+        raise NotImplementedError(
+            f"{tag}: system identifier {value.sysId!r} has no SLD/SE "
+            "mapping in this codec"
+        )
+    el.text = format_unit_value(value)
+    return el
+
+
 def _build_fill_element(
     d: SldDialect, fill: Any, base_opacity: float | None = None
 ) -> etree._Element:
@@ -915,8 +964,8 @@ def _build_graphic_displacement(
             "mapping (Graphic has no Displacement child before Rotation)"
         )
     disp = d.el("Displacement", parent=graphic)
-    d.el("DisplacementX", parent=disp, text=format_unit_value(px or 0))
-    d.el("DisplacementY", parent=disp, text=format_unit_value(py or 0))
+    _write_numeric_element(d, disp, "DisplacementX", px or 0)
+    _write_numeric_element(d, disp, "DisplacementY", py or 0)
 
 
 def _percent_to_fraction(value: Any) -> float:
@@ -1088,8 +1137,8 @@ def _build_text_symbolizer(
             d.el("AnchorPointY", parent=anchor_el, text=_ANCHOR_Y.get(v, "0.5"))
         if has_displacement:
             disp_el = d.el("Displacement", parent=point_placement_el)
-            d.el("DisplacementX", parent=disp_el, text=format_unit_value(px or 0))
-            d.el("DisplacementY", parent=disp_el, text=format_unit_value(py or 0))
+            _write_numeric_element(d, disp_el, "DisplacementX", px or 0)
+            _write_numeric_element(d, disp_el, "DisplacementY", py or 0)
 
     # se:TextSymbolizerType order: Label, Font, LabelPlacement, Halo, Fill.
     if font_outline is not None:
@@ -1677,8 +1726,8 @@ def _graphic_displacement(d: SldDialect, graphic_el: etree._Element) -> dict:
     if disp_el is None:
         return {"x": 0, "y": 0}
     return {
-        "x": _parsed_px_or_zero(d.find(disp_el, "DisplacementX")),
-        "y": _parsed_px_or_zero(d.find(disp_el, "DisplacementY")),
+        "x": _parsed_axis_or_zero(d.find(disp_el, "DisplacementX")),
+        "y": _parsed_axis_or_zero(d.find(disp_el, "DisplacementY")),
     }
 
 
@@ -1722,6 +1771,26 @@ def _parsed_px_or_zero(el: etree._Element | None) -> float:
         return 0
     parsed = parse_unit_value(text)
     return parsed["px"] if parsed is not None else 0
+
+
+def _parsed_axis_or_zero(el: etree._Element | None) -> Any:
+    """Parse one ``se:DisplacementX/Y`` (or ``AnchorPointX/Y``) element.
+
+    A plain px-unit number (default ``0`` if absent, matching
+    :func:`_parsed_px_or_zero`), or a ``PropertyRef``/``ArithmeticExpression``
+    dict if its sole child is ``ogc:PropertyName``/``ogc:Function`` — the
+    inverse of :func:`_write_numeric_element`.
+    """
+    if el is None:
+        return 0
+    children = [c for c in el if isinstance(c.tag, str)]
+    if len(children) == 1:
+        tag = local_name(children[0])
+        if tag == "PropertyName":
+            return {"property": element_text(children[0])}
+        if tag == "Function":
+            return _parse_arithmetic_function(children[0])
+    return _parsed_px_or_zero(el)
 
 
 def _parsed_number_or(el: etree._Element | None, default: float) -> float:
@@ -1838,8 +1907,8 @@ def _parse_text_symbolizer(d: SldDialect, ts_el: etree._Element) -> dict:
             dx = d.find(disp_el, "DisplacementX")
             dy = d.find(disp_el, "DisplacementY")
             result["position"] = {
-                "x": _parsed_px_or_zero(dx),
-                "y": _parsed_px_or_zero(dy),
+                "x": _parsed_axis_or_zero(dx),
+                "y": _parsed_axis_or_zero(dy),
             }
 
     return result
