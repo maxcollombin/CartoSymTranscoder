@@ -188,10 +188,22 @@ def format_number(value: Any) -> str:
 
 
 def parse_number(text: str | None) -> float | None:
-    """Inverse of :func:`format_number`."""
+    """Inverse of :func:`format_number`.
+
+    Raises:
+    ------
+    NotImplementedError
+        If *text* is not a valid number — mirrors
+        ``reader._scale_denominator_value``'s own guard for the same
+        non-numeric-text case, rather than letting a bare ``float()``
+        raise ``ValueError``.
+    """
     if text is None:
         return None
-    num = float(text)
+    try:
+        num = float(text)
+    except ValueError as exc:
+        raise NotImplementedError(f"non-numeric SLD/SE value {text!r}") from exc
     return int(num) if num.is_integer() else num
 
 

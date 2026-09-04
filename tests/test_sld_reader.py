@@ -68,6 +68,24 @@ class TestReadBasicSymbolizers:
         assert el["outline"] == {"color": [0, 0, 255], "thickness": {"px": 2}}
         assert el["radius"] == {"px": 4}
 
+    def test_circle_mark_non_numeric_size_raises_not_implemented(self):
+        xml = (
+            '<StyledLayerDescriptor version="1.1.0" '
+            'xmlns="http://www.opengis.net/sld" '
+            'xmlns:se="http://www.opengis.net/se" '
+            'xmlns:ogc="http://www.opengis.net/ogc">'
+            "<NamedLayer><se:Name>x</se:Name><UserStyle>"
+            "<se:FeatureTypeStyle><se:Rule><se:PointSymbolizer><se:Graphic>"
+            "<se:Mark><se:WellKnownName>circle</se:WellKnownName>"
+            '<se:Fill><se:SvgParameter name="fill">#ff0000</se:SvgParameter>'
+            "</se:Fill></se:Mark><se:Size>notanumber</se:Size>"
+            "</se:Graphic></se:PointSymbolizer></se:Rule>"
+            "</se:FeatureTypeStyle></UserStyle></NamedLayer>"
+            "</StyledLayerDescriptor>"
+        )
+        with pytest.raises(NotImplementedError):
+            SldReader().read(xml)
+
     def test_circle_mark_stroke_unknown_param_is_rejected(self):
         xml = (
             '<StyledLayerDescriptor version="1.1.0" '
