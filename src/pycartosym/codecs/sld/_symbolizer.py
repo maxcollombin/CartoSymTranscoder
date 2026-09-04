@@ -93,6 +93,7 @@ label-text concepts, so this read direction is inherently lossy).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from lxml import etree
@@ -405,6 +406,69 @@ def _coerce_color_expr(value: Any) -> Any:
     return value
 
 
+def _write_recode(
+    d: SldDialect,
+    parent: etree._Element,
+    name: str,
+    expr: MatchExpression,
+    *,
+    is_valid_output: Callable[[Any], bool],
+    format_output: Callable[[Any], str],
+) -> None:
+    """Append *expr* as an ``se:Recode`` inside an ``SvgParameter`` named *name*.
+
+    Shared by :func:`_write_color_param` (colour outputs — a literal
+    string) and :func:`_write_numeric_param` (numeric outputs — a literal
+    int/float): the ``se:Recode``/``se:LookupValue``/``se:MapItem`` shape
+    and the ``se:Data`` (numeric label) constraint are identical, only the
+    output validation/formatting differs, so it's injected rather than
+    duplicated. SE 1.1.0 only (:attr:`SldDialect.recode_function`) —
+    SLD 1.0.0 has no native ``Recode``/``LookupValue``/``MapItem``.
+    """
+    if not d.recode_function:
+        raise NotImplementedError(
+            f"{name}: a match/Recode value has no SLD 1.0.0 mapping in "
+            "this codec (se:Recode/se:LookupValue/se:MapItem are SE "
+            "1.1.0 additions)"
+        )
+    lookup, *rest = expr.args
+    *pairs, fallback = rest
+    if not isinstance(lookup, PropertyRef):
+        raise NotImplementedError(
+            f"{name}: match/Recode lookup value {lookup!r} is not "
+            "supported in this codec (only a property reference maps)"
+        )
+    if not is_valid_output(fallback):
+        raise NotImplementedError(
+            f"{name}: match/Recode fallback {fallback!r} must be a "
+            "literal — se:Recode's fallbackValue is an XML attribute, "
+            "which can't hold a nested expression"
+        )
+    labels, outs = pairs[0::2], pairs[1::2]
+    for label in labels:
+        if isinstance(label, bool) or not isinstance(label, (int, float)):
+            raise NotImplementedError(
+                f"{name}: match/Recode label {label!r} must be numeric — "
+                "se:Recode's se:Data is xsd:double per SE 1.1.0 "
+                "(Symbolizer.xsd), unlike se:Categorize/se:Value"
+            )
+    for out in outs:
+        if not is_valid_output(out):
+            raise NotImplementedError(
+                f"{name}: match/Recode value {out!r} must be a literal — "
+                "se:Value can't hold a nested expression in this codec"
+            )
+    param = d.param_element(parent, name)
+    recode = d.el("Recode", param)
+    recode.set("fallbackValue", format_output(fallback))
+    lookup_el = d.el("LookupValue", recode)
+    etree.SubElement(lookup_el, f"{OGC}PropertyName").text = lookup.property
+    for label, out in zip(labels, outs):
+        item = d.el("MapItem", recode)
+        d.el("Data", item, text=str(label))
+        d.el("Value", item, text=format_output(out))
+
+
 def _write_color_param(
     d: SldDialect, parent: etree._Element, name: str, color: Any
 ) -> None:
@@ -429,44 +493,14 @@ def _write_color_param(
         etree.SubElement(param, f"{OGC}PropertyName").text = color.property
         return
     if isinstance(color, MatchExpression):
-        if not d.recode_function:
-            raise NotImplementedError(
-                f"{name}: a match/Recode value has no SLD 1.0.0 mapping in "
-                "this codec (se:Recode/se:LookupValue/se:MapItem are SE "
-                "1.1.0 additions)"
-            )
-        lookup, *rest = color.args
-        *pairs, fallback = rest
-        if not isinstance(lookup, PropertyRef):
-            raise NotImplementedError(
-                f"{name}: match/Recode lookup value {lookup!r} is not "
-                "supported in this codec (only a property reference maps)"
-            )
-        if isinstance(fallback, (bool, int, float, str)):
-            fallback_text = str(fallback)
-        else:
-            raise NotImplementedError(
-                f"{name}: match/Recode fallback {fallback!r} must be a "
-                "literal — se:Recode's fallbackValue is an XML attribute, "
-                "which can't hold a nested expression"
-            )
-        labels, outs = pairs[0::2], pairs[1::2]
-        for label in labels:
-            if isinstance(label, bool) or not isinstance(label, (int, float)):
-                raise NotImplementedError(
-                    f"{name}: match/Recode label {label!r} must be numeric — "
-                    "se:Recode's se:Data is xsd:double per SE 1.1.0 "
-                    "(Symbolizer.xsd), unlike se:Categorize/se:Value"
-                )
-        param = d.param_element(parent, name)
-        recode = d.el("Recode", param)
-        recode.set("fallbackValue", fallback_text)
-        lookup_el = d.el("LookupValue", recode)
-        etree.SubElement(lookup_el, f"{OGC}PropertyName").text = lookup.property
-        for label, out in zip(labels, outs):
-            item = d.el("MapItem", recode)
-            d.el("Data", item, text=str(label))
-            d.el("Value", item, text=str(out))
+        _write_recode(
+            d,
+            parent,
+            name,
+            color,
+            is_valid_output=lambda v: isinstance(v, (bool, int, float, str)),
+            format_output=str,
+        )
         return
     d.param(parent, name, format_color(color))
 
@@ -488,19 +522,28 @@ def _coerce_numeric_expr(value: Any) -> Any:
     ``Any`` — see ``models/symbolizers.py`` — so Pydantic never validates
     anything under it, unlike a direct ``Symbolizer`` field like
     ``Stroke.width``) stays a raw dict rather than a real
-    ``PropertyRef``/``ArithmeticExpression``/``SystemIdentifier`` instance.
-    The ``isinstance`` checks below need the typed class either way, so
-    recognize the dict shape here first. An already-typed value, or
+    ``PropertyRef``/``ArithmeticExpression``/``MatchExpression``/
+    ``SystemIdentifier`` instance. The ``isinstance`` checks below need the
+    typed class either way, so recognize the dict shape here first. The
+    ``op`` value disambiguates ``MatchExpression`` (``"match"``) from
+    ``ArithmeticExpression`` (the schema's ``+``/``-``/``*``/``/``/``^``) —
+    checking ``"op" in value`` alone would wrongly try to validate a match
+    dict as arithmetic and raise a confusing ``pydantic.ValidationError``
+    instead of dispatching it correctly. An already-typed value, or
     anything that matches no expression shape (a literal), passes through
     unchanged.
     """
-    if isinstance(value, (PropertyRef, ArithmeticExpression, SystemIdentifier)):
+    if isinstance(
+        value, (PropertyRef, ArithmeticExpression, MatchExpression, SystemIdentifier)
+    ):
         return value
     if isinstance(value, dict):
         if "property" in value:
             return PropertyRef.model_validate(value)
         if "sysId" in value:
             return SystemIdentifier.model_validate(value)
+        if value.get("op") == "match" and "args" in value:
+            return MatchExpression.model_validate(value)
         if "op" in value and "args" in value:
             return ArithmeticExpression.model_validate(value)
     return value
@@ -515,12 +558,17 @@ def _write_numeric_param(
     ``PropertyRef`` builds a bare ``ogc:PropertyName``, mirroring
     :func:`_write_color_param`. An ``ArithmeticExpression`` builds an
     ``ogc:Function`` (``Add``/``Sub``/``Mul``/``Div``) over
-    ``PropertyRef``/number operands. A ``SystemIdentifier`` (e.g.
-    ``viz.sd``, the current scale denominator, per OGC issue #115) has no
-    SLD/SE mapping in this codec and raises — SLD/SE has no construct
-    exposing the current rendering scale as a filter/expression *value*,
-    only ``MinScaleDenominator``/``MaxScaleDenominator`` rule-level gating
-    (a coarse binary applicability test, not a continuous input).
+    ``PropertyRef``/number operands. A ``MatchExpression`` builds an
+    ``se:Recode`` (:func:`_write_recode`, shared with
+    :func:`_write_color_param`) with numeric outputs, formatted like an
+    arithmetic literal (:func:`_format_arithmetic_literal`) rather than
+    ``str()`` — unlike a colour ``se:Value``, which is already the right
+    string. A ``SystemIdentifier`` (e.g. ``viz.sd``, the current scale
+    denominator, per OGC issue #115) has no SLD/SE mapping in this codec
+    and raises — SLD/SE has no construct exposing the current rendering
+    scale as a filter/expression *value*, only
+    ``MinScaleDenominator``/``MaxScaleDenominator`` rule-level gating (a
+    coarse binary applicability test, not a continuous input).
     """
     value = _coerce_numeric_expr(value)
     if isinstance(value, PropertyRef):
@@ -530,6 +578,17 @@ def _write_numeric_param(
     if isinstance(value, ArithmeticExpression):
         param = d.param_element(parent, name)
         _write_arithmetic_function(param, value)
+        return
+    if isinstance(value, MatchExpression):
+        _write_recode(
+            d,
+            parent,
+            name,
+            value,
+            is_valid_output=lambda v: isinstance(v, (int, float))
+            and not isinstance(v, bool),
+            format_output=_format_arithmetic_literal,
+        )
         return
     if isinstance(value, SystemIdentifier):
         raise NotImplementedError(
@@ -1418,8 +1477,13 @@ def _parse_flexible_numeric_param(
 
     A bare ``ogc:PropertyName`` is a property reference; an ``ogc:Function``
     (``Add``/``Sub``/``Mul``/``Div``) is an arithmetic expression over such
-    references/literals (see :func:`_write_numeric_param`); anything else
-    falls back to :func:`._xml_helpers.element_text` (a plain literal).
+    references/literals (see :func:`_write_numeric_param`); an ``se:Recode``
+    child (SE 1.1.0 only, mirroring :func:`_parse_flexible_param`) is a
+    match expression, parsed by the same :func:`_parse_recode` used for
+    colour — it already coerces ``se:Data``/``se:Value`` text to
+    bool/int/float/str generically, nothing numeric-specific needed there.
+    Anything else falls back to :func:`._xml_helpers.element_text` (a plain
+    literal).
     """
     param = d.get_param_element(elem, name)
     if param is None:
@@ -1427,6 +1491,10 @@ def _parse_flexible_numeric_param(
     ref = _property_ref_from_container(param)
     if ref is not None:
         return ref
+    if d.recode_function:
+        recode_el = d.find(param, "Recode")
+        if recode_el is not None:
+            return _parse_recode(d, recode_el)
     children = [c for c in param if isinstance(c.tag, str)]
     if len(children) == 1 and local_name(children[0]) == "Function":
         return _parse_arithmetic_function(children[0])
