@@ -382,21 +382,48 @@ def _raise_if_fill_out_of_scope(fill: Any) -> None:
             )
 
 
+def _coerce_color_expr(value: Any) -> Any:
+    """Best-effort coercion of a plain expression-shaped dict to its typed class.
+
+    Mirrors :func:`_coerce_numeric_expr`'s rationale (a value nested inside
+    a graphic element — ``Marker.elements`` is typed ``Any`` — stays a raw
+    dict rather than a real ``PropertyRef``/``MatchExpression`` instance,
+    which :func:`_write_color_param`'s ``isinstance`` checks need), but
+    recognises ``MatchExpression`` (``{"op": "match", "args": [...]}``)
+    instead of ``ArithmeticExpression`` — a colour value is matched/
+    recoded by attribute, it doesn't do arithmetic. Passes through
+    unchanged if already typed or not one of these two shapes (e.g. a
+    plain literal colour).
+    """
+    if isinstance(value, (PropertyRef, MatchExpression)):
+        return value
+    if isinstance(value, dict):
+        if "property" in value:
+            return PropertyRef.model_validate(value)
+        if value.get("op") == "match" and "args" in value:
+            return MatchExpression.model_validate(value)
+    return value
+
+
 def _write_color_param(
     d: SldDialect, parent: etree._Element, name: str, color: Any
 ) -> None:
     """Append *color* as a ``fill``/``stroke`` colour ``SvgParameter``.
 
-    A literal (``Color``/hex/named string) goes through
-    :func:`._types.format_color`. A ``PropertyRef``/``MatchExpression``
-    (see the module docstring) instead builds a bare ``ogc:PropertyName``
-    or an ``se:Recode``; any other :mod:`...models.value_expressions`
-    model (``CaseExpression``, ``StepExpression``, ``InterpolateExpression``,
-    ``CoalesceExpression``) has no SLD/SE mapping in this codec yet and
-    raises. SE 1.1.0 only — SLD 1.0.0 has no native ``Recode``/
-    ``LookupValue``/``MapItem`` (those are SE 1.1.0 additions), so this is
-    not called for that dialect (see the caller).
+    *color* is coerced first (:func:`_coerce_color_expr`) so a raw dict
+    reaching here from an untyped nested field (``Marker.elements``) is
+    recognised the same as an already-typed value. A literal (``Color``/
+    hex/named string) goes through :func:`._types.format_color`. A
+    ``PropertyRef``/``MatchExpression`` (see the module docstring) instead
+    builds a bare ``ogc:PropertyName`` or an ``se:Recode``; any other
+    :mod:`...models.value_expressions` model (``CaseExpression``,
+    ``StepExpression``, ``InterpolateExpression``, ``CoalesceExpression``)
+    has no SLD/SE mapping in this codec yet and raises. SE 1.1.0 only —
+    SLD 1.0.0 has no native ``Recode``/``LookupValue``/``MapItem`` (those
+    are SE 1.1.0 additions), so this is not called for that dialect (see
+    the caller).
     """
+    color = _coerce_color_expr(color)
     if isinstance(color, PropertyRef):
         param = d.param_element(parent, name)
         etree.SubElement(param, f"{OGC}PropertyName").text = color.property
@@ -861,7 +888,7 @@ def _build_point_symbolizer(
     color = _g(dot, "color")
     if color is not None:
         fill_el = d.el("Fill", parent=mark)
-        d.param(fill_el, "fill", format_color(color))
+        _write_color_param(d, fill_el, "fill", color)
 
     # se:GraphicType order: (Mark|ExternalGraphic)*, Opacity?, Size?, ...
     combined = _combine_opacity(base_opacity, _g(dot, "opacity"))
@@ -870,7 +897,7 @@ def _build_point_symbolizer(
 
     size = _g(dot, "size")
     if size is not None:
-        d.el("Size", parent=graphic, text=format_unit_value(size))
+        _write_numeric_element(d, graphic, "Size", size)
 
     _build_graphic_displacement(d, graphic, _g(dot, "position"), "Dot")
     return ps
@@ -893,7 +920,7 @@ def _build_shape_outline_element(
     el = d.el("Stroke")
     color = _g(outline, "color")
     if color is not None:
-        d.param(el, "stroke", format_color(color))
+        _write_color_param(d, el, "stroke", color)
     thickness = _g(outline, "thickness")
     if thickness is not None:
         _write_numeric_param(d, el, "stroke-width", thickness)
@@ -1067,13 +1094,13 @@ def _build_halo(d: SldDialect, ts: etree._Element, outline: Any) -> None:
     halo_el = d.el("Halo", parent=ts)
     size = _g(outline, "size")
     if size is not None:
-        d.el("Radius", parent=halo_el, text=format_number(size))
+        _write_numeric_element(d, halo_el, "Radius", size)
     color = _g(outline, "color")
     opacity = _g(outline, "opacity")
     if color is not None or opacity is not None:
         fill_el = d.el("Fill", parent=halo_el)
         if color is not None:
-            d.param(fill_el, "fill", format_color(color))
+            _write_color_param(d, fill_el, "fill", color)
         if opacity is not None:
             d.param(fill_el, "fill-opacity", format_opacity(opacity))
 
@@ -1111,7 +1138,7 @@ def _build_text_symbolizer(
         if face is not None:
             d.param(font_el, "font-family", str(face))
         if size is not None:
-            d.param(font_el, "font-size", format_unit_value(size))
+            _write_numeric_param(d, font_el, "font-size", size)
         if bold is not None:
             d.param(font_el, "font-weight", "bold" if bold else "normal")
         if italic is not None:
@@ -1148,7 +1175,7 @@ def _build_text_symbolizer(
     if font_color is not None or combined_opacity is not None:
         fill_el = d.el("Fill", parent=ts)
         if font_color is not None:
-            d.param(fill_el, "fill", format_color(font_color))
+            _write_color_param(d, fill_el, "fill", font_color)
         if combined_opacity is not None:
             d.param(fill_el, "fill-opacity", combined_opacity)
 

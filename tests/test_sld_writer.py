@@ -16,6 +16,8 @@ from pycartosym.codecs.sld.writer import SldWriter
 from pycartosym.converter import Converter
 from pycartosym.models.styles import Style
 
+from ._xsd import assert_sld_valid
+
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = ROOT / "examples"
 
@@ -1343,6 +1345,185 @@ class TestWritePropertyDrivenPosition:
                             "type": "Circle",
                             "position": {"x": {"sysId": "viz.sd"}, "y": 3},
                             "radius": {"px": 5},
+                        }
+                    ]
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+
+class TestWritePropertyDrivenNestedElementFields:
+    """Fields nested under ``Marker.elements``/``Text.font`` that used to
+    call ``format_unit_value``/``format_number``/``format_color`` directly
+    instead of going through the coercing writers
+    (``_write_numeric_param``/``_write_numeric_element``/
+    ``_write_color_param``) — so a ``PropertyRef``/etc. reaching them (a
+    raw dict, since ``Marker.elements`` is typed ``Any`` and never
+    validated by Pydantic) either crashed with an unhandled exception
+    (``Dot.size``/``Font.size``/``Halo.size``, via ``format_unit_value``'s
+    single-key-dict branch mis-firing on ``{"sysId": ...}``/
+    ``{"property": ...}``, or ``Halo.size`` via ``format_number`` calling
+    ``float()`` on a dict) or raised with a misleading message
+    (``Dot.color``/``ShapeOutline.color``/``Font.color``/``Halo.color``,
+    and ``Circle.fill.color`` nested the same way despite
+    ``_write_color_param`` already existing for the top-level-field case,
+    PR #68). Fixed by routing each through the same coercing writer its
+    direct-field sibling already uses.
+    """
+
+    def test_dot_color_and_size_write_property_name(self):
+        style_dict = _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Dot",
+                            "color": {"property": "colourAttr"},
+                            "size": {"property": "sizeAttr"},
+                        }
+                    ]
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="property-driven Dot color/size")
+        root = etree.fromstring(xml.encode("utf-8"))
+        color_prop = root.find(
+            ".//se:Mark/se:Fill/se:SvgParameter/ogc:PropertyName", NS
+        )
+        size_prop = root.find(".//se:Graphic/se:Size/ogc:PropertyName", NS)
+        assert color_prop is not None and color_prop.text == "colourAttr"
+        assert size_prop is not None and size_prop.text == "sizeAttr"
+
+    def test_dot_size_system_identifier_raises_cleanly(self):
+        """Regression: used to crash (``_format_number("viz.sd")``) rather
+        than raise ``NotImplementedError`` like every other confirmed wall.
+        """
+        style_dict = _rule_style(
+            {"marker": {"elements": [{"type": "Dot", "size": {"sysId": "viz.sd"}}]}}
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_shape_outline_color_writes_property_name(self):
+        style_dict = _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Circle",
+                            "outline": {"color": {"property": "outlineColourAttr"}},
+                            "radius": {"px": 5},
+                        }
+                    ]
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="property-driven ShapeOutline color")
+        root = etree.fromstring(xml.encode("utf-8"))
+        prop = root.find(".//se:Mark/se:Stroke/se:SvgParameter/ogc:PropertyName", NS)
+        assert prop is not None and prop.text == "outlineColourAttr"
+
+    def test_nested_circle_fill_color_writes_property_name(self):
+        """``Circle.fill.color`` (nested under ``Marker.elements``) gets
+        the same ``PropertyRef``/``MatchExpression`` support as the
+        top-level ``Symbolizer.fill.color`` (PR #68,
+        :class:`TestWritePropertyDrivenColor`) — previously
+        ``_write_color_param`` only recognised already-typed instances,
+        never a raw dict.
+        """
+        style_dict = _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Circle",
+                            "fill": {"color": {"property": "fillColourAttr"}},
+                            "radius": {"px": 5},
+                        }
+                    ]
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="property-driven nested Circle fill color")
+        root = etree.fromstring(xml.encode("utf-8"))
+        prop = root.find(".//se:Mark/se:Fill/se:SvgParameter/ogc:PropertyName", NS)
+        assert prop is not None and prop.text == "fillColourAttr"
+
+    def test_font_and_halo_color_and_size_write_property_name(self):
+        style_dict = _rule_style(
+            {
+                "label": {
+                    "elements": [
+                        {
+                            "type": "Text",
+                            "text": "hello",
+                            "font": {
+                                "color": {"property": "fontColourAttr"},
+                                "size": {"property": "fontSizeAttr"},
+                                "outline": {
+                                    "color": {"property": "haloColourAttr"},
+                                    "size": {"property": "haloSizeAttr"},
+                                },
+                            },
+                        }
+                    ]
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="property-driven Font/Halo color/size")
+        root = etree.fromstring(xml.encode("utf-8"))
+        font_size = root.find(".//se:Font/se:SvgParameter/ogc:PropertyName", NS)
+        font_color = root.find(
+            ".//se:TextSymbolizer/se:Fill/se:SvgParameter/ogc:PropertyName", NS
+        )
+        halo_size = root.find(".//se:Halo/se:Radius/ogc:PropertyName", NS)
+        halo_color = root.find(
+            ".//se:Halo/se:Fill/se:SvgParameter/ogc:PropertyName", NS
+        )
+        assert font_size is not None and font_size.text == "fontSizeAttr"
+        assert font_color is not None and font_color.text == "fontColourAttr"
+        assert halo_size is not None and halo_size.text == "haloSizeAttr"
+        assert halo_color is not None and halo_color.text == "haloColourAttr"
+
+    def test_font_size_system_identifier_raises_cleanly(self):
+        """Regression: used to crash the same way as ``Dot.size`` above."""
+        style_dict = _rule_style(
+            {
+                "label": {
+                    "elements": [
+                        {
+                            "type": "Text",
+                            "text": "hello",
+                            "font": {"size": {"sysId": "viz.sd"}},
+                        }
+                    ]
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_halo_size_non_expression_dict_raises_cleanly(self):
+        """Regression: ``format_number(size)`` used to call ``float()`` on
+        any non-numeric *value*, crashing on a dict shape it didn't
+        recognise at all (unlike ``format_unit_value``'s narrower
+        single-key-dict bug) — now a clean wall via
+        ``_write_numeric_element``.
+        """
+        style_dict = _rule_style(
+            {
+                "label": {
+                    "elements": [
+                        {
+                            "type": "Text",
+                            "text": "hello",
+                            "font": {"outline": {"size": {"sysId": "viz.sd"}}},
                         }
                     ]
                 }
