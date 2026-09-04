@@ -98,8 +98,10 @@ from typing import Any
 
 from lxml import etree
 
+from ...models.base import BaseCartoSymModel
 from ...models.value_expressions import (
     ArithmeticExpression,
+    InterpolateExpression,
     MatchExpression,
     PropertyRef,
     SystemIdentifier,
@@ -388,21 +390,24 @@ def _coerce_color_expr(value: Any) -> Any:
 
     Mirrors :func:`_coerce_numeric_expr`'s rationale (a value nested inside
     a graphic element — ``Marker.elements`` is typed ``Any`` — stays a raw
-    dict rather than a real ``PropertyRef``/``MatchExpression`` instance,
-    which :func:`_write_color_param`'s ``isinstance`` checks need), but
-    recognises ``MatchExpression`` (``{"op": "match", "args": [...]}``)
-    instead of ``ArithmeticExpression`` — a colour value is matched/
-    recoded by attribute, it doesn't do arithmetic. Passes through
-    unchanged if already typed or not one of these two shapes (e.g. a
-    plain literal colour).
+    dict rather than a real ``PropertyRef``/``MatchExpression``/
+    ``InterpolateExpression`` instance, which :func:`_write_color_param`'s
+    ``isinstance`` checks need), but recognises ``MatchExpression``
+    (``{"op": "match", ...}``) and ``InterpolateExpression``
+    (``{"op": "interpolate", ...}``) instead of ``ArithmeticExpression`` —
+    a colour value is matched/recoded or interpolated by attribute, it
+    doesn't do arithmetic. Passes through unchanged if already typed or
+    not one of these shapes (e.g. a plain literal colour).
     """
-    if isinstance(value, (PropertyRef, MatchExpression)):
+    if isinstance(value, (PropertyRef, MatchExpression, InterpolateExpression)):
         return value
     if isinstance(value, dict):
         if "property" in value:
             return PropertyRef.model_validate(value)
         if value.get("op") == "match" and "args" in value:
             return MatchExpression.model_validate(value)
+        if value.get("op") == "interpolate" and "args" in value:
+            return InterpolateExpression.model_validate(value)
     return value
 
 
@@ -469,6 +474,85 @@ def _write_recode(
         d.el("Value", item, text=format_output(out))
 
 
+def _write_interpolate(
+    d: SldDialect,
+    parent: etree._Element,
+    name: str,
+    expr: InterpolateExpression,
+    *,
+    method: str,
+    is_valid_output: Callable[[Any], bool],
+    format_output: Callable[[Any], str],
+) -> None:
+    """Append *expr* as an ``se:Interpolate`` inside an ``SvgParameter`` named *name*.
+
+    Shared by :func:`_write_color_param` (``method="color"``) and
+    :func:`_write_numeric_param` (``method="numeric"``) — same
+    ``is_valid_output``/``format_output`` injection as :func:`_write_recode`
+    for the same reason (only the output type differs). Only
+    ``interpolation == "linear"`` maps to SE's ``mode="linear"``:
+    ``se:Interpolate``'s own ``mode`` enum is ``linear``/``cosine``/
+    ``cubic``, with no base/control-point parameters at all (``Symbolizer.
+    xsd``'s ``InterpolateType``), so MapLibre's ``exponential`` (a ``base``)
+    and ``cubic-bezier`` (4 control points) have no faithful SE
+    equivalent — raising rather than silently mismapping onto a
+    same-named but differently-defined SE mode. SE 1.1.0 only
+    (:attr:`SldDialect.interpolate_function`) — SLD 1.0.0 has no native
+    ``Interpolate``/``LookupValue``/``InterpolationPoint``.
+    ``fallbackValue`` is required on ``se:FunctionType`` (the abstract
+    base both ``se:Recode`` and ``se:Interpolate`` extend, per
+    ``Symbolizer.xsd``) even though ``InterpolateExpression`` carries no
+    distinct fallback of its own — written as the last stop's output,
+    matching the SE spec's own "beyond the last point" clamping semantics
+    (the same value an out-of-domain lookup would resolve to); ignored on
+    read, since it is redundant with the last ``se:InterpolationPoint``
+    already captured in ``args``.
+    """
+    if not d.interpolate_function:
+        raise NotImplementedError(
+            f"{name}: an interpolate value has no SLD 1.0.0 mapping in "
+            "this codec (se:Interpolate/se:LookupValue/"
+            "se:InterpolationPoint are SE 1.1.0 additions)"
+        )
+    if expr.interpolation != "linear":
+        raise NotImplementedError(
+            f"{name}: interpolate type {expr.interpolation!r} has no SE "
+            "1.1.0 mapping in this codec — se:Interpolate's mode enum "
+            "(linear/cosine/cubic) has no base/control-point parameters, "
+            "so only 'linear' has a faithful equivalent"
+        )
+    lookup, *rest = expr.args
+    if not isinstance(lookup, PropertyRef):
+        raise NotImplementedError(
+            f"{name}: interpolate lookup value {lookup!r} is not "
+            "supported in this codec (only a property reference maps)"
+        )
+    stops, outs = rest[0::2], rest[1::2]
+    for stop in stops:
+        if isinstance(stop, bool) or not isinstance(stop, (int, float)):
+            raise NotImplementedError(
+                f"{name}: interpolate stop {stop!r} must be numeric — "
+                "se:InterpolationPoint/se:Data is xsd:double per SE 1.1.0 "
+                "(Symbolizer.xsd)"
+            )
+    for out in outs:
+        if not is_valid_output(out):
+            raise NotImplementedError(
+                f"{name}: interpolate value {out!r} is not supported in " "this codec"
+            )
+    param = d.param_element(parent, name)
+    interp = d.el("Interpolate", param)
+    interp.set("mode", "linear")
+    interp.set("method", method)
+    interp.set("fallbackValue", format_output(outs[-1]))
+    lookup_el = d.el("LookupValue", interp)
+    etree.SubElement(lookup_el, f"{OGC}PropertyName").text = lookup.property
+    for stop, out in zip(stops, outs):
+        point = d.el("InterpolationPoint", interp)
+        d.el("Data", point, text=str(stop))
+        d.el("Value", point, text=format_output(out))
+
+
 def _write_color_param(
     d: SldDialect, parent: etree._Element, name: str, color: Any
 ) -> None:
@@ -478,14 +562,15 @@ def _write_color_param(
     reaching here from an untyped nested field (``Marker.elements``) is
     recognised the same as an already-typed value. A literal (``Color``/
     hex/named string) goes through :func:`._types.format_color`. A
-    ``PropertyRef``/``MatchExpression`` (see the module docstring) instead
-    builds a bare ``ogc:PropertyName`` or an ``se:Recode``; any other
+    ``PropertyRef``/``MatchExpression``/``InterpolateExpression`` (see the
+    module docstring) instead builds a bare ``ogc:PropertyName``, an
+    ``se:Recode`` or an ``se:Interpolate``; any other
     :mod:`...models.value_expressions` model (``CaseExpression``,
-    ``StepExpression``, ``InterpolateExpression``, ``CoalesceExpression``)
-    has no SLD/SE mapping in this codec yet and raises. SE 1.1.0 only —
-    SLD 1.0.0 has no native ``Recode``/``LookupValue``/``MapItem`` (those
-    are SE 1.1.0 additions), so this is not called for that dialect (see
-    the caller).
+    ``StepExpression``, ``CoalesceExpression``) has no SLD/SE mapping in
+    this codec yet and raises. SE 1.1.0 only — SLD 1.0.0 has no native
+    ``Recode``/``Interpolate``/``LookupValue``/``MapItem``/
+    ``InterpolationPoint`` (those are SE 1.1.0 additions), so this is not
+    called for that dialect (see the caller).
     """
     color = _coerce_color_expr(color)
     if isinstance(color, PropertyRef):
@@ -500,6 +585,17 @@ def _write_color_param(
             color,
             is_valid_output=lambda v: isinstance(v, (bool, int, float, str)),
             format_output=str,
+        )
+        return
+    if isinstance(color, InterpolateExpression):
+        _write_interpolate(
+            d,
+            parent,
+            name,
+            color,
+            method="color",
+            is_valid_output=lambda v: not isinstance(v, BaseCartoSymModel),
+            format_output=format_color,
         )
         return
     d.param(parent, name, format_color(color))
@@ -523,18 +619,26 @@ def _coerce_numeric_expr(value: Any) -> Any:
     anything under it, unlike a direct ``Symbolizer`` field like
     ``Stroke.width``) stays a raw dict rather than a real
     ``PropertyRef``/``ArithmeticExpression``/``MatchExpression``/
-    ``SystemIdentifier`` instance. The ``isinstance`` checks below need the
-    typed class either way, so recognize the dict shape here first. The
-    ``op`` value disambiguates ``MatchExpression`` (``"match"``) from
-    ``ArithmeticExpression`` (the schema's ``+``/``-``/``*``/``/``/``^``) —
-    checking ``"op" in value`` alone would wrongly try to validate a match
-    dict as arithmetic and raise a confusing ``pydantic.ValidationError``
-    instead of dispatching it correctly. An already-typed value, or
-    anything that matches no expression shape (a literal), passes through
-    unchanged.
+    ``InterpolateExpression``/``SystemIdentifier`` instance. The
+    ``isinstance`` checks below need the typed class either way, so
+    recognize the dict shape here first. The ``op`` value disambiguates
+    ``MatchExpression`` (``"match"``) and ``InterpolateExpression``
+    (``"interpolate"``) from ``ArithmeticExpression`` (the schema's
+    ``+``/``-``/``*``/``/``/``^``) — checking ``"op" in value`` alone
+    would wrongly try to validate one as arithmetic and raise a confusing
+    ``pydantic.ValidationError`` instead of dispatching it correctly. An
+    already-typed value, or anything that matches no expression shape (a
+    literal), passes through unchanged.
     """
     if isinstance(
-        value, (PropertyRef, ArithmeticExpression, MatchExpression, SystemIdentifier)
+        value,
+        (
+            PropertyRef,
+            ArithmeticExpression,
+            MatchExpression,
+            InterpolateExpression,
+            SystemIdentifier,
+        ),
     ):
         return value
     if isinstance(value, dict):
@@ -544,6 +648,8 @@ def _coerce_numeric_expr(value: Any) -> Any:
             return SystemIdentifier.model_validate(value)
         if value.get("op") == "match" and "args" in value:
             return MatchExpression.model_validate(value)
+        if value.get("op") == "interpolate" and "args" in value:
+            return InterpolateExpression.model_validate(value)
         if "op" in value and "args" in value:
             return ArithmeticExpression.model_validate(value)
     return value
@@ -563,10 +669,12 @@ def _write_numeric_param(
     :func:`_write_color_param`) with numeric outputs, formatted like an
     arithmetic literal (:func:`_format_arithmetic_literal`) rather than
     ``str()`` — unlike a colour ``se:Value``, which is already the right
-    string. A ``SystemIdentifier`` (e.g. ``viz.sd``, the current scale
-    denominator, per OGC issue #115) has no SLD/SE mapping in this codec
-    and raises — SLD/SE has no construct exposing the current rendering
-    scale as a filter/expression *value*, only
+    string. An ``InterpolateExpression`` builds an ``se:Interpolate``
+    (:func:`_write_interpolate`, shared the same way) with the same
+    numeric output formatting. A ``SystemIdentifier`` (e.g. ``viz.sd``,
+    the current scale denominator, per OGC issue #115) has no SLD/SE
+    mapping in this codec and raises — SLD/SE has no construct exposing
+    the current rendering scale as a filter/expression *value*, only
     ``MinScaleDenominator``/``MaxScaleDenominator`` rule-level gating (a
     coarse binary applicability test, not a continuous input).
     """
@@ -585,6 +693,18 @@ def _write_numeric_param(
             parent,
             name,
             value,
+            is_valid_output=lambda v: isinstance(v, (int, float))
+            and not isinstance(v, bool),
+            format_output=_format_arithmetic_literal,
+        )
+        return
+    if isinstance(value, InterpolateExpression):
+        _write_interpolate(
+            d,
+            parent,
+            name,
+            value,
+            method="numeric",
             is_valid_output=lambda v: isinstance(v, (int, float))
             and not isinstance(v, bool),
             format_output=_format_arithmetic_literal,
@@ -1419,15 +1539,52 @@ def _parse_recode(d: SldDialect, recode_el: etree._Element) -> dict:
     return {"op": "match", "args": args}
 
 
+def _parse_interpolate(d: SldDialect, interp_el: etree._Element) -> dict:
+    """Parse an ``se:Interpolate`` element into a CartoSym ``interpolate`` expression.
+
+    Inverse of :func:`_write_interpolate`. Only ``mode="linear"`` (or the
+    attribute absent, treated the same as the writer's own default) is
+    supported — ``cosine``/``cubic`` have no ``InterpolateExpression``
+    equivalent (see that function's docstring). ``se:Data``/``se:Value``
+    reuse :func:`_coerce_recode_literal` (already generic across numeric/
+    colour text, same as :func:`_parse_recode`) — nothing method-specific
+    needed to tell them apart on read.
+    """
+    mode = interp_el.get("mode")
+    if mode is not None and mode != "linear":
+        raise NotImplementedError(
+            f"se:Interpolate mode={mode!r} has no CartoSym mapping in this "
+            "codec (only 'linear' does)"
+        )
+    lookup_el = d.find(interp_el, "LookupValue")
+    lookup = _property_ref_from_container(lookup_el) if lookup_el is not None else None
+    if lookup is None:
+        raise NotImplementedError(
+            "se:Interpolate/se:LookupValue is missing, or is not a bare "
+            "ogc:PropertyName — not supported in this codec"
+        )
+    points = d.findall(interp_el, "InterpolationPoint")
+    if not points:
+        raise NotImplementedError("se:Interpolate without any se:InterpolationPoint")
+    args: list[Any] = [lookup]
+    for point in points:
+        data_el, value_el = d.find(point, "Data"), d.find(point, "Value")
+        if data_el is None or value_el is None:
+            raise NotImplementedError("se:InterpolationPoint without se:Data/se:Value")
+        args.append(_coerce_recode_literal(element_text(data_el)))
+        args.append(_coerce_recode_literal(element_text(value_el)))
+    return {"op": "interpolate", "interpolation": "linear", "args": args}
+
+
 def _parse_flexible_param(d: SldDialect, elem: etree._Element, name: str) -> Any:
     """Return an ``SvgParameter``'s value: text, an expression dict, or ``None``.
 
-    A bare ``ogc:PropertyName`` or an ``se:Recode`` child (SE 1.1.0 only)
-    is a property-driven expression (see the module docstring); anything
-    else falls back to :func:`._xml_helpers.element_text` (a plain
-    literal, or the ``None``/``NotImplementedError`` — via
-    ``parse_color``/``parse_opacity`` — an unsupported shape already
-    produces).
+    A bare ``ogc:PropertyName``, an ``se:Recode`` or an ``se:Interpolate``
+    child (SE 1.1.0 only) is a property-driven expression (see the module
+    docstring); anything else falls back to
+    :func:`._xml_helpers.element_text` (a plain literal, or the
+    ``None``/``NotImplementedError`` — via ``parse_color``/
+    ``parse_opacity`` — an unsupported shape already produces).
     """
     param = d.get_param_element(elem, name)
     if param is None:
@@ -1439,6 +1596,10 @@ def _parse_flexible_param(d: SldDialect, elem: etree._Element, name: str) -> Any
         recode_el = d.find(param, "Recode")
         if recode_el is not None:
             return _parse_recode(d, recode_el)
+    if d.interpolate_function:
+        interp_el = d.find(param, "Interpolate")
+        if interp_el is not None:
+            return _parse_interpolate(d, interp_el)
     return element_text(param)
 
 
@@ -1478,9 +1639,10 @@ def _parse_flexible_numeric_param(
     A bare ``ogc:PropertyName`` is a property reference; an ``ogc:Function``
     (``Add``/``Sub``/``Mul``/``Div``) is an arithmetic expression over such
     references/literals (see :func:`_write_numeric_param`); an ``se:Recode``
-    child (SE 1.1.0 only, mirroring :func:`_parse_flexible_param`) is a
-    match expression, parsed by the same :func:`_parse_recode` used for
-    colour — it already coerces ``se:Data``/``se:Value`` text to
+    or ``se:Interpolate`` child (SE 1.1.0 only, mirroring
+    :func:`_parse_flexible_param`) is a match/interpolate expression,
+    parsed by the same :func:`_parse_recode`/:func:`_parse_interpolate`
+    used for colour — they already coerce ``se:Data``/``se:Value`` text to
     bool/int/float/str generically, nothing numeric-specific needed there.
     Anything else falls back to :func:`._xml_helpers.element_text` (a plain
     literal).
@@ -1495,6 +1657,10 @@ def _parse_flexible_numeric_param(
         recode_el = d.find(param, "Recode")
         if recode_el is not None:
             return _parse_recode(d, recode_el)
+    if d.interpolate_function:
+        interp_el = d.find(param, "Interpolate")
+        if interp_el is not None:
+            return _parse_interpolate(d, interp_el)
     children = [c for c in param if isinstance(c.tag, str)]
     if len(children) == 1 and local_name(children[0]) == "Function":
         return _parse_arithmetic_function(children[0])
