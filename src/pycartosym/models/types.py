@@ -10,7 +10,7 @@ import re
 from enum import Enum
 from typing import Annotated
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from .value_expressions import ValueExpression
 
@@ -242,28 +242,21 @@ class UnitType(str, Enum):
 
 
 class UnitValue(BaseModel):
-    """Value with a specific unit."""
+    """Value with a specific unit.
+
+    Splitting a raw ``{unit: value}`` dict (e.g. ``{"px": 2.0}``) into
+    ``value``/``unit`` happens one level up, in
+    :func:`~pycartosym.models.symbolizers.parse_flexible_unit_value` — a
+    field-level ``@field_validator("value", "unit", mode="before")``
+    on this class cannot do it: Pydantic only calls a field's
+    before-validator on the value already extracted for that field, never
+    on the whole raw input, so ``UnitValue.model_validate({"px": 2.0})``
+    would still need ``value``/``unit`` keys present regardless (that
+    validator was inert and has been removed).
+    """
 
     value: float = Field(..., description="Numeric value")
     unit: UnitType = Field(..., description="Unit type")
-
-    @field_validator("value", "unit", mode="before")
-    @classmethod
-    def parse_dict_input(cls, v, info):
-        """Split a ``{unit: value}`` dict into the ``value`` and ``unit`` fields."""
-        # Accept dicts like {"px": 2.0}
-        if isinstance(v, dict) and len(v) == 1:
-            unit, value = next(iter(v.items()))
-            if info.field_name == "value":
-                return value
-            if info.field_name == "unit":
-                return unit
-        # For 'unit' field: coerce string to UnitType enum
-        if info.field_name == "unit" and isinstance(v, str):
-            if v in UnitType.__members__.values():
-                return v
-            return UnitType(v)
-        return v
 
     def __str__(self) -> str:
         """Return the string representation like '10px' or '2.5mm'."""
