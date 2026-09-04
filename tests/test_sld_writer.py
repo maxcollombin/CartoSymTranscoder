@@ -1227,6 +1227,90 @@ class TestWritePropertyDrivenWidth:
             SldWriter().write(Style.from_dict(style_dict))
 
 
+class TestWriteMatchExpressionWidth:
+    """``stroke-width`` as ``se:Recode`` — the same mechanism
+    :class:`TestWritePropertyDrivenColor` already uses for colour,
+    generalised to a numeric ``SvgParameter`` (shared
+    :func:`..._symbolizer._write_recode`, only output validation/
+    formatting differs: numeric outputs must be int/float, formatted
+    like an arithmetic literal, not a colour string).
+    """
+
+    def test_match_expression_width_writes_recode(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "match",
+                        "args": [{"property": "weight"}, 15, 5.0, 10, 2.0, 1.0],
+                    }
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="match/Recode stroke-width")
+        root = etree.fromstring(xml.encode("utf-8"))
+        recode = root.find(".//se:Stroke/se:SvgParameter/se:Recode", NS)
+        assert recode.get("fallbackValue") == "1"
+        lookup = recode.find("se:LookupValue/ogc:PropertyName", NS)
+        assert lookup.text == "weight"
+        items = recode.findall("se:MapItem", NS)
+        assert [i.find("se:Data", NS).text for i in items] == ["15", "10"]
+        assert [i.find("se:Value", NS).text for i in items] == ["5", "2"]
+
+        from pycartosym.codecs.sld.reader import SldReader
+
+        back = SldReader().read(xml)
+        assert back.styling_rules[0].symbolizer.stroke.width.to_dict() == {
+            "op": "match",
+            "args": [{"property": "weight"}, 15, 5, 10, 2, 1],
+        }
+
+    def test_match_non_numeric_output_raises(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "match",
+                        "args": [{"property": "weight"}, 15, "thick", "thin"],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_match_non_property_lookup_raises(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "match",
+                        "args": ["literal-not-a-property", 1, 5.0, 1.0],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_match_width_raises_for_sld_1_0_0(self):
+        from pycartosym.codecs.sld._dialect import SLD_1_0_0
+
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "match",
+                        "args": [{"property": "weight"}, 15, 5.0, 1.0],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter(SLD_1_0_0).write(Style.from_dict(style_dict))
+
+
 class TestWriteSystemIdentifierWidthRaises:
     """``viz.sd`` (current scale denominator) has no SLD/SE value mapping.
 
