@@ -1311,6 +1311,203 @@ class TestWriteMatchExpressionWidth:
             SldWriter(SLD_1_0_0).write(Style.from_dict(style_dict))
 
 
+class TestWriteInterpolateExpression:
+    """``se:Interpolate`` — never wired at all before this, for either a
+    numeric ``SvgParameter`` (``stroke-width``, ``method="numeric"``) or
+    a colour one (``fill``, ``method="color"``) — same
+    ``se:Interpolate``/``se:LookupValue``/``se:InterpolationPoint`` shape
+    as ``se:Recode`` (:class:`TestWriteMatchExpressionWidth`), shared via
+    ``_write_interpolate``, only the output validation/formatting and the
+    ``method`` attribute differ.
+    """
+
+    def test_interpolate_width_writes_se_interpolate(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "interpolate",
+                        "interpolation": "linear",
+                        "args": [
+                            {"property": "population"},
+                            0,
+                            1.0,
+                            1000,
+                            5.0,
+                            10000,
+                            20.0,
+                        ],
+                    }
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="interpolate stroke-width")
+        root = etree.fromstring(xml.encode("utf-8"))
+        interp = root.find(".//se:Stroke/se:SvgParameter/se:Interpolate", NS)
+        assert interp.get("mode") == "linear"
+        assert interp.get("method") == "numeric"
+        assert interp.get("fallbackValue") == "20"
+        lookup = interp.find("se:LookupValue/ogc:PropertyName", NS)
+        assert lookup.text == "population"
+        points = interp.findall("se:InterpolationPoint", NS)
+        assert [p.find("se:Data", NS).text for p in points] == ["0", "1000", "10000"]
+        assert [p.find("se:Value", NS).text for p in points] == ["1", "5", "20"]
+
+        from pycartosym.codecs.sld.reader import SldReader
+
+        back = SldReader().read(xml)
+        assert back.styling_rules[0].symbolizer.stroke.width.to_dict() == {
+            "op": "interpolate",
+            "interpolation": "linear",
+            "args": [{"property": "population"}, 0, 1, 1000, 5, 10000, 20],
+        }
+
+    def test_interpolate_fill_color_writes_se_interpolate(self):
+        style_dict = _rule_style(
+            {
+                "fill": {
+                    "color": {
+                        "op": "interpolate",
+                        "interpolation": "linear",
+                        "args": [
+                            {"property": "temp"},
+                            0,
+                            "#0000ff",
+                            50,
+                            "#ffffff",
+                            100,
+                            "#ff0000",
+                        ],
+                    }
+                }
+            }
+        )
+        xml = SldWriter().write(Style.from_dict(style_dict))
+        assert_sld_valid(xml, label="interpolate fill color")
+        root = etree.fromstring(xml.encode("utf-8"))
+        interp = root.find(".//se:Fill/se:SvgParameter/se:Interpolate", NS)
+        assert interp.get("method") == "color"
+        assert interp.get("fallbackValue") == "#ff0000"
+        points = interp.findall("se:InterpolationPoint", NS)
+        assert [p.find("se:Value", NS).text for p in points] == [
+            "#0000ff",
+            "#ffffff",
+            "#ff0000",
+        ]
+
+        from pycartosym.codecs.sld.reader import SldReader
+
+        back = SldReader().read(xml)
+        assert back.styling_rules[0].symbolizer.fill.color.to_dict() == {
+            "op": "interpolate",
+            "interpolation": "linear",
+            "args": [
+                {"property": "temp"},
+                0,
+                "#0000ff",
+                50,
+                "#ffffff",
+                100,
+                "#ff0000",
+            ],
+        }
+
+    def test_interpolate_exponential_raises(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "interpolate",
+                        "interpolation": "exponential",
+                        "base": 2,
+                        "args": [{"property": "population"}, 0, 1.0, 1000, 5.0],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_interpolate_cubic_bezier_raises(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "interpolate",
+                        "interpolation": "cubic-bezier",
+                        "controlPoints": [0.25, 0.1, 0.25, 1.0],
+                        "args": [{"property": "population"}, 0, 1.0, 1000, 5.0],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_interpolate_non_property_lookup_raises(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "interpolate",
+                        "interpolation": "linear",
+                        "args": ["literal-not-a-property", 0, 1.0, 1000, 5.0],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_interpolate_non_numeric_stop_raises(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "interpolate",
+                        "interpolation": "linear",
+                        "args": [{"property": "population"}, "low", 1.0, "high", 5.0],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_interpolate_non_numeric_width_output_raises(self):
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "interpolate",
+                        "interpolation": "linear",
+                        "args": [{"property": "population"}, 0, "thin", 1000, "thick"],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_interpolate_width_raises_for_sld_1_0_0(self):
+        from pycartosym.codecs.sld._dialect import SLD_1_0_0
+
+        style_dict = _rule_style(
+            {
+                "stroke": {
+                    "width": {
+                        "op": "interpolate",
+                        "interpolation": "linear",
+                        "args": [{"property": "population"}, 0, 1.0, 1000, 5.0],
+                    }
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter(SLD_1_0_0).write(Style.from_dict(style_dict))
+
+
 class TestWriteSystemIdentifierWidthRaises:
     """``viz.sd`` (current scale denominator) has no SLD/SE value mapping.
 

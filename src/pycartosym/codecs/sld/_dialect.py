@@ -82,6 +82,11 @@ class SldDialect:
             1.1.0 additions, substitution group ``se:Function`` — see
             ``Symbolizer.xsd``); ``False`` for SLD 1.0.0, which predates
             them.
+        interpolate_function: ``True`` if the dialect has the native
+            ``se:Interpolate``/``se:InterpolationPoint`` elements (SE
+            1.1.0 additions, substitution group ``se:Function``, same
+            section of ``Symbolizer.xsd`` as ``se:Recode``); ``False``
+            for SLD 1.0.0, which predates them.
         nsmap: Namespace map for the document root element.
     """
 
@@ -94,6 +99,7 @@ class SldDialect:
     graphic_placement: bool
     vendor_options: bool
     recode_function: bool
+    interpolate_function: bool
     nsmap: dict[str | None, str]
 
     # -- element factories -------------------------------------------------
@@ -203,6 +209,7 @@ SE_1_1_0 = SldDialect(
     graphic_placement=True,
     vendor_options=False,
     recode_function=True,
+    interpolate_function=True,
     nsmap=_SE_NSMAP,
 )
 
@@ -216,6 +223,7 @@ SLD_1_0_0 = SldDialect(
     graphic_placement=False,
     vendor_options=False,
     recode_function=False,
+    interpolate_function=False,
     nsmap=_SLD10_NSMAP,
 )
 
@@ -232,6 +240,7 @@ SLD_1_0_0_GEOSERVER = SldDialect(
     graphic_placement=False,
     vendor_options=True,
     recode_function=False,
+    interpolate_function=False,
     nsmap=_SLD10_NSMAP,
 )
 
