@@ -153,28 +153,50 @@ class Converter:
     def style_to_cscss(self, style: Style) -> str:
         """Convert Style model to CSCSS string with pretty-print indentation."""
         lines = []
-        # Add metadata as CSCSS directives
+        # Add metadata + $include as CSCSS directives (same header block —
+        # the grammar's own ``styleSheet: metadata* variableDef*
+        # stylingRuleList?`` puts .include alongside .title/.abstract/etc.,
+        # before any @variable declaration).
+        header_lines = []
         if style.metadata:
             if getattr(style.metadata, "title", None):
-                lines.append(f".title '{style.metadata.title}'")
+                header_lines.append(f".title '{style.metadata.title}'")
             if getattr(style.metadata, "abstract", None):
-                lines.append(f".abstract '{style.metadata.abstract}'")
+                header_lines.append(f".abstract '{style.metadata.abstract}'")
             if getattr(style.metadata, "description", None):
-                lines.append(f".description '{style.metadata.description}'")
+                header_lines.append(f".description '{style.metadata.description}'")
             if style.metadata.authors:
                 for author in style.metadata.authors:
-                    lines.append(f'.author "{author}"')
+                    header_lines.append(f'.author "{author}"')
             if style.metadata.keywords:
                 kw = style.metadata.keywords
                 kw_str = ", ".join(kw) if isinstance(kw, list) else kw
-                lines.append(f".keywords '{kw_str}'")
+                header_lines.append(f".keywords '{kw_str}'")
             # Model field is ``geo_data_classes`` (alias ``geoDataClasses``);
             # the CSCSS directive keeps the camelCase spelling.
             if style.metadata.geo_data_classes:
                 gc = style.metadata.geo_data_classes
                 gc_str = ", ".join(gc) if isinstance(gc, list) else gc
-                lines.append(f".geoDataClasses '{gc_str}'")
-            lines.append("")  # Empty line after metadata
+                header_lines.append(f".geoDataClasses '{gc_str}'")
+        if style.include:
+            includes = (
+                style.include if isinstance(style.include, list) else [style.include]
+            )
+            for path in includes:
+                header_lines.append(f".include '{path}'")
+        if header_lines:
+            lines.extend(header_lines)
+            lines.append("")  # Empty line after metadata/include
+
+        # @variable declarations — usage sites (``@name`` references inside
+        # rules) are already resolved to their literal value by the reader
+        # (see parser.py's ``enterVariableDef``), so only the declaration
+        # itself round-trips; re-emitting it is still strictly better than
+        # dropping it, and lets a re-parse repopulate ``style.variables``.
+        if style.variables:
+            for var in style.variables:
+                lines.append(f"@{var.name} = {self._format_variable_value(var.value)};")
+            lines.append("")  # Empty line after variable declarations
 
         # Add only top-level rules; nested rules are emitted only within their parent
         for rule in style.styling_rules:
@@ -182,6 +204,18 @@ class Converter:
             lines.append("")  # Empty line between rules
 
         return "\n".join(lines).strip()
+
+    def _format_variable_value(self, value: Any) -> str:
+        """Format a ``Variable.value`` for a ``@name = value;`` declaration.
+
+        ``parser.py``'s ``enterVariableDef`` already reduces the RHS to a
+        plain ``int``/``float``/``str`` (quotes stripped either way), so a
+        quoted string round-trips to the same value as a bare one — quoting
+        unconditionally here is the unambiguous, always-valid choice.
+        """
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return str(value)
+        return f"'{value}'"
 
     def _rule_to_css(self, rule, emit_nested=True, indent=0) -> list:
         """Convert StylingRule model to CSS lines with pretty-print indentation."""

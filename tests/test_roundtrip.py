@@ -368,6 +368,38 @@ class TestMetadataParsing:
         back = self.converter.style_to_cscss(Style.from_dict(result))
         assert ".geoDataClasses 'https://ex.org/a, https://ex.org/b'" in back
 
+    def test_include_directive_writeback(self):
+        """A CS-JSON-authored $include must reach CSCSS write-back.
+
+        ``.include`` is resolved (file content inlined) by the CSCSS
+        *reader*'s own preprocessor, so it never round-trips through a
+        CSCSS source — but a directly-authored CS-JSON document's
+        ``$include`` is a real ``Style`` field regardless (regression:
+        style_to_cscss never read it at all).
+        """
+        style = Style.from_dict(
+            {
+                "$include": "other.cscss",
+                "stylingRules": [{"symbolizer": {"visibility": True}}],
+            }
+        )
+        back = self.converter.style_to_cscss(style)
+        assert ".include 'other.cscss'" in back
+
+    def test_variable_declaration_roundtrip(self):
+        """@var = value; must survive CSCSS -> CS-JSON -> CSCSS write-back
+        (regression: style_to_cscss never read style.variables at all).
+        """
+        cscss = "@roadColor = gray;\n[Base]\n{ stroke: { color: @roadColor }; }"
+        result = self.converter.cscss_to_csjson(cscss)
+        assert result["$variables"] == [{"name": "roadColor", "value": "gray"}]
+        back = self.converter.style_to_cscss(Style.from_dict(result))
+        assert "@roadColor = 'gray';" in back
+        # And it re-parses back to the same $variables.
+        assert self.converter.cscss_to_csjson(back)["$variables"] == [
+            {"name": "roadColor", "value": "gray"}
+        ]
+
     def test_fill_pattern_writeback_raises(self):
         """A fill pattern graphic has no CartoSym-CSS write-back yet — the
         writer must raise (naming the field) rather than drop it silently.
