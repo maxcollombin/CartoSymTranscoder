@@ -1,4 +1,4 @@
-"""Tests for extended CQL2 expression parsing & write-back (roadmap §4.5).
+"""Tests for extended CQL2 expression parsing & write-back.
 
 Covers:
  - Text operation predicates: CONTAINS, STARTSWITH, ENDSWITH

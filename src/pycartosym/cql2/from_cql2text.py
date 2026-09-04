@@ -30,10 +30,9 @@ future switch-over does not change the shape of what callers see:
   text re-scan.
 * ``S_RELATE(a, b, pattern)`` -> :class:`~.model.SpatialRelatePredicate`,
   whose ``pattern`` field validator already delegates to
-  :func:`pycartosym.models.de9im.is_valid_de9im_pattern` — the DE-9IM
-  rebranching from the backlog (ROADMAP §5.1 item 3) falls out of using the
-  real model directly, not the previously-unvalidated opaque string the
-  scanner produced.
+  :func:`pycartosym.models.de9im.is_valid_de9im_pattern` — real DE-9IM
+  pattern validation falls out of using that model directly, not the
+  previously-unvalidated opaque string the scanner produced.
 
 Property/function-name dispatch (which identifiers are CQL2 predicates vs.
 plain function calls) reuses :mod:`.vocab` — the single source of truth
