@@ -92,7 +92,11 @@ from ...models.types import UnitType, UnitValue
 from .._cascade import flatten_cascade_rules
 from ..base import CodecWriter
 from . import _raster
-from ._expressions import value_to_maplibre_expr
+from ._expressions import (
+    is_viz_sd_arithmetic,
+    step_lut_for_viz_sd,
+    value_to_maplibre_expr,
+)
 from ._filter import selector_to_filter, strip_datalayer_id
 from ._layers import _ANCHOR_TO_ALIGNMENT, _ICON_ANCHOR_TO_FRACTION
 from ._zoom import extract_zoom_range
@@ -124,7 +128,12 @@ def _literal(value: Any, prop: str) -> Any:
     ``list[int]`` RGB(A) 0-255 form (what a CSCSS ``#rrggbb`` hex literal
     actually parses into — a named colour or ``#``-string colour stays a
     plain string and needs none of this) becomes a hex string via
-    :func:`_rgb_to_hex`; anything else this codec does not map (a
+    :func:`_rgb_to_hex`; a ``viz.sd``-only expression (e.g.
+    ``stroke-width: viz.sd / 1000``) becomes a sampled ``step`` lookup
+    table via :func:`._expressions.step_lut_for_viz_sd` — only reachable
+    here, at the top level of a whole property value, never from a value
+    nested inside another expression (see that function's module
+    docstring for why); anything else this codec does not map (a
     ``UnitValue`` in a non-``px`` unit, …) raises.
     """
     if isinstance(value, (str, int, float, bool)):
@@ -135,6 +144,8 @@ def _literal(value: Any, prop: str) -> Any:
         and all(isinstance(c, int) and not isinstance(c, bool) for c in value)
     ):
         return _rgb_to_hex(value)
+    if is_viz_sd_arithmetic(value):
+        return step_lut_for_viz_sd(value)
     return value_to_maplibre_expr(value, prop)
 
 
