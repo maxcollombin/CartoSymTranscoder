@@ -349,6 +349,11 @@ def _normalize_graphic_element(el: dict) -> None:
         except ValueError:
             pass
 
+    # Convert alter string to bool for any element type — every graphic
+    # element inherits AlterMixin's alter: bool | None (models/symbolizers.py).
+    if "alter" in el and isinstance(el["alter"], str):
+        el["alter"] = el["alter"].strip().strip("'\"").lower() == "true"
+
     # Convert size string to a number, or a {unit: value} dict when a unit
     # suffix is present (e.g. a Dot's `size: 10 px`) — same coercion as
     # `radius` below, for any element type (shapes don't get the

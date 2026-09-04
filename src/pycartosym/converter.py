@@ -633,6 +633,14 @@ class Converter:
 
         prop_lines = []
 
+        # alter (AlterMixin, every graphic element) — a bool from CS-JSON,
+        # or the raw parsed string if _normalize_graphic_element's own
+        # coercion was bypassed (e.g. a hand-built dict in a test).
+        alter = _get(el, "alter")
+        if alter is not None:
+            alter_bool = alter if isinstance(alter, bool) else str(alter) == "true"
+            prop_lines.append(f"alter: {str(alter_bool).lower()}")
+
         # position
         pos = _get(el, "position")
         if pos is not None:

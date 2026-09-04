@@ -648,6 +648,43 @@ class TestMetadataParsing:
         assert "type: simple" in back
         assert "minSpacing: 2.0 px" in back
 
+    def test_graphic_element_alter_writes_back(self):
+        """A graphic element's own ``alter`` (AlterMixin) must survive
+        CS-JSON -> CartoSym-CSS write-back (regression:
+        _graphic_element_to_css_block never read it at all).
+        """
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "marker": {
+                                "elements": [
+                                    {"type": "Dot", "alter": True, "color": "red"}
+                                ]
+                            }
+                        }
+                    }
+                ]
+            }
+        )
+        back = self.converter.style_to_cscss(style)
+        assert "alter: true" in back
+
+    def test_graphic_element_alter_roundtrips_through_cscss(self):
+        """Full CSCSS -> JSON -> CSCSS -> JSON round trip for element alter."""
+        cscss = (
+            "[Base]\n{\n"
+            "  marker: { elements: [Dot {alter: true; color: red; size: 4 px}] };\n"
+            "}"
+        )
+        json1 = self.converter.cscss_to_csjson(cscss)
+        back = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(back)
+        assert json1 == json2
+        el = json1["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["alter"] is True
+
 
 # ---------------------------------------------------------------------------
 # Font and graphic element normalization (ast_converter)
@@ -778,6 +815,11 @@ class TestGraphicElementNormalization:
         el = {"type": "Dot", "opacity": "0.5"}
         self.normalize(el)
         assert el["opacity"] == 0.5
+
+    def test_alter_string_to_bool(self):
+        el = {"type": "Dot", "alter": "true"}
+        self.normalize(el)
+        assert el["alter"] is True
 
     def test_font_dict_coerced(self):
         el = {"type": "Text", "text": "'X'", "font": {"size": "10", "bold": "true"}}
