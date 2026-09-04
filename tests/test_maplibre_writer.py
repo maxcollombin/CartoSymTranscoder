@@ -99,6 +99,50 @@ def test_stroke_width_in_a_non_px_unit_is_rejected():
         MaplibreWriter().write(style)
 
 
+def test_viz_sd_arithmetic_stroke_width_samples_a_step_lut():
+    """OGC issue #115's ``stroke.width: viz.sd / 1000`` — a ``viz.sd``-only
+    arithmetic expression as a whole top-level property value samples into
+    a MapLibre ``step`` lookup table (13 integer zoom levels, 6-18) instead
+    of raising, per the technique documented in
+    ``codecs/maplibre/_expressions.py``'s module docstring. Reading the
+    result back is intentionally lossy — it lands on the existing
+    ``step(["zoom"])`` -> N ``viz.sd``-bounded-rules machinery (PR #70),
+    giving each segment's *literal* sampled value, not the original
+    symbolic formula.
+    """
+    from pycartosym.codecs.maplibre._zoom import scale_denominator_from_zoom
+    from pycartosym.codecs.maplibre.reader import MaplibreReader
+
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "roads",
+                    "symbolizer": {
+                        "stroke": {
+                            "color": "#333333",
+                            "width": {
+                                "op": "/",
+                                "args": [{"sysId": "viz.sd"}, 1000],
+                            },
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    width = out["layers"][0]["paint"]["line-width"]
+    assert width[:3] == ["step", ["zoom"], scale_denominator_from_zoom(6) / 1000]
+    assert width[3::2] == list(range(7, 19))
+    assert_maplibre_valid(out)
+
+    style_back = MaplibreReader().read(out)
+    assert len(style_back.styling_rules) == 13
+    for zoom, rule in zip(range(6, 19), style_back.styling_rules):
+        assert rule.symbolizer.stroke.width == scale_denominator_from_zoom(zoom) / 1000
+
+
 def test_stroke_dash_pattern_maps_to_line_dasharray_scaled_by_width():
     """``dashPattern`` lengths are absolute px, ``line-dasharray`` is in
     multiples of the line width — each length is divided by ``width``.
@@ -320,9 +364,13 @@ def test_circle_outline_thickness_accepts_numeric_expression():
 
 
 def test_circle_outline_thickness_system_identifier_raises():
-    """``viz.sd`` inside ``circle-stroke-width`` is a confirmed permanent
-    wall — MapLibre only allows ``["zoom"]`` as the sole, top-level input
-    of ``step``/``interpolate``, never nested inside arithmetic.
+    """``viz.sd`` inside ``circle-stroke-width`` still raises here: it is
+    nested under ``Marker.elements`` (typed ``Any``, out of scope for the
+    ``viz.sd``-arithmetic step-LUT special case — see
+    ``test_viz_sd_arithmetic_stroke_width_samples_a_step_lut`` for the
+    in-scope, directly-typed-field case), so it never reaches
+    ``writer.py``'s ``_literal`` as a real ``SystemIdentifier`` instance
+    for :func:`is_viz_sd_arithmetic` to recognise.
     """
     style = Style.from_dict(
         {

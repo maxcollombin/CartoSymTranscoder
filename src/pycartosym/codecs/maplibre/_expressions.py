@@ -13,23 +13,38 @@ raises :exc:`NotImplementedError` naming the operator — a deliberate
 scope boundary, not an oversight.
 
 A ``SystemIdentifier`` (OGC issue #115's ``viz.sd``, the current scale
-denominator) is a **confirmed permanent wall in this codec**, not a
-missing-wiring gap — same conclusion as the SLD/SE codec, for a different
-reason: the real MapLibre style spec restricts a ``["zoom"]`` expression
-to being the *sole, top-level* input of a ``step``/``interpolate`` call —
-it cannot be nested inside arithmetic (confirmed against the real
-``gl-style-validate`` CLI, not just this codec's own JSON-shape checks).
-An earlier version of this module built a ``["zoom"]``-driven arithmetic
-formula for ``viz.sd`` that validated as the right JSON *shape* but was
-never actually valid MapLibre syntax — caught only once a round-trip test
-was run through the real validator instead of comparing JSON shapes.
-Folding an enclosing arithmetic expression's constant scaling into
-``interpolate`` stops instead (making the ``interpolate`` the top-level
-value) is possible for the special case of ``viz.sd`` combined only with
-numeric literals, but breaks this project's lossless round-trip
-requirement (the discrete stops can't be inverted back to the original
-symbolic formula on read) and was rejected for that reason — a
-``SystemIdentifier`` here raises unconditionally instead.
+denominator) is a **confirmed permanent wall in this codec** for the
+general case, not a missing-wiring gap — same conclusion as the SLD/SE
+codec, for a different reason: the real MapLibre style spec restricts a
+``["zoom"]`` expression to being the *sole, top-level* input of a
+``step``/``interpolate`` call — it cannot be nested inside arithmetic
+(confirmed against the real ``gl-style-validate`` CLI, not just this
+codec's own JSON-shape checks). An earlier version of this module built a
+``["zoom"]``-driven arithmetic formula for ``viz.sd`` that validated as
+the right JSON *shape* but was never actually valid MapLibre syntax —
+caught only once a round-trip test was run through the real validator
+instead of comparing JSON shapes.
+
+**One special case is handled, not a wall**: when the value passed to
+``writer.py``'s ``_literal`` (i.e. an entire top-level paint/layout
+property, never a value nested inside another expression) is built only
+from ``viz.sd`` and numeric literals — see :func:`is_viz_sd_arithmetic` —
+the enclosing arithmetic's constant scaling is folded into a MapLibre
+``step`` lookup table instead (:func:`step_lut_for_viz_sd`), sampling the
+formula at each integer zoom level 6-18 and making the ``step`` itself the
+top-level value, exactly like the technique OGC's own reference
+implementation (``ecere/libCartoSym``'s ``mbglWriter.ec:381-403``) applies
+to an analogous metres-to-pixels problem. This trades exactness for a
+piecewise-constant approximation and an intentionally asymmetric
+round-trip: reading a sampled ``step`` back does **not** attempt to
+recover the original symbolic formula, it lands on
+``_layers.py``'s existing ``step(["zoom"])`` -> N ``viz.sd``-bounded
+rules machinery (already there for a hand-authored ``step``, added in
+PR #70) — each rule getting that segment's *literal* sampled value. Any
+other shape (``viz.sd`` combined with a ``PropertyRef``, or nested inside
+``case``/``match``/``coalesce``/``interpolate`` rather than being the
+property's entire value) still raises unconditionally — folding only
+helps when the ``step`` can *be* the top-level value.
 
 Legacy MapLibre "zoom functions" (``{"stops": [...]}``) are a separate,
 unrelated value shape and stay out of scope here too (rejected in
@@ -38,6 +53,8 @@ unrelated value shape and stay out of scope here too (rejected in
 
 from __future__ import annotations
 
+import operator
+from collections.abc import Callable
 from typing import Any
 
 from ...models.value_expressions import (
@@ -50,6 +67,7 @@ from ...models.value_expressions import (
     StepExpression,
     SystemIdentifier,
 )
+from ._zoom import scale_denominator_from_zoom
 
 # A MapLibre value that is already a plain JSON scalar, not an expression.
 _SCALAR = (str, int, float, bool, type(None))
@@ -57,6 +75,22 @@ _SCALAR = (str, int, float, bool, type(None))
 _INTERPOLATION_TYPES = frozenset({"linear", "exponential", "cubic-bezier"})
 
 _ARITHMETIC_OPS = frozenset({"+", "-", "*", "/", "^"})
+
+_ARITHMETIC_EVAL: dict[str, Callable[[float, float], float]] = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+    "^": operator.pow,
+}
+
+_VIZ_SD_SYSID = "viz.sd"
+
+# Integer zoom levels sampled to build a viz.sd step lookup table (see
+# step_lut_for_viz_sd) -- matches the range ecere/libCartoSym's own
+# step-sampling technique for an analogous metres->pixels problem uses
+# (mbglWriter.ec:381-403).
+_VIZ_SD_STEP_ZOOM_LEVELS = range(6, 19)
 
 
 def _coerce_numeric_expr(value: Any) -> Any:
@@ -83,6 +117,71 @@ def _coerce_numeric_expr(value: Any) -> Any:
         if "op" in value and value.get("op") in _ARITHMETIC_OPS and "args" in value:
             return ArithmeticExpression.model_validate(value)
     return value
+
+
+def is_viz_sd_arithmetic(value: Any) -> bool:
+    """True if *value* is built only from ``viz.sd`` and numeric literals.
+
+    Recognises a bare ``SystemIdentifier("viz.sd")`` or an
+    ``ArithmeticExpression`` combining only that and numeric literals —
+    the one shape :func:`step_lut_for_viz_sd` can sample into a MapLibre
+    ``step`` lookup table (see module docstring). A different ``sysId``,
+    any ``PropertyRef`` operand, or a plain scalar on its own (nothing to
+    sample) all return ``False``.
+    """
+    if isinstance(value, SystemIdentifier):
+        return value.sysId == _VIZ_SD_SYSID
+    if not isinstance(value, ArithmeticExpression):
+        return False
+    leaves = _flatten_arithmetic(value)
+    return any(isinstance(leaf, SystemIdentifier) for leaf in leaves) and all(
+        _is_number(leaf) or isinstance(leaf, SystemIdentifier) for leaf in leaves
+    )
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _flatten_arithmetic(value: Any) -> list[Any]:
+    if isinstance(value, ArithmeticExpression):
+        return [leaf for arg in value.args for leaf in _flatten_arithmetic(arg)]
+    return [value]
+
+
+def _eval_viz_sd_arithmetic(value: Any, sd: float) -> float:
+    """Evaluate *value* (see :func:`is_viz_sd_arithmetic`) with ``viz.sd`` = *sd*."""
+    if isinstance(value, SystemIdentifier):
+        return sd
+    if isinstance(value, ArithmeticExpression):
+        a, b = (_eval_viz_sd_arithmetic(arg, sd) for arg in value.args)
+        return _ARITHMETIC_EVAL[value.op](a, b)
+    return float(value)
+
+
+def step_lut_for_viz_sd(value: Any) -> list[Any]:
+    """Sample a ``viz.sd``-only expression into a MapLibre ``step`` lookup table.
+
+    *value* must satisfy :func:`is_viz_sd_arithmetic`. Evaluates it at each
+    integer zoom level in :data:`_VIZ_SD_STEP_ZOOM_LEVELS`, converting zoom
+    to a scale denominator via :func:`._zoom.scale_denominator_from_zoom`
+    (the same Web-Mercator convention the ``viz.sd``/zoom selector mapping
+    already uses), and returns
+    ``["step", ["zoom"], v0, z1, v1, z2, v2, ..., zN, vN]`` — the sampled
+    value below the lowest level, then a new value at each subsequent
+    integer level (see ``_layers.py``'s ``_step_value_at`` for the exact
+    piecewise-constant semantics this LUT is read back with on the
+    round trip). An approximation, not an exact inverse — see the module
+    docstring.
+    """
+    zooms = list(_VIZ_SD_STEP_ZOOM_LEVELS)
+    samples = [
+        _eval_viz_sd_arithmetic(value, scale_denominator_from_zoom(z)) for z in zooms
+    ]
+    step: list[Any] = ["step", ["zoom"], samples[0]]
+    for z, v in zip(zooms[1:], samples[1:]):
+        step.extend([z, v])
+    return step
 
 
 def maplibre_expr_to_value(value: Any, prop: str) -> Any:

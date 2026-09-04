@@ -4,12 +4,21 @@ Scope: the six operators ``codecs.maplibre._expressions`` targets — ``get``
 / ``case`` / ``match`` / ``interpolate`` / ``step`` / ``coalesce`` — plus
 the 5 binary arithmetic operators (``+``/``-``/``*``/``/``/``^``). A
 ``SystemIdentifier`` (e.g. ``viz.sd``, OGC issue #115) is a confirmed
-permanent wall, not mapped by this codec: the real MapLibre style spec
-only allows ``["zoom"]`` as the sole, top-level input to
-``step``/``interpolate``, never nested inside arithmetic. Every other
-MapLibre expression operator (comparisons, ``all``/``any``/``!``, ``%``, a
-bare ``zoom``, ``let``/``var``, other interpolation colour spaces, …) is a
-deliberate out-of-scope gap — asserted here, not silently dropped.
+permanent wall for :func:`value_to_maplibre_expr` itself, not mapped by
+this codec: the real MapLibre style spec only allows ``["zoom"]`` as the
+sole, top-level input to ``step``/``interpolate``, never nested inside
+arithmetic. Every other MapLibre expression operator (comparisons,
+``all``/``any``/``!``, ``%``, a bare ``zoom``, ``let``/``var``, other
+interpolation colour spaces, …) is a deliberate out-of-scope gap —
+asserted here, not silently dropped.
+
+One exception, handled one level up in ``writer.py``'s ``_literal`` before
+it ever reaches this module's raise (see :func:`test_is_viz_sd_arithmetic`
+/ :func:`test_step_lut_for_viz_sd_samples_zoom_6_to_18` below, and
+``test_maplibre_writer.py::test_viz_sd_arithmetic_stroke_width_samples_a_step_lut``
+for the end-to-end case): a whole top-level property value built only
+from ``viz.sd`` and numeric literals is sampled into a ``step`` lookup
+table instead of raising.
 """
 
 from __future__ import annotations
@@ -17,8 +26,15 @@ from __future__ import annotations
 import pytest
 
 from pycartosym.codecs.maplibre._expressions import (
+    is_viz_sd_arithmetic,
     maplibre_expr_to_value,
+    step_lut_for_viz_sd,
     value_to_maplibre_expr,
+)
+from pycartosym.models.value_expressions import (
+    ArithmeticExpression,
+    PropertyRef,
+    SystemIdentifier,
 )
 
 # Round-trip cases: (MapLibre expression array, CartoSym value dict).
@@ -175,17 +191,85 @@ def test_malformed_expression_raises(mb_expr):
 
 @pytest.mark.parametrize("sys_id", ["viz.sd", "viz.other"])
 def test_system_identifier_raises(sys_id):
-    """No ``SystemIdentifier`` has a MapLibre expression mapping in this
-    codec — ``viz.sd`` (OGC issue #115) included: the real MapLibre style
-    spec only allows a ``["zoom"]`` input as the sole, top-level argument
-    of ``step``/``interpolate``, never nested inside arithmetic, so there
-    is no faithful, round-trippable encoding for it here (confirmed
+    """No ``SystemIdentifier`` has a MapLibre expression mapping in
+    :func:`value_to_maplibre_expr` itself — ``viz.sd`` (OGC issue #115)
+    included: the real MapLibre style spec only allows a ``["zoom"]``
+    input as the sole, top-level argument of ``step``/``interpolate``,
+    never nested inside arithmetic, so there is no faithful,
+    round-trippable encoding for it here in the general case (confirmed
     permanent wall, not a missing-wiring gap — same conclusion as SLD/SE).
+    The one exception (a whole top-level property built only from
+    ``viz.sd`` and numeric literals) is handled before this function is
+    even called — see the module docstring and
+    :func:`test_is_viz_sd_arithmetic`.
     """
-    from pycartosym.models.value_expressions import SystemIdentifier
-
     with pytest.raises(NotImplementedError):
         value_to_maplibre_expr(SystemIdentifier(sysId=sys_id), "prop")
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (SystemIdentifier(sysId="viz.sd"), True),
+        (SystemIdentifier(sysId="viz.other"), False),
+        (
+            ArithmeticExpression(op="/", args=[SystemIdentifier(sysId="viz.sd"), 1000]),
+            True,
+        ),
+        (
+            ArithmeticExpression(
+                op="+",
+                args=[
+                    ArithmeticExpression(
+                        op="/", args=[SystemIdentifier(sysId="viz.sd"), 1000]
+                    ),
+                    1,
+                ],
+            ),
+            True,
+        ),
+        # Pure literal arithmetic: nothing to sample, no viz.sd anywhere.
+        (ArithmeticExpression(op="+", args=[1, 2]), False),
+        # viz.sd mixed with a feature property: no LUT can fold a
+        # per-feature operand away, stays the confirmed permanent wall.
+        (
+            ArithmeticExpression(
+                op="*",
+                args=[SystemIdentifier(sysId="viz.sd"), PropertyRef(property="a")],
+            ),
+            False,
+        ),
+        (PropertyRef(property="a"), False),
+        (42, False),
+    ],
+)
+def test_is_viz_sd_arithmetic(value, expected):
+    assert is_viz_sd_arithmetic(value) is expected
+
+
+def test_step_lut_for_viz_sd_samples_zoom_6_to_18():
+    """The LUT samples 13 integer zoom levels (6-18 inclusive, matching
+    ecere/libCartoSym's own step-sampling range for an analogous
+    problem — see the module docstring), each value the formula
+    evaluated with ``viz.sd`` substituted by that level's Web Mercator
+    scale denominator.
+    """
+    from pycartosym.codecs.maplibre._zoom import scale_denominator_from_zoom
+
+    expr = ArithmeticExpression(op="/", args=[SystemIdentifier(sysId="viz.sd"), 1000])
+    lut = step_lut_for_viz_sd(expr)
+
+    assert lut[0] == "step"
+    assert lut[1] == ["zoom"]
+    # "step" + ["zoom"] + out0, then (stop, out) pairs for zoom levels
+    # 7..18 -> 2 + 1 + 2*12 = 27
+    assert len(lut) == 27
+    assert lut[2] == scale_denominator_from_zoom(6) / 1000
+    stops = lut[3::2]
+    outputs = lut[4::2]
+    assert stops == list(range(7, 19))
+    for zoom, out in zip(range(7, 19), outputs):
+        assert out == scale_denominator_from_zoom(zoom) / 1000
 
 
 def test_zoom_nested_in_arithmetic_raises():
