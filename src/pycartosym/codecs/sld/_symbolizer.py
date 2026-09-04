@@ -610,6 +610,13 @@ def _write_color_param(
 _ARITHMETIC_FUNCTION_NAMES = {"+": "Add", "-": "Sub", "*": "Mul", "/": "Div"}
 _ARITHMETIC_FUNCTION_OPS = {v: k for k, v in _ARITHMETIC_FUNCTION_NAMES.items()}
 
+# ArithmeticExpression's own op set (models/value_expressions.py) — unlike
+# _ARITHMETIC_FUNCTION_NAMES above, this includes "^" (it has no
+# ogc:Function mapping, but is still a valid ArithmeticExpression to
+# construct; _write_arithmetic_function raises NotImplementedError for it
+# separately, at write time).
+_ARITHMETIC_EXPRESSION_OPS = {"+", "-", "*", "/", "^"}
+
 
 def _coerce_numeric_expr(value: Any) -> Any:
     """Best-effort coercion of a plain expression-shaped dict to its typed class.
@@ -623,12 +630,15 @@ def _coerce_numeric_expr(value: Any) -> Any:
     ``isinstance`` checks below need the typed class either way, so
     recognize the dict shape here first. The ``op`` value disambiguates
     ``MatchExpression`` (``"match"``) and ``InterpolateExpression``
-    (``"interpolate"``) from ``ArithmeticExpression`` (the schema's
-    ``+``/``-``/``*``/``/``/``^``) — checking ``"op" in value`` alone
-    would wrongly try to validate one as arithmetic and raise a confusing
-    ``pydantic.ValidationError`` instead of dispatching it correctly. An
+    (``"interpolate"``) from ``ArithmeticExpression`` (only the schema's
+    own ``+``/``-``/``*``/``/``/``^``) — checking ``"op" in value`` alone
+    would wrongly try to validate e.g. a ``StepExpression``/``CaseExpression``
+    (MapLibre-only shapes with no SLD/SE mapping) as arithmetic and raise a
+    confusing ``pydantic.ValidationError`` instead of passing it through
+    unchanged, like :func:`_coerce_color_expr` does for the same shapes, so
+    it falls through to the caller's own clean ``NotImplementedError``. An
     already-typed value, or anything that matches no expression shape (a
-    literal), passes through unchanged.
+    literal), also passes through unchanged.
     """
     if isinstance(
         value,
@@ -650,7 +660,7 @@ def _coerce_numeric_expr(value: Any) -> Any:
             return MatchExpression.model_validate(value)
         if value.get("op") == "interpolate" and "args" in value:
             return InterpolateExpression.model_validate(value)
-        if "op" in value and "args" in value:
+        if value.get("op") in _ARITHMETIC_EXPRESSION_OPS and "args" in value:
             return ArithmeticExpression.model_validate(value)
     return value
 

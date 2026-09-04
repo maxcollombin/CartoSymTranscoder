@@ -1530,6 +1530,54 @@ class TestWriteSystemIdentifierWidthRaises:
             SldWriter().write(Style.from_dict(style_dict))
 
 
+class TestWriteMapLibreOnlyNumericExprRaises:
+    """``StepExpression``/``CaseExpression`` (MapLibre-only shapes) have no
+    SLD/SE mapping — a nested numeric field (``Marker.elements`` is typed
+    ``Any``) reaches ``_coerce_numeric_expr`` as a raw ``{"op": ..., "args":
+    [...]}`` dict, which must fall through to the same clean
+    ``NotImplementedError`` a top-level ``Symbolizer`` field would raise,
+    not be force-validated as ``ArithmeticExpression``.
+    """
+
+    def test_step_shaped_dot_size_raises_not_implemented(self):
+        style_dict = _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Dot",
+                            "size": {
+                                "op": "step",
+                                "args": [{"property": "pop"}, 2, 10, 5],
+                            },
+                        }
+                    ]
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+    def test_case_shaped_dot_size_raises_not_implemented(self):
+        style_dict = _rule_style(
+            {
+                "marker": {
+                    "elements": [
+                        {
+                            "type": "Dot",
+                            "size": {
+                                "op": "case",
+                                "args": [{"property": "big"}, 10, 2],
+                            },
+                        }
+                    ]
+                }
+            }
+        )
+        with pytest.raises(NotImplementedError):
+            SldWriter().write(Style.from_dict(style_dict))
+
+
 class TestWritePropertyDrivenShapeOutlineThickness:
     """A ``2-shapes`` Circle's ``outline.thickness`` gets the same treatment
     as ``stroke-width`` (:class:`TestWritePropertyDrivenWidth`) — same
