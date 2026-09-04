@@ -874,7 +874,37 @@ class Converter:
         return lines
 
     def _stroke_to_css(self, stroke) -> list:
-        """Convert Stroke model to CSS lines."""
+        """Convert Stroke model to CSS lines.
+
+        Raises:
+            NotImplementedError: If the stroke carries casing, a center
+                line, a dash pattern, a pattern graphic, or an explicit
+                cap/join. The CartoSym-CSS grammar has no syntax for any
+                of these yet (only CS-JSON/SLD input can populate them);
+                dropping them silently would break the lossless guarantee
+                (same reasoning as :meth:`_fill_to_css`'s pattern-graphic
+                guard).
+        """
+
+        def _get(o, attr, alias):
+            if isinstance(o, dict):
+                return o.get(alias, o.get(attr))
+            return getattr(o, attr, None)
+
+        for attr, alias in (
+            ("casing", "casing"),
+            ("center_line", "centerLine"),
+            ("dash_pattern", "dashPattern"),
+            ("pattern", "pattern"),
+            ("cap", "cap"),
+            ("join", "join"),
+        ):
+            if _get(stroke, attr, alias) is not None:
+                raise NotImplementedError(
+                    f"stroke.{alias}: not yet written back to CartoSym-CSS "
+                    "(no grammar syntax for it)"
+                )
+
         color = getattr(stroke, "color", None)
         width = getattr(stroke, "width", None)
         opacity = getattr(stroke, "opacity", None)
