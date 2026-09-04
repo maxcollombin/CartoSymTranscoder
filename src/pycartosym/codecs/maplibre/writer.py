@@ -89,10 +89,16 @@ from typing import Any
 
 from ...models.styles import Style, StylingRule
 from ...models.types import UnitType, UnitValue
+from ...models.value_expressions import (
+    ArithmeticExpression,
+    PropertyRef,
+    SystemIdentifier,
+)
 from .._cascade import flatten_cascade_rules
 from ..base import CodecWriter
 from . import _raster
 from ._expressions import (
+    coerce_numeric_expr,
     is_viz_sd_arithmetic,
     step_lut_for_viz_sd,
     value_to_maplibre_expr,
@@ -428,7 +434,14 @@ def _circle_paint_from_dot(dot: Any) -> dict[str, Any]:
     ``{color, size, opacity, position}`` element representation, and
     ``size`` is a diameter (the OGC prose: "``stroke.color``/
     ``stroke.width`` carry the dot's colour and size"; same convention as
-    SLD's ``se:Size``), so ``circle-radius`` is ``size / 2``.
+    SLD's ``se:Size``), so ``circle-radius`` is ``size / 2``. A literal
+    divides in Python directly; a property/arithmetic/system-identifier
+    expression (unlike ``Circle.radius``, which has no such halving and
+    so maps straight through ``_literal``) divides symbolically instead
+    — wrapped in an ``ArithmeticExpression`` before reaching
+    :func:`_literal`, so it round-trips and, for a ``viz.sd``-only
+    formula, still qualifies for the ``step``-LUT sampling in
+    ``_expressions.py``.
     """
     paint: dict[str, Any] = {}
     color = _attr(dot, "color")
@@ -438,12 +451,22 @@ def _circle_paint_from_dot(dot: Any) -> dict[str, Any]:
     size = _attr(dot, "size")
     if size is not None:
         size_px = _px_number(size, "Dot.size")
-        if not isinstance(size_px, (int, float)) or isinstance(size_px, bool):
-            raise NotImplementedError(
-                "Dot.size: only a literal px value maps to MapLibre "
-                "circle-radius in this codec"
-            )
-        paint["circle-radius"] = size_px / 2
+        if isinstance(size_px, (int, float)) and not isinstance(size_px, bool):
+            paint["circle-radius"] = size_px / 2
+        else:
+            coerced = coerce_numeric_expr(size_px)
+            if isinstance(
+                coerced, (PropertyRef, ArithmeticExpression, SystemIdentifier)
+            ):
+                paint["circle-radius"] = _literal(
+                    ArithmeticExpression(op="/", args=[coerced, 2]), "Dot.size"
+                )
+            else:
+                raise NotImplementedError(
+                    "Dot.size: only a literal px value, or a property/"
+                    "arithmetic/system-identifier expression, maps to "
+                    "MapLibre circle-radius in this codec"
+                )
 
     opacity = _attr(dot, "opacity")
     if opacity is not None:

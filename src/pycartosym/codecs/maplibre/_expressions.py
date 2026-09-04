@@ -93,7 +93,7 @@ _VIZ_SD_SYSID = "viz.sd"
 _VIZ_SD_STEP_ZOOM_LEVELS = range(6, 19)
 
 
-def _coerce_numeric_expr(value: Any) -> Any:
+def coerce_numeric_expr(value: Any) -> Any:
     """Best-effort coercion of a plain expression-shaped dict to its typed class.
 
     A value nested inside a graphic element (``Marker.elements`` is typed
@@ -105,7 +105,11 @@ def _coerce_numeric_expr(value: Any) -> Any:
     Passes through unchanged if already typed or not one of these three
     shapes (e.g. a plain literal, or one of the other
     :mod:`.models.value_expressions` classes reachable only from a
-    directly-typed field today).
+    directly-typed field today). Public (no leading underscore) — also
+    used by ``writer.py`` for ``Dot.size``, which needs to detect a
+    property/arithmetic/system-identifier expression itself (to divide it
+    by 2 symbolically) rather than just recognise one inside a call it
+    delegates to.
     """
     if isinstance(value, (PropertyRef, ArithmeticExpression, SystemIdentifier)):
         return value
@@ -330,7 +334,7 @@ def value_to_maplibre_expr(value: Any, prop: str) -> Any:
         NotImplementedError: *value* is not a literal or one of the
             typed :mod:`.value_expressions` models this codec maps.
     """
-    value = _coerce_numeric_expr(value)
+    value = coerce_numeric_expr(value)
     if isinstance(value, PropertyRef):
         return ["get", value.property]
     if isinstance(value, ArithmeticExpression):

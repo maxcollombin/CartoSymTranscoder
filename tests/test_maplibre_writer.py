@@ -957,6 +957,109 @@ def test_dot_marker_becomes_a_circle_layer():
     assert_maplibre_valid(out)
 
 
+def test_dot_size_property_ref_divides_symbolically():
+    """``Dot.size`` as a ``PropertyRef`` — unlike a literal, ``size / 2``
+    can't divide in Python, so it's wrapped in an ``ArithmeticExpression``
+    and written through ``_literal`` instead (matching ``Circle.radius``,
+    which already supported an expression here, since it has no such
+    halving and maps straight through ``_literal``).
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Dot",
+                                    "color": "white",
+                                    "size": {"property": "sizeAttr"},
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    layer = out["layers"][0]
+    assert layer["paint"]["circle-radius"] == ["/", ["get", "sizeAttr"], 2]
+    assert_maplibre_valid(out)
+
+    from pycartosym.codecs.maplibre.reader import MaplibreReader
+
+    back = MaplibreReader().read(out)
+    el = back.styling_rules[0].symbolizer.marker.elements[0]
+    assert el["type"] == "Circle"
+    assert el["radius"] == {"op": "/", "args": [{"property": "sizeAttr"}, 2]}
+
+
+def test_dot_size_viz_sd_samples_a_step_lut():
+    """``Dot.size`` as a ``viz.sd``-only expression still qualifies for the
+    step-LUT sampling (:func:`._expressions.step_lut_for_viz_sd`) even
+    wrapped in the ``/ 2`` this codec adds — the whole
+    ``ArithmeticExpression`` is still built only from ``viz.sd`` and
+    numeric literals.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Dot",
+                                    "color": "white",
+                                    "size": {"sysId": "viz.sd"},
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    out = MaplibreWriter().write(style)
+    radius = out["layers"][0]["paint"]["circle-radius"]
+    assert radius[:2] == ["step", ["zoom"]]
+    assert_maplibre_valid(out)
+
+
+def test_dot_size_non_expression_string_still_raises():
+    """A ``Dot.size`` that is neither a literal px value nor a recognised
+    expression shape (a plain garbage string, say) must still raise —
+    regression guard for the new expression-coercion path above
+    accidentally treating an unrelated string as a divisible value.
+    """
+    style = Style.from_dict(
+        {
+            "stylingRules": [
+                {
+                    "name": "pts",
+                    "symbolizer": {
+                        "marker": {
+                            "elements": [
+                                {
+                                    "type": "Dot",
+                                    "color": "white",
+                                    "size": "not-a-number",
+                                }
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        MaplibreWriter().write(style)
+
+
 def test_dot_offset_position_is_rejected():
     style = Style.from_dict(
         {
