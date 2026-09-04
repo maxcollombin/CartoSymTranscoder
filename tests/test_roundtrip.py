@@ -525,6 +525,129 @@ class TestMetadataParsing:
         assert "opacity: 0.9" in back
         assert "opacity: 0.5" not in back
 
+    def test_marker_position_writeback_raises(self):
+        """marker.position has no CartoSym-CSS grammar syntax — regression
+        guard against silently dropping it (the AST's own Marker dataclass
+        doesn't even carry the field, confirmed no read-side counterpart).
+        """
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "marker": {
+                                "position": {"x": 1, "y": 2},
+                                "elements": [{"type": "Dot", "size": {"px": 4}}],
+                            }
+                        }
+                    }
+                ]
+            }
+        )
+        with pytest.raises(NotImplementedError, match="marker.position"):
+            self.converter.style_to_cscss(style)
+
+    def test_marker_opacity_writeback_raises(self):
+        """Same guard for marker.opacity."""
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "marker": {
+                                "opacity": 0.5,
+                                "elements": [{"type": "Dot", "size": {"px": 4}}],
+                            }
+                        }
+                    }
+                ]
+            }
+        )
+        with pytest.raises(NotImplementedError, match="marker.opacity"):
+            self.converter.style_to_cscss(style)
+
+    def test_plain_marker_still_writes_back(self):
+        """Regression guard: a plain marker (elements only) is unaffected."""
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "marker": {"elements": [{"type": "Dot", "size": {"px": 4}}]}
+                        }
+                    }
+                ]
+            }
+        )
+        assert "marker:" in self.converter.style_to_cscss(style)
+
+    def test_label_position_writeback_raises(self):
+        """label.position has no CartoSym-CSS grammar syntax — confirmed
+        empirically (real CSCSS text with it silently drops both fields
+        on read, rather than populating them).
+        """
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "label": {
+                                "position": {"x": 1, "y": 2},
+                                "elements": [{"type": "Text", "text": "hi"}],
+                            }
+                        }
+                    }
+                ]
+            }
+        )
+        with pytest.raises(NotImplementedError, match="label.position"):
+            self.converter.style_to_cscss(style)
+
+    def test_label_opacity_writeback_raises(self):
+        """Same guard for label.opacity."""
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "label": {
+                                "opacity": 0.5,
+                                "elements": [{"type": "Text", "text": "hi"}],
+                            }
+                        }
+                    }
+                ]
+            }
+        )
+        with pytest.raises(NotImplementedError, match="label.opacity"):
+            self.converter.style_to_cscss(style)
+
+    def test_placement_type_writes_back(self):
+        """LabelPlacement.placement_type ("type") reaches real CartoSym-CSS
+        syntax (confirmed empirically it round-trips) — regression: it was
+        never written even though minSpacing/maxSpacing already were.
+        """
+        style = Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "label": {
+                                "elements": [{"type": "Text", "text": "hi"}],
+                                "placement": {
+                                    "type": "simple",
+                                    "minSpacing": {"px": 2},
+                                },
+                            }
+                        }
+                    }
+                ]
+            }
+        )
+        back = self.converter.style_to_cscss(style)
+        assert "type: simple" in back
+        assert "minSpacing: 2.0 px" in back
+
 
 # ---------------------------------------------------------------------------
 # Font and graphic element normalization (ast_converter)

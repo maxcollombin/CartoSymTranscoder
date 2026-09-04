@@ -498,8 +498,22 @@ class Converter:
         Two forms:
         * Normal list → ``marker: { elements: [ Type { ... }, ... ] };``
         * Indexed override → ``marker.elements[N]: Type { ... };``
+
+        Raises:
+            NotImplementedError: If ``position``/``opacity`` is set. The
+                CartoSym-CSS grammar has no ``marker: { position: ...;
+                opacity: ...; ... }`` syntax — only CS-JSON input can
+                populate these two fields, and the AST's own ``Marker``
+                dataclass doesn't even carry them, confirming there is no
+                read-side counterpart to write back to.
         """
         lines: list[str] = []
+        for field in ("position", "opacity"):
+            if getattr(marker, field, None) is not None:
+                raise NotImplementedError(
+                    f"marker.{field}: not yet written back to CartoSym-CSS "
+                    "(no grammar syntax for it)"
+                )
         elements = getattr(marker, "elements", None)
         if not elements:
             return lines
@@ -525,8 +539,23 @@ class Converter:
         return lines
 
     def _label_to_css(self, label) -> list:
-        """Convert Label model to CSS lines."""
+        """Convert Label model to CSS lines.
+
+        Raises:
+            NotImplementedError: If ``position``/``opacity`` is set —
+                same reasoning as :meth:`_marker_to_css`'s own guard: no
+                CartoSym-CSS grammar syntax reaches these two fields
+                (confirmed empirically — parsing ``label: { position:
+                ...; opacity: ...; elements: [...] }`` silently drops
+                both rather than populating them).
+        """
         lines: list[str] = []
+        for field in ("position", "opacity"):
+            if getattr(label, field, None) is not None:
+                raise NotImplementedError(
+                    f"label.{field}: not yet written back to CartoSym-CSS "
+                    "(no grammar syntax for it)"
+                )
         elements = getattr(label, "elements", None)
         placement = getattr(label, "placement", None)
         parts = []
@@ -551,7 +580,20 @@ class Converter:
         return lines
 
     def _placement_to_css_block(self, placement) -> str | None:
-        """Render a ``LabelPlacement``'s ``minSpacing``/``maxSpacing`` as CSS."""
+        """Render a ``LabelPlacement``'s ``type``/``minSpacing``/``maxSpacing`` as CSS.
+
+        Raises:
+            NotImplementedError: If ``priority`` is set. It has no
+                CartoSym-CSS write-back yet — unlike ``type``/
+                ``minSpacing``/``maxSpacing``, ``LabelPlacement.priority``
+                is typed ``NumericExpression`` (:mod:`cql2.model`, not the
+                ``FlexibleSize``/``ArithmeticExpression`` system used
+                elsewhere), which has no bare-literal variant to format
+                here, and the CSCSS reader has a separate, pre-existing
+                bug reading it back (a bare ``priority: 5`` crashes
+                validation) — writing it out would round-trip into a
+                crash, not silently wrong output.
+        """
 
         def _get(o, *keys):
             for k in keys:
@@ -560,7 +602,15 @@ class Converter:
                     return v
             return None
 
+        if _get(placement, "priority") is not None:
+            raise NotImplementedError(
+                "label.placement.priority: not yet written back to " "CartoSym-CSS"
+            )
+
         parts = []
+        placement_type = _get(placement, "placement_type", "type")
+        if placement_type is not None:
+            parts.append(f"type: {placement_type}")
         min_spacing = _get(placement, "min_spacing", "minSpacing")
         if min_spacing is not None:
             parts.append(f"minSpacing: {self._format_unit_value(min_spacing)}")
