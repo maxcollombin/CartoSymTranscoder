@@ -55,9 +55,11 @@ class _CollectingErrorListener(ErrorListener):
     def __init__(self) -> None:
         super().__init__()
         self.errors: list[str] = []
+        self.error_tuples: list[tuple[int, int, str]] = []
 
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
         self.errors.append(f"line {line}:{column} {msg}")
+        self.error_tuples.append((line, column, msg))
 
 
 def _strip_inline_comment(s: str) -> str:
@@ -233,7 +235,9 @@ class CartoSymParser:
         tree = parser.styleSheet()
 
         if error_listener.errors:
-            raise CartoSymSyntaxError(error_listener.errors)
+            raise CartoSymSyntaxError(
+                error_listener.errors, error_tuples=error_listener.error_tuples
+            )
 
         # Create listener and walk the tree
         listener = CartoSymStyleSheetListener()

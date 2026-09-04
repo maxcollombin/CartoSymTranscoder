@@ -42,6 +42,21 @@ class TestExitCodes:
         assert f"{bad}:2:" in r.stderr
         assert "^" in r.stderr
 
+    def test_convert_syntax_error_is_input_invalid(self, tmp_path: Path):
+        """Same formatted-error path as `validate`, via the default convert
+        command (regression: convert used to pre-check syntax with its own
+        separate lex+parse pass, ahead of the real parse inside the
+        conversion itself — two full parses of the same file; now there is
+        only the one, its CartoSymSyntaxError caught and reported here).
+        """
+        bad = tmp_path / "bad.cscss"
+        bad.write_text("Fill {\n  color: ;\n}\n", encoding="utf-8")
+        r = run(str(bad), "--print")
+        assert r.returncode == 3
+        assert "syntax error" in r.stderr
+        assert f"{bad}:2:" in r.stderr
+        assert "^" in r.stderr
+
     def test_unknown_conversion_is_unsupported(self, tmp_path: Path):
         src = tmp_path / "x.weird"
         src.write_text("{}", encoding="utf-8")
@@ -87,6 +102,33 @@ class TestStreamsAndQuiet:
 
 
 class TestConversion:
+    def test_cscss_source_is_lexed_only_once(self):
+        """Regression: convert used to run a full throwaway lex+parse
+        (its own raw ANTLR lexer/parser, bypassing CartoSymParser
+        entirely) to check syntax, then a second full parse — via
+        CartoSymParser — for the real conversion. Every successful cscss
+        conversion paid for ANTLR twice. Spying on the lexer class itself
+        (the one thing both the old pre-check and the real parse always
+        construct, whichever path builds it) catches either form of the
+        double-parse, not just a second CartoSymParser.parse_string call.
+        """
+        from unittest.mock import patch
+
+        from pycartosym import cli
+        from pycartosym.grammar.generated.CartoSymCSSLexer import CartoSymCSSLexer
+
+        args = cli.create_argument_parser().parse_args(
+            [str(EXAMPLES / "0-basic.cscss"), "--print"]
+        )
+        with patch(
+            "pycartosym.parser.CartoSymCSSLexer",
+            side_effect=CartoSymCSSLexer,
+        ) as spy:
+            with patch("sys.stdout"):
+                rc = cli.convert_command(args)
+        assert rc == 0
+        assert spy.call_count == 1
+
     def test_print_defaults_to_the_other_text_encoding(self):
         r = run(str(EXAMPLES / "0-basic.cscss"), "--print")
         assert r.returncode == 0

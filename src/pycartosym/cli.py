@@ -8,13 +8,8 @@ import logging
 import sys
 from pathlib import Path
 
-from antlr4 import CommonTokenStream, FileStream
-from antlr4.error.ErrorListener import ErrorListener
 from jsonschema import ValidationError
 from jsonschema import validate as jsonschema_validate
-
-from pycartosym.grammar.generated.CartoSymCSSGrammar import CartoSymCSSGrammar
-from pycartosym.grammar.generated.CartoSymCSSLexer import CartoSymCSSLexer
 
 from . import __version__
 from .cli_style import (
@@ -27,6 +22,7 @@ from .cli_style import (
     success,
 )
 from .converter import Converter
+from .exceptions import CartoSymSyntaxError
 from .parser import CartoSymParser
 
 # When no target is given, --print picks the "other" text encoding.
@@ -37,24 +33,6 @@ _SUBCOMMANDS = frozenset({"parse", "validate"})
 
 _SLD_FORMATS = ["sld", "sld:1.0.0", "sld:1.1.0", "sld:geoserver"]
 _ALL_FORMATS = ["cscss", "csjson", *_SLD_FORMATS, "maplibre"]
-
-
-class _CollectingErrorListener(ErrorListener):
-    """Keep ``(line, column, message)`` for each parser syntax error.
-
-    Unlike ANTLR's ``ConsoleErrorListener`` this preserves the position so
-    the CLI can print a source caret (see
-    :func:`cli_style.format_syntax_errors`).
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.errors: list[tuple[int, int, str]] = []
-
-    def syntaxError(
-        self, recognizer, offendingSymbol, line, column, msg, e
-    ):  # noqa: N802
-        self.errors.append((line, column, msg))
 
 
 def main() -> int:
@@ -207,16 +185,18 @@ def _create_subcommand_parser() -> argparse.ArgumentParser:
 
 
 def _check_cscss_syntax(path: Path) -> list[tuple[int, int, str]]:
-    """Return the syntax errors in the CSCSS file at *path* (empty if valid)."""
-    listener = _CollectingErrorListener()
-    lexer = CartoSymCSSLexer(FileStream(str(path), encoding="utf-8"))
-    lexer.removeErrorListeners()
-    lexer.addErrorListener(listener)
-    parser = CartoSymCSSGrammar(CommonTokenStream(lexer))
-    parser.removeErrorListeners()
-    parser.addErrorListener(listener)
-    parser.styleSheet()
-    return listener.errors
+    """Return the syntax errors in the CSCSS file at *path* (empty if valid).
+
+    Used by ``validate`` only — ``convert`` no longer pre-checks with a
+    throwaway parse of its own; it lets its one real parse raise
+    :class:`CartoSymSyntaxError` and reports that instead (a second full
+    lex+parse of the same file used to run unconditionally before it).
+    """
+    try:
+        CartoSymParser().parse_file(path)
+    except CartoSymSyntaxError as e:
+        return e.error_tuples or []
+    return []
 
 
 def _report_syntax_errors(path: Path, errors: list[tuple[int, int, str]]) -> None:
@@ -300,13 +280,10 @@ def convert_command(args) -> int:
         )
         return ExitCode.UNSUPPORTED
 
-    # Validate the input up front so a bad file fails cleanly.
-    if from_format == "cscss":
-        errors = _check_cscss_syntax(input_path)
-        if errors:
-            _report_syntax_errors(input_path, errors)
-            return ExitCode.INPUT_INVALID
-    elif from_format == "csjson":
+    # CSCSS syntax is validated by the real parse inside _run_conversion
+    # itself (caught below) rather than a separate throwaway parse here —
+    # a cscss source used to get lexed and parsed twice unconditionally.
+    if from_format == "csjson":
         problem = _validate_csjson_instance(input_path)
         if problem is not None:
             error(f"{input_path}: {problem}")
@@ -314,6 +291,9 @@ def convert_command(args) -> int:
 
     try:
         output_str = _run_conversion(converter, args, from_format, to_format)
+    except CartoSymSyntaxError as e:
+        _report_syntax_errors(input_path, e.error_tuples or [])
+        return ExitCode.INPUT_INVALID
     except NotImplementedError as e:
         error(f"{from_format} → {to_format}: {e}")
         return ExitCode.TRANSCODE_GAP

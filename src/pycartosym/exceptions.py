@@ -19,11 +19,20 @@ class CartoSymSyntaxError(CartoSymError, ValueError):
 
     Attributes:
         errors: the individual ``"line L:C message"`` strings, in source order.
+        error_tuples: the same errors as ``(line, column, message)`` tuples,
+            for a caller that wants to render a source caret (e.g. the CLI's
+            ``format_syntax_errors``) without re-parsing ``errors``' text.
+            ``None`` if the raiser didn't have the structured form handy.
     """
 
-    def __init__(self, errors: list[str]) -> None:
+    def __init__(
+        self,
+        errors: list[str],
+        error_tuples: list[tuple[int, int, str]] | None = None,
+    ) -> None:
         """Build the error from the list of ``"line L:C message"`` strings."""
         self.errors = list(errors)
+        self.error_tuples = list(error_tuples) if error_tuples is not None else None
         n = len(self.errors)
         joined = "\n  ".join(self.errors)
         super().__init__(
