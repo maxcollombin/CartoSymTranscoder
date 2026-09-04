@@ -478,6 +478,53 @@ class TestMetadataParsing:
         )
         assert "stroke:" in self.converter.style_to_cscss(style)
 
+    def _text_element_style(self, *, opacity, font):
+        return Style.from_dict(
+            {
+                "stylingRules": [
+                    {
+                        "symbolizer": {
+                            "label": {
+                                "elements": [
+                                    {
+                                        "type": "Text",
+                                        "text": "Hello",
+                                        "opacity": opacity,
+                                        "font": font,
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                ]
+            }
+        )
+
+    def test_element_opacity_survives_alongside_font(self):
+        """A Text element's own opacity must not be dropped just because a
+        font block is also present (regression: the writer suppressed
+        opacity whenever any font: line existed, not only when the font
+        itself carried a conflicting opacity key).
+        """
+        style = self._text_element_style(
+            opacity=0.5, font={"face": "Arial", "size": 12}
+        )
+        back = self.converter.style_to_cscss(style)
+        assert "opacity: 0.5" in back
+        assert "font:" in back
+
+    def test_font_own_opacity_still_suppresses_element_opacity(self):
+        """Regression guard: when the font block itself carries its own
+        opacity key, the element-level opacity stays suppressed (as
+        before) rather than emitting a confusing duplicate.
+        """
+        style = self._text_element_style(
+            opacity=0.5, font={"face": "Arial", "size": 12, "opacity": 0.9}
+        )
+        back = self.converter.style_to_cscss(style)
+        assert "opacity: 0.9" in back
+        assert "opacity: 0.5" not in back
+
 
 # ---------------------------------------------------------------------------
 # Font and graphic element normalization (ast_converter)

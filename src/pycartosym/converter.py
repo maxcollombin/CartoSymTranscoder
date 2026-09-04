@@ -776,11 +776,15 @@ class Converter:
         if alpha_threshold is not None:
             prop_lines.append(f"alphaThreshold: {alpha_threshold}")
 
-        # opacity (only when non-default for elements other than font)
+        # opacity — the element's own AbstractGraphic.opacity, independent
+        # of any font block. Only suppressed if *font itself* already
+        # carries its own "opacity" key (an actual duplicate to avoid, per
+        # a font sub-block that has one) — not merely because a font block
+        # was emitted at all, which used to drop a genuine, unrelated
+        # element opacity whenever a font was also present.
         opacity = _get(el, "opacity")
-        if opacity is not None and "font" not in [
-            p.split(":")[0].strip() for p in prop_lines
-        ]:
+        font_has_own_opacity = isinstance(font, dict) and "opacity" in font
+        if opacity is not None and not font_has_own_opacity:
             prop_lines.append(f"opacity: {opacity}")
 
         body = (";\n" + inner_pad).join(prop_lines)
