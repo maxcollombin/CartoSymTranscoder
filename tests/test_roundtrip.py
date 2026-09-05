@@ -210,6 +210,22 @@ class TestPropertyParsing:
         assert stroke["color"] == "blue"
         assert stroke["width"] == {"px": 3.0}
 
+    def test_marker_element_size_with_no_space_unit_suffix(self):
+        """A graphic element's ``size: 4px`` (no space) must round-trip to
+        {"px": 4.0} like the space-separated form, not leak a raw
+        UnitType enum member into the dict key (regression: Marker.elements
+        is typed Any, so a nested UnitValue's model_dump() override never
+        actually ran — {"value": v, "unit": <enum>} reached _fix_unit_values
+        with the enum instance itself, not its "px" string).
+        """
+        result = self.converter.cscss_to_csjson(
+            "[Base]\n{ marker: { elements: [Dot {color: red; size: 4px}] }; }"
+        )
+        el = result["stylingRules"][0]["symbolizer"]["marker"]["elements"][0]
+        assert el["size"] == {"px": 4.0}
+        back = self.converter.style_to_cscss(Style.from_dict(result))
+        assert "size: 4.0 px" in back
+
     def test_fill_color_hex(self):
         """Hex colors like #FF0000 should be parsed to RGB arrays."""
         result = self.converter.cscss_to_csjson("[Base]\n{ fill: {color: #FF0000}; }")

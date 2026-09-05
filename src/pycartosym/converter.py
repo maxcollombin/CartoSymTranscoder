@@ -1068,6 +1068,15 @@ class Converter:
             # This is a unit value that should be converted to {unit: value} format
             value = data["value"]
             unit = data["unit"]
+            # A UnitValue nested under an Any-typed field (e.g.
+            # Marker.elements) reaches here as {"value": v, "unit": <enum>}
+            # — Pydantic's own model_dump() doesn't invoke UnitValue's
+            # model_dump() override (a plain Python method, not a
+            # @model_serializer) for a nested-under-Any instance, so the
+            # raw UnitType enum member leaks through instead of its "px"
+            # string. Unwrap it before using it as the dict key.
+            if hasattr(unit, "value"):
+                unit = unit.value
             # Replace the dict contents with the correct format
             data.clear()
             data[unit] = value
