@@ -569,7 +569,12 @@ def convert_literal_value(value: str | int | float) -> Any:
     # consumes it — see the MapLibre writer's ``Stroke.width`` handling).
     # Multi-character suffixes are checked before the single-character "m"
     # so e.g. "8.0 mm" isn't mis-sliced as a 1-char "m" match first.
-    units = ["px", "mm", "cm", "in", "pt", "em", "pc", "ft", "m", "%"]
+    # "%" excluded: CartoSym-CSS lexes it only as the modulo operator (MOD),
+    # never as a unit suffix (vendor/cartosymcss-grammar/CartoSymCSSLexer.g4's
+    # UNIT token has no "%" member) - and UnitType has no PERCENT either, so
+    # keeping it here only produced a silent UnitValue(unit="%") -> ValueError
+    # -> bare-string fallback, never a real unit.
+    units = ["px", "mm", "cm", "in", "pt", "em", "pc", "ft", "m"]
     if value.endswith(tuple(units)):
         for unit in units:
             if value.endswith(unit):
