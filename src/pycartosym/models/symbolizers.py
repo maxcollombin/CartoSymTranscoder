@@ -15,6 +15,7 @@ from .base import AlterMixin, BaseCartoSymModel, CommentMixin
 from .types import (
     FlexibleAngle,
     FlexibleColor,
+    FlexibleNumber,
     FlexibleOpacity,
     FlexibleSize,
     UnitType,
@@ -335,7 +336,7 @@ class LabelPlacement(BaseCartoSymModel):
         None, alias="type", description="Placement algorithm type"
     )
     # Additional placement properties would go here
-    priority: NumericExpression | None = Field(None, description="Label priority")
+    priority: FlexibleNumber | None = Field(None, description="Label priority")
     min_spacing: FlexibleSize | None = Field(
         None, alias="minSpacing", description="Minimum spacing"
     )

@@ -604,20 +604,7 @@ class Converter:
         return lines
 
     def _placement_to_css_block(self, placement) -> str | None:
-        """Render a ``LabelPlacement``'s ``type``/``minSpacing``/``maxSpacing`` as CSS.
-
-        Raises:
-            NotImplementedError: If ``priority`` is set. It has no
-                CartoSym-CSS write-back yet — unlike ``type``/
-                ``minSpacing``/``maxSpacing``, ``LabelPlacement.priority``
-                is typed ``NumericExpression`` (:mod:`cql2.model`, not the
-                ``FlexibleSize``/``ArithmeticExpression`` system used
-                elsewhere), which has no bare-literal variant to format
-                here, and the CSCSS reader has a separate, pre-existing
-                bug reading it back (a bare ``priority: 5`` crashes
-                validation) — writing it out would round-trip into a
-                crash, not silently wrong output.
-        """
+        """Render a ``LabelPlacement`` (``type``/``priority``/spacing) as CSCSS."""
 
         def _get(o, *keys):
             for k in keys:
@@ -626,15 +613,13 @@ class Converter:
                     return v
             return None
 
-        if _get(placement, "priority") is not None:
-            raise NotImplementedError(
-                "label.placement.priority: not yet written back to " "CartoSym-CSS"
-            )
-
         parts = []
         placement_type = _get(placement, "placement_type", "type")
         if placement_type is not None:
             parts.append(f"type: {placement_type}")
+        priority = _get(placement, "priority")
+        if priority is not None:
+            parts.append(f"priority: {self._format_unit_value(priority)}")
         min_spacing = _get(placement, "min_spacing", "minSpacing")
         if min_spacing is not None:
             parts.append(f"minSpacing: {self._format_unit_value(min_spacing)}")

@@ -370,3 +370,7 @@ degrees), or a typed data-driven value expression."""
 FlexibleOpacity = ZeroToOne | str | ValueExpression
 """Opacity that accepts a 0-1 float, string expressions, or a typed
 data-driven value expression."""
+
+FlexibleNumber = float | str | ValueExpression
+"""Dimensionless number (e.g. a label priority) that accepts a plain float,
+string expressions, or a typed data-driven value expression."""

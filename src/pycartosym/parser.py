@@ -989,10 +989,10 @@ class CartoSymStyleSheetListener(CartoSymCSSGrammarListener):
                 placement = self._extract_top_level_dict_value(expr_ctx, "placement")
             if placement is not None:
                 ctx_map = placement.pop("_expr_ctx", {})
-                for spacing_key in ("minSpacing", "maxSpacing"):
-                    if spacing_key in placement:
-                        placement[spacing_key] = convert_numeric_expression_value(
-                            placement[spacing_key], ctx_map.get(spacing_key)
+                for numeric_key in ("minSpacing", "maxSpacing", "priority"):
+                    if numeric_key in placement:
+                        placement[numeric_key] = convert_numeric_expression_value(
+                            placement[numeric_key], ctx_map.get(numeric_key)
                         )
             # Use the Pydantic Label model so it passes Symbolizer validation.
             symbolizer.label = ModelLabel(

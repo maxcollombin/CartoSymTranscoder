@@ -1081,8 +1081,8 @@ class TestUnitPointPropertyReference:
 
 
 class TestLabelPlacementSpacing:
-    """``label: { placement: { minSpacing; maxSpacing } }`` — previously
-    unwired in CSCSS at all (``ast.py``'s dead ``hasattr(ast_label,
+    """``label: { placement: { minSpacing; maxSpacing; priority } }`` —
+    previously unwired in CSCSS at all (``ast.py``'s dead ``hasattr(ast_label,
     "placement")`` check in ``ast_converter.py`` had nothing to read),
     not merely narrowly typed. Also accepts a numeric expression, unlike
     ``UnitPoint`` — ``placement``'s properties each keep their own ANTLR
@@ -1127,6 +1127,37 @@ class TestLabelPlacementSpacing:
 
     def test_min_spacing_expression_round_trips_through_csjson(self):
         css = "Amenities {\n  label: { placement: { minSpacing: viz.sd / 1000 } };\n}\n"
+        json1 = self.converter.cscss_to_csjson(css)
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+    def test_priority_literal_round_trips(self):
+        """``priority`` used to be typed ``cql2.model.NumericExpression``, an
+        abstract base with no bare-literal variant — a plain ``priority: 5``
+        raised ``pydantic.ValidationError`` before it ever reached the
+        writer. Now ``FlexibleNumber`` (like ``minSpacing``/``maxSpacing``'s
+        ``FlexibleSize``), so a literal round-trips like any other field.
+        """
+        css = "Amenities {\n  label: { placement: { priority: 5 } };\n}\n"
+        json1 = self.converter.cscss_to_csjson(css)
+        placement = json1["stylingRules"][0]["symbolizer"]["label"]["placement"]
+        assert placement == {"priority": 5.0}
+        cscss_wb = self.converter.csjson_to_cscss(json1)
+        json2 = self.converter.cscss_to_csjson(cscss_wb)
+        assert json1 == json2
+
+    def test_priority_accepts_numeric_expression(self):
+        css = "Amenities {\n  label: { placement: { priority: viz.sd / 1000 } };\n}\n"
+        result = self.converter.cscss_to_csjson(css)
+        placement = result["stylingRules"][0]["symbolizer"]["label"]["placement"]
+        assert placement["priority"] == {
+            "op": "/",
+            "args": [{"sysId": "viz.sd"}, 1000],
+        }
+
+    def test_priority_expression_round_trips_through_csjson(self):
+        css = "Amenities {\n  label: { placement: { priority: viz.sd / 1000 } };\n}\n"
         json1 = self.converter.cscss_to_csjson(css)
         cscss_wb = self.converter.csjson_to_cscss(json1)
         json2 = self.converter.cscss_to_csjson(cscss_wb)
