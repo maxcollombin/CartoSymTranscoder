@@ -69,42 +69,66 @@ class Converter:
             raise ValueError("Invalid input type - expected str, Path, or Style model")
 
         result = style.to_dict()
-        # Fix invalid selectors that are just property references
-        self._fix_invalid_selectors(result)
-        # Fix unit value serialization for JSON schema compliance
-        self._fix_unit_values(result)
-        # Fix system identifier expressions that contain operators
-        self._fix_sysid_expressions(result)
+        # Post-process the CS-JSON dict in one recursive pass: fix an
+        # invalid/sysId-expression selector shape and unit-value
+        # serialization (previously three separate full-tree traversals —
+        # _fix_invalid_selectors, _fix_unit_values, _fix_sysid_expressions —
+        # each walking the same structure on its own).
+        self._postprocess_csjson(result)
         return result
 
-    def _fix_invalid_selectors(self, data):
-        """Fix invalid selectors in the data structure."""
+    def _postprocess_csjson(self, data):
+        """Recursively apply every CS-JSON node-level fix in a single pass."""
         if isinstance(data, dict):
-            if "selector" in data:
-                selector = data["selector"]
-                if (
-                    isinstance(selector, dict)
-                    and "property" in selector
-                    and len(selector) == 1
-                ):
-                    # Invalid standalone property selector - likely a parsing
-                    # error where a member access like
-                    # 'viz.timeInterval.start.date' was incorrectly split.
-                    # Remove the invalid selector entirely
-                    del data["selector"]
-                elif isinstance(selector, dict) and "property" in selector:
-                    # A property reference that's part of a larger expression
-                    # must have the right structure (propertyRef objects).
-                    if "op" not in selector and "args" not in selector:
-                        # Bare property reference — invalid in selector context
-                        del data["selector"]
-            # Recursively fix nested structures
+            self._fix_selector(data)
+            self._fix_unit_values(data)
             for value in data.values():
                 if isinstance(value, (dict, list)):
-                    self._fix_invalid_selectors(value)
+                    self._postprocess_csjson(value)
         elif isinstance(data, list):
             for item in data:
-                self._fix_invalid_selectors(item)
+                self._postprocess_csjson(item)
+
+    def _fix_selector(self, data):
+        """Fix this node's own ``selector`` key in place, if present.
+
+        Combines what were two separate full-tree passes (both only ever
+        inspected this one key, never anything else): an invalid bare
+        ``{"property": X}`` selector (likely a parsing error where a member
+        access like ``'viz.timeInterval.start.date'`` was incorrectly
+        split) is dropped entirely; a ``sysId`` value containing a
+        comparison operator (e.g. ``"viz.sd > 100"``) is split into a
+        proper ``op``/``args`` selector.
+        """
+        selector = data.get("selector")
+        if not isinstance(selector, dict):
+            return
+        if "property" in selector:
+            # A len==1 bare property reference is the special case of "no
+            # op/args either" (its only key is "property"), so one check
+            # covers both — the original two-branch form only ever agreed.
+            if "op" not in selector and "args" not in selector:
+                del data["selector"]
+            return
+        sysid = selector.get("sysId")
+        if not isinstance(sysid, str):
+            return
+        for op in [">=", "<=", "!=", "=", ">", "<"]:
+            if op not in sysid:
+                continue
+            parts = sysid.split(op, 1)
+            if len(parts) != 2:
+                continue
+            left_part = parts[0].strip()
+            right_part = parts[1].strip()
+            try:
+                right_value = (
+                    float(right_part) if "." in right_part else int(right_part)
+                )
+            except ValueError:
+                right_value = right_part.strip("'\"")
+            data["selector"] = {"op": op, "args": [{"sysId": left_part}, right_value]}
+            break
 
     def csjson_to_style(self, csjson_input: str | dict[str, Any] | Path) -> Style:
         """Convert CSJSON to CartoSym Style model.
@@ -1032,42 +1056,42 @@ class Converter:
         return []
 
     def _fix_unit_values(self, data):
-        """Fix unit value serialization to match JSON schema format."""
-        if isinstance(data, dict):
-            # Check if this looks like a unit value with value/unit structure
-            if "value" in data and "unit" in data and len(data) == 2:
-                # This is a unit value that should be converted to {unit: value} format
-                value = data["value"]
-                unit = data["unit"]
-                # Replace the dict contents with the correct format
-                data.clear()
-                data[unit] = value
-                return
+        """Fix this node's own unit-value shape in place, if any.
 
-            # Check for string values that should be unit values
-            # Common properties that should have unit values
-            unit_properties = [
-                "width",
-                "height",
-                "size",
-                "radius",
-                "thickness",
-                "distance",
-                "spacing",
-                "startAngle",
-                "deltaAngle",
-            ]
-            for key, value in list(data.items()):
-                if key in unit_properties and isinstance(value, str):
-                    # Try to parse "value unit" format like "8.0 m"
-                    converted = self._parse_unit_string(value)
-                    if converted is not None:
-                        data[key] = converted
-                elif isinstance(value, (dict, list)):
-                    self._fix_unit_values(value)
-        elif isinstance(data, list):
-            for item in data:
-                self._fix_unit_values(item)
+        Converts a ``{"value": v, "unit": u}`` dict to the schema's
+        ``{u: v}`` form, or a raw ``"8.0 m"`` string on a known
+        unit-bearing key to that same ``{unit: value}`` form. No longer
+        recurses — :meth:`_postprocess_csjson` owns the tree traversal.
+        """
+        # Check if this looks like a unit value with value/unit structure
+        if "value" in data and "unit" in data and len(data) == 2:
+            # This is a unit value that should be converted to {unit: value} format
+            value = data["value"]
+            unit = data["unit"]
+            # Replace the dict contents with the correct format
+            data.clear()
+            data[unit] = value
+            return
+
+        # Check for string values that should be unit values
+        # Common properties that should have unit values
+        unit_properties = [
+            "width",
+            "height",
+            "size",
+            "radius",
+            "thickness",
+            "distance",
+            "spacing",
+            "startAngle",
+            "deltaAngle",
+        ]
+        for key, value in list(data.items()):
+            if key in unit_properties and isinstance(value, str):
+                # Try to parse "value unit" format like "8.0 m"
+                converted = self._parse_unit_string(value)
+                if converted is not None:
+                    data[key] = converted
 
     def _parse_unit_string(self, value_str: str):
         """Parse a string like '8.0 m' or '5 px' into {unit: value} format."""
@@ -1087,43 +1111,3 @@ class Converter:
             except ValueError:
                 pass
         return None
-
-    def _fix_sysid_expressions(self, data):
-        """Fix system identifier expressions that contain comparison operators."""
-        if isinstance(data, dict):
-            if "selector" in data:
-                selector = data["selector"]
-                if isinstance(selector, dict) and "sysId" in selector:
-                    sysid = selector["sysId"]
-                    if isinstance(sysid, str):
-                        # Check if the sysId contains comparison operators
-                        for op in [">=", "<=", "!=", "=", ">", "<"]:
-                            if op in sysid:
-                                # Split the expression
-                                parts = sysid.split(op, 1)
-                                if len(parts) == 2:
-                                    left_part = parts[0].strip()
-                                    right_part = parts[1].strip()
-
-                                    # Convert right part to appropriate type
-                                    try:
-                                        if "." in right_part:
-                                            right_value = float(right_part)
-                                        else:
-                                            right_value = int(right_part)
-                                    except ValueError:
-                                        right_value = right_part.strip("'\"")
-
-                                    # Replace the selector with a proper comparison
-                                    data["selector"] = {
-                                        "op": op,
-                                        "args": [{"sysId": left_part}, right_value],
-                                    }
-                                    break
-            # Recursively fix nested structures
-            for value in data.values():
-                if isinstance(value, (dict, list)):
-                    self._fix_sysid_expressions(value)
-        elif isinstance(data, list):
-            for item in data:
-                self._fix_sysid_expressions(item)
