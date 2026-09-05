@@ -5,6 +5,7 @@ This module converts ANTLR-generated AST nodes to Pydantic models.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -30,6 +31,8 @@ from .models import (
     SystemIdentifier,
     UnitValue,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _strip_inline_comment(s: str) -> str:
@@ -700,7 +703,7 @@ class AstToPydanticConverter:
             )
 
         except Exception as e:
-            print(f"Warning: Failed to convert styling rule: {e}")
+            logger.warning("Failed to convert styling rule: %s", e)
             return None
 
     def _convert_symbolizer(self, ast_symbolizer) -> Symbolizer | None:
@@ -842,7 +845,7 @@ class AstToPydanticConverter:
             return Symbolizer(**symbolizer_data) if symbolizer_data else None
 
         except Exception as e:
-            print(f"Warning: Failed to convert symbolizer: {e}")
+            logger.warning("Failed to convert symbolizer: %s", e)
             return None
 
     def _convert_fill(self, ast_fill) -> Fill | None:
@@ -863,7 +866,7 @@ class AstToPydanticConverter:
             return Fill(**fill_data) if fill_data else None
 
         except Exception as e:
-            print(f"Warning: Failed to convert fill: {e}")
+            logger.warning("Failed to convert fill: %s", e)
             return None
 
     def _convert_stroke(self, ast_stroke) -> Stroke | None:
@@ -905,7 +908,7 @@ class AstToPydanticConverter:
             return Stroke(**stroke_data) if stroke_data else None
 
         except Exception as e:
-            print(f"Warning: Failed to convert stroke: {e}")
+            logger.warning("Failed to convert stroke: %s", e)
             return None
 
     def _convert_marker(self, ast_marker) -> Marker | None:
@@ -992,7 +995,7 @@ class AstToPydanticConverter:
                 return None
             return PydanticMarker(**marker_data)
         except Exception as e:
-            print(f"Warning: Failed to convert marker: {e}")
+            logger.warning("Failed to convert marker: %s", e)
             return None
 
     def _convert_channel_value(self, value: Any) -> Any:
@@ -1011,8 +1014,8 @@ class AstToPydanticConverter:
                 try:
                     return self._parse_arithmetic_expression(value)
                 except Exception as e:
-                    print(
-                        f"Warning: Failed to parse arithmetic expression '{value}': {e}"
+                    logger.warning(
+                        "Failed to parse arithmetic expression %r: %s", value, e
                     )
                     return value
 
@@ -1192,7 +1195,7 @@ class AstToPydanticConverter:
                 return None
             return PydanticLabel(**label_data)
         except Exception as e:
-            print(f"Warning: Failed to convert label: {e}")
+            logger.warning("Failed to convert label: %s", e)
             return None
 
     def _convert_color_map(self, ast_color_map) -> Any | None:
@@ -1208,7 +1211,7 @@ class AstToPydanticConverter:
                 # Handle string or other formats - return as-is for validation to catch
                 return str(ast_color_map)
         except Exception as e:
-            print(f"Warning: Failed to convert color map: {e}")
+            logger.warning("Failed to convert color map: %s", e)
             return None
 
     def _convert_opacity_map(self, ast_opacity_map) -> Any | None:
@@ -1224,7 +1227,7 @@ class AstToPydanticConverter:
                 # Handle string or other formats
                 return str(ast_opacity_map)
         except Exception as e:
-            print(f"Warning: Failed to convert opacity map: {e}")
+            logger.warning("Failed to convert opacity map: %s", e)
             return None
 
     def _convert_hill_shading(self, ast_hill_shading) -> dict[str, Any] | None:
@@ -1274,7 +1277,7 @@ class AstToPydanticConverter:
             else:
                 return {"raw_value": str(ast_hill_shading)}
         except Exception as e:
-            print(f"Warning: Failed to convert hill shading: {e}")
+            logger.warning("Failed to convert hill shading: %s", e)
             return {"raw_value": str(ast_hill_shading)}
 
 

@@ -783,6 +783,28 @@ class TestFontSizeExpression:
         assert json1 == json2
 
 
+class TestAstConverterLoggingNotPrint:
+    """AstToPydanticConverter's per-field except-blocks must use logging,
+    not print() (CLAUDE.md: "Do not use print() for logging"). A failure
+    converting one field (e.g. a malformed opacity) is swallowed and the
+    field dropped either way — this only pins down *how* it's reported.
+    """
+
+    def test_fill_conversion_failure_logs_a_warning_not_a_print(self, caplog, capsys):
+        from pycartosym.ast import Fill as AstFill
+        from pycartosym.ast_converter import AstToPydanticConverter
+
+        converter = AstToPydanticConverter()
+        bad_fill = AstFill(opacity="not-a-number")
+
+        with caplog.at_level("WARNING", logger="pycartosym.ast_converter"):
+            result = converter._convert_fill(bad_fill)
+
+        assert result is None
+        assert any("Failed to convert fill" in rec.message for rec in caplog.records)
+        assert capsys.readouterr().out == ""
+
+
 class TestGraphicElementNormalization:
     """Verify _normalize_graphic_element handles text and alignment."""
 
